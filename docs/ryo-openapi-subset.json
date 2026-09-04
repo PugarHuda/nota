@@ -1,0 +1,2897 @@
+{
+ "paths": {
+  "/api/hackathon/config": {
+   "get": {
+    "tags": [
+     "hackathon"
+    ],
+    "summary": "Get Config",
+    "description": "Dates, phases, prizes, resources, contacts, and authoritative server time.",
+    "operationId": "get_config_api_hackathon_config_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HackathonConfig"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/hackathon/submission": {
+   "get": {
+    "tags": [
+     "hackathon"
+    ],
+    "summary": "Get Submission",
+    "description": "Return the caller's registration/submission, never another user's.",
+    "operationId": "get_submission_api_hackathon_submission_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SubmissionResponse"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/hackathon/submission/draft": {
+   "put": {
+    "tags": [
+     "hackathon"
+    ],
+    "summary": "Save Draft",
+    "description": "Join with an empty first body, or save a draft with its required fields.",
+    "operationId": "save_draft_api_hackathon_submission_draft_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/HackathonSubmissionFields"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DraftSavedResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/hackathon/submission/submit": {
+   "post": {
+    "tags": [
+     "hackathon"
+    ],
+    "summary": "Submit",
+    "description": "Validate and finalize the caller's project submission.",
+    "operationId": "submit_api_hackathon_submission_submit_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/HackathonSubmissionFields"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SubmittedResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/hackathon/repo-request": {
+   "post": {
+    "tags": [
+     "hackathon"
+    ],
+    "summary": "Request Repo",
+    "description": "Flag the submission so an organiser can manually create a private repo.",
+    "operationId": "request_repo_api_hackathon_repo_request_post",
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RepoRequestResponse"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/market/intelligence": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Intelligence",
+    "operationId": "intelligence_api_market_intelligence_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MarketIntelligence"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/market/overview": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Overview",
+    "operationId": "overview_api_market_overview_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MarketOverview"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/market/scan": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Scan",
+    "operationId": "scan_api_market_scan_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "chain",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "$ref": "#/components/schemas/Chain",
+       "default": "eth"
+      }
+     },
+     {
+      "name": "theme",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Theme"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ScanResult"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/market/ohlcv/{symbol}": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Ohlcv",
+    "description": "Daily USD candles for the in-chat token chart (real CMC data only).",
+    "operationId": "ohlcv_api_market_ohlcv__symbol__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "symbol",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Symbol"
+      }
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 120,
+       "minimum": 2,
+       "default": 90,
+       "title": "Days"
+      }
+     },
+     {
+      "name": "cmc_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "minimum": 1
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cmc Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenOhlcv"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/market/token/{symbol}": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Token",
+    "operationId": "token_api_market_token__symbol__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "symbol",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Symbol"
+      }
+     },
+     {
+      "name": "chain",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/Chain"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Chain"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenAnalysis"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/skills/": {
+   "get": {
+    "tags": [
+     "skills"
+    ],
+    "summary": "List Skills",
+    "operationId": "list_skills_api_skills__get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SkillDefinition"
+         },
+         "type": "array",
+         "title": "Response List Skills Api Skills  Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/skills/{name}": {
+   "get": {
+    "tags": [
+     "skills"
+    ],
+    "summary": "Skill Def",
+    "operationId": "skill_def_api_skills__name__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Name"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SkillDefinition"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/skills/{name}/invoke": {
+   "post": {
+    "tags": [
+     "skills"
+    ],
+    "summary": "Invoke Skill",
+    "operationId": "invoke_skill_api_skills__name__invoke_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Name"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SkillCallRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SkillCallResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/mcp/health": {
+   "get": {
+    "tags": [
+     "mcp"
+    ],
+    "summary": "Mcp Health",
+    "operationId": "mcp_health_api_mcp_health_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "title": "Response Mcp Health Api Mcp Health Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/mcp/whoami": {
+   "get": {
+    "tags": [
+     "mcp"
+    ],
+    "summary": "Whoami",
+    "description": "Confirm a credential and read remaining quota.\n\nUses ``peek``, not ``hit``: checking your own quota must not consume it.",
+    "operationId": "whoami_api_mcp_whoami_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BuilderWhoAmI"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/mcp/tools": {
+   "get": {
+    "tags": [
+     "mcp"
+    ],
+    "summary": "List Tools",
+    "description": "The published catalog. Authenticated — unlike ``GET /api/skills/``, this does\nnot expose the full chat-skill registry, and there is no reason to let anonymous\ncallers enumerate even the published builder tools.\n\nNot charged against either bucket, and so carries no ``X-RateLimit-*`` headers:\nthe catalog costs nothing upstream, and a client re-reading it should not spend\nits call budget on discovery. Read quota from ``/whoami`` or from a tool call.",
+    "operationId": "list_tools_api_mcp_tools_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/McpToolInfo"
+         },
+         "type": "array",
+         "title": "Response List Tools Api Mcp Tools Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/mcp/tools/{tool_name}/call": {
+   "post": {
+    "tags": [
+     "mcp"
+    ],
+    "summary": "Call Tool Rest",
+    "description": "REST equivalent of ``tools/call``.\n\nUnlike JSON-RPC, a failing tool here surfaces as HTTP 400 with an\n``ErrorEnvelope`` — REST clients expect status codes to carry failure, and the\ntrace_id lands in the body either way.",
+    "operationId": "call_tool_rest_api_mcp_tools__tool_name__call_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "tool_name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Tool Name"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "type": "object"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "title": "Response Call Tool Rest Api Mcp Tools  Tool Name  Call Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/mcp": {
+   "post": {
+    "tags": [
+     "mcp"
+    ],
+    "summary": "Jsonrpc",
+    "description": "Single JSON-RPC endpoint: ``initialize``, ``tools/list``, ``tools/call``.\n\nParsed by hand rather than via a FastAPI body model because a malformed body\nmust produce a JSON-RPC error object, not FastAPI's 422 — an MCP client cannot\nread the latter. Notifications (no ``id``) get 202 with no body, as the spec\nrequires.",
+    "operationId": "jsonrpc_api_mcp_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  }
+ },
+ "schemas": {
+  "AdminHackathonOverview": {
+   "properties": {
+    "registered_participants": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Registered Participants"
+    },
+    "new_participants_today": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "New Participants Today"
+    },
+    "draft_submissions": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Draft Submissions"
+    },
+    "completed_submissions": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Completed Submissions"
+    },
+    "submitted_projects": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Submitted Projects"
+    },
+    "participation_history": {
+     "items": {
+      "$ref": "#/components/schemas/AdminHackathonRegistrationPoint"
+     },
+     "type": "array",
+     "title": "Participation History"
+    },
+    "as_of": {
+     "type": "string",
+     "format": "date-time",
+     "title": "As Of"
+    },
+    "timezone": {
+     "type": "string",
+     "const": "UTC",
+     "title": "Timezone",
+     "default": "UTC"
+    }
+   },
+   "type": "object",
+   "required": [
+    "registered_participants",
+    "new_participants_today",
+    "draft_submissions",
+    "completed_submissions",
+    "submitted_projects",
+    "as_of"
+   ],
+   "title": "AdminHackathonOverview"
+  },
+  "AdminHackathonRegistrationPoint": {
+   "properties": {
+    "date": {
+     "type": "string",
+     "format": "date",
+     "title": "Date"
+    },
+    "registered_participants": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Registered Participants"
+    },
+    "new_participants": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "New Participants"
+    }
+   },
+   "type": "object",
+   "required": [
+    "date",
+    "registered_participants",
+    "new_participants"
+   ],
+   "title": "AdminHackathonRegistrationPoint"
+  },
+  "AdminHackathonRepoRequestStatus": {
+   "type": "string",
+   "enum": [
+    "none",
+    "pending",
+    "created"
+   ],
+   "title": "AdminHackathonRepoRequestStatus"
+  },
+  "AdminHackathonReviewRequest": {
+   "properties": {
+    "status": {
+     "$ref": "#/components/schemas/AdminHackathonReviewStatus"
+    },
+    "review_comment": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 2000
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Review Comment"
+    }
+   },
+   "additionalProperties": false,
+   "type": "object",
+   "required": [
+    "status"
+   ],
+   "title": "AdminHackathonReviewRequest"
+  },
+  "AdminHackathonReviewStatus": {
+   "type": "string",
+   "enum": [
+    "under_review",
+    "accepted",
+    "rejected",
+    "needs_changes"
+   ],
+   "title": "AdminHackathonReviewStatus"
+  },
+  "AdminHackathonSubmissionList": {
+   "properties": {
+    "items": {
+     "items": {
+      "$ref": "#/components/schemas/AdminHackathonSubmissionView"
+     },
+     "type": "array",
+     "title": "Items"
+    },
+    "summary": {
+     "$ref": "#/components/schemas/AdminHackathonSubmissionSummary"
+    }
+   },
+   "type": "object",
+   "required": [
+    "items",
+    "summary"
+   ],
+   "title": "AdminHackathonSubmissionList"
+  },
+  "AdminHackathonSubmissionStatus": {
+   "type": "string",
+   "enum": [
+    "draft",
+    "submitted",
+    "under_review",
+    "accepted",
+    "rejected",
+    "needs_changes"
+   ],
+   "title": "AdminHackathonSubmissionStatus"
+  },
+  "AdminHackathonSubmissionSummary": {
+   "properties": {
+    "total": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Total"
+    },
+    "submitted_projects": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Submitted Projects"
+    },
+    "under_review": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Under Review"
+    },
+    "needs_changes": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Needs Changes"
+    },
+    "github_requests": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Github Requests"
+    },
+    "pending_github_requests": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Pending Github Requests"
+    }
+   },
+   "type": "object",
+   "required": [
+    "total",
+    "submitted_projects",
+    "under_review",
+    "needs_changes",
+    "github_requests",
+    "pending_github_requests"
+   ],
+   "title": "AdminHackathonSubmissionSummary"
+  },
+  "AdminHackathonSubmissionView": {
+   "properties": {
+    "id": {
+     "type": "string",
+     "title": "Id"
+    },
+    "status": {
+     "$ref": "#/components/schemas/AdminHackathonSubmissionStatus"
+    },
+    "team_name": {
+     "type": "string",
+     "title": "Team Name"
+    },
+    "participant_name": {
+     "type": "string",
+     "title": "Participant Name"
+    },
+    "email": {
+     "type": "string",
+     "title": "Email"
+    },
+    "discord_id": {
+     "type": "string",
+     "title": "Discord Id"
+    },
+    "github_username": {
+     "type": "string",
+     "title": "Github Username"
+    },
+    "project_name": {
+     "type": "string",
+     "title": "Project Name"
+    },
+    "tracks": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "title": "Tracks"
+    },
+    "project_description": {
+     "type": "string",
+     "title": "Project Description"
+    },
+    "demo_video_url": {
+     "type": "string",
+     "title": "Demo Video Url"
+    },
+    "repo_url": {
+     "type": "string",
+     "title": "Repo Url"
+    },
+    "x_post_url": {
+     "type": "string",
+     "title": "X Post Url"
+    },
+    "agree_rules": {
+     "type": "boolean",
+     "title": "Agree Rules"
+    },
+    "confirm_no_secrets": {
+     "type": "boolean",
+     "title": "Confirm No Secrets"
+    },
+    "review_comment": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Review Comment"
+    },
+    "repo_request_status": {
+     "$ref": "#/components/schemas/AdminHackathonRepoRequestStatus"
+    },
+    "repo_requested_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Repo Requested At"
+    },
+    "repo_created_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Repo Created At"
+    },
+    "submitted_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Submitted At"
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "title": "Created At"
+    },
+    "updated_at": {
+     "type": "string",
+     "format": "date-time",
+     "title": "Updated At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "id",
+    "status",
+    "team_name",
+    "participant_name",
+    "email",
+    "discord_id",
+    "github_username",
+    "project_name",
+    "tracks",
+    "project_description",
+    "demo_video_url",
+    "repo_url",
+    "x_post_url",
+    "agree_rules",
+    "confirm_no_secrets",
+    "repo_request_status",
+    "created_at",
+    "updated_at"
+   ],
+   "title": "AdminHackathonSubmissionView",
+   "description": "Private organiser view of one hackathon registration/submission.\n\nThe auth user id is intentionally omitted. Organisers get the participant's\nsupplied contact and project fields without exposing the platform identity key."
+  },
+  "FeedbackReport": {
+   "properties": {
+    "kind": {
+     "type": "string",
+     "title": "Kind",
+     "description": "bug | feature | praise | other"
+    },
+    "message": {
+     "type": "string",
+     "title": "Message"
+    },
+    "route": {
+     "type": "string",
+     "title": "Route"
+    },
+    "user_agent": {
+     "type": "string",
+     "title": "User Agent"
+    },
+    "email": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Email"
+    }
+   },
+   "type": "object",
+   "required": [
+    "kind",
+    "message",
+    "route",
+    "user_agent"
+   ],
+   "title": "FeedbackReport"
+  },
+  "GlobalMarket": {
+   "properties": {
+    "btc_dominance": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Btc Dominance"
+    },
+    "eth_dominance": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Eth Dominance"
+    },
+    "total_mcap_usd": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Total Mcap Usd"
+    },
+    "mcap_24h_pct": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Mcap 24H Pct"
+    }
+   },
+   "type": "object",
+   "title": "GlobalMarket"
+  },
+  "HackathonConfig": {
+   "properties": {
+    "server_time": {
+     "type": "string",
+     "title": "Server Time"
+    },
+    "current_phase": {
+     "$ref": "#/components/schemas/HackathonPhaseKey"
+    },
+    "phases": {
+     "items": {
+      "$ref": "#/components/schemas/HackathonPhase"
+     },
+     "type": "array",
+     "title": "Phases"
+    },
+    "prize_pool_usd": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Prize Pool Usd"
+    },
+    "awards_count": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Awards Count"
+    },
+    "grand_prize": {
+     "type": "string",
+     "title": "Grand Prize"
+    },
+    "prizes": {
+     "items": {
+      "$ref": "#/components/schemas/HackathonPrize"
+     },
+     "type": "array",
+     "title": "Prizes"
+    },
+    "tracks": {
+     "items": {
+      "$ref": "#/components/schemas/HackathonTrack"
+     },
+     "type": "array",
+     "title": "Tracks"
+    },
+    "resources": {
+     "items": {
+      "$ref": "#/components/schemas/HackathonResource"
+     },
+     "type": "array",
+     "title": "Resources"
+    },
+    "contacts": {
+     "$ref": "#/components/schemas/HackathonContacts"
+    },
+    "landing_url": {
+     "type": "string",
+     "title": "Landing Url"
+    }
+   },
+   "type": "object",
+   "required": [
+    "server_time",
+    "current_phase",
+    "phases",
+    "prize_pool_usd",
+    "awards_count",
+    "grand_prize",
+    "prizes",
+    "tracks",
+    "resources",
+    "contacts",
+    "landing_url"
+   ],
+   "title": "HackathonConfig"
+  },
+  "HackathonContacts": {
+   "properties": {
+    "help_desk": {
+     "type": "string",
+     "title": "Help Desk"
+    },
+    "x": {
+     "type": "string",
+     "title": "X"
+    },
+    "site": {
+     "type": "string",
+     "title": "Site"
+    },
+    "telegram_topic": {
+     "type": "string",
+     "title": "Telegram Topic"
+    }
+   },
+   "type": "object",
+   "required": [
+    "help_desk",
+    "x",
+    "site",
+    "telegram_topic"
+   ],
+   "title": "HackathonContacts"
+  },
+  "HackathonPhase": {
+   "properties": {
+    "key": {
+     "$ref": "#/components/schemas/HackathonPhaseKey"
+    },
+    "label": {
+     "type": "string",
+     "title": "Label"
+    },
+    "starts_at": {
+     "type": "string",
+     "title": "Starts At"
+    },
+    "ends_at": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Ends At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "key",
+    "label",
+    "starts_at"
+   ],
+   "title": "HackathonPhase"
+  },
+  "HackathonPhaseKey": {
+   "type": "string",
+   "enum": [
+    "registration",
+    "submission_open",
+    "submission_close",
+    "judging",
+    "winners"
+   ],
+   "title": "HackathonPhaseKey"
+  },
+  "HackathonPrize": {
+   "properties": {
+    "track": {
+     "anyOf": [
+      {
+       "$ref": "#/components/schemas/TrackKey"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "title": {
+     "type": "string",
+     "title": "Title"
+    },
+    "total_usd": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Total Usd"
+    },
+    "places": {
+     "items": {
+      "type": "integer"
+     },
+     "type": "array",
+     "title": "Places"
+    }
+   },
+   "type": "object",
+   "required": [
+    "title",
+    "total_usd",
+    "places"
+   ],
+   "title": "HackathonPrize"
+  },
+  "HackathonResource": {
+   "properties": {
+    "title": {
+     "type": "string",
+     "title": "Title"
+    },
+    "url": {
+     "type": "string",
+     "title": "Url"
+    }
+   },
+   "type": "object",
+   "required": [
+    "title",
+    "url"
+   ],
+   "title": "HackathonResource"
+  },
+  "HackathonSubmission": {
+   "properties": {
+    "id": {
+     "type": "string",
+     "title": "Id"
+    },
+    "team_name": {
+     "type": "string",
+     "title": "Team Name"
+    },
+    "participant_name": {
+     "type": "string",
+     "title": "Participant Name"
+    },
+    "email": {
+     "type": "string",
+     "title": "Email"
+    },
+    "discord_id": {
+     "type": "string",
+     "title": "Discord Id"
+    },
+    "github_username": {
+     "type": "string",
+     "title": "Github Username"
+    },
+    "project_name": {
+     "type": "string",
+     "title": "Project Name"
+    },
+    "tracks": {
+     "items": {
+      "$ref": "#/components/schemas/TrackKey"
+     },
+     "type": "array",
+     "title": "Tracks"
+    },
+    "project_description": {
+     "type": "string",
+     "title": "Project Description"
+    },
+    "demo_video_url": {
+     "type": "string",
+     "title": "Demo Video Url"
+    },
+    "repo_url": {
+     "type": "string",
+     "title": "Repo Url"
+    },
+    "x_post_url": {
+     "type": "string",
+     "title": "X Post Url"
+    },
+    "agree_rules": {
+     "type": "boolean",
+     "title": "Agree Rules"
+    },
+    "confirm_no_secrets": {
+     "type": "boolean",
+     "title": "Confirm No Secrets"
+    },
+    "review_comment": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Review Comment"
+    },
+    "submitted_at": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Submitted At"
+    },
+    "created_at": {
+     "type": "string",
+     "title": "Created At"
+    },
+    "updated_at": {
+     "type": "string",
+     "title": "Updated At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "id",
+    "team_name",
+    "participant_name",
+    "email",
+    "discord_id",
+    "github_username",
+    "project_name",
+    "tracks",
+    "project_description",
+    "demo_video_url",
+    "repo_url",
+    "x_post_url",
+    "agree_rules",
+    "confirm_no_secrets",
+    "created_at",
+    "updated_at"
+   ],
+   "title": "HackathonSubmission"
+  },
+  "HackathonSubmissionFields": {
+   "properties": {
+    "team_name": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Team Name"
+    },
+    "participant_name": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Participant Name"
+    },
+    "email": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Email"
+    },
+    "discord_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Discord Id"
+    },
+    "github_username": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Github Username"
+    },
+    "project_name": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Project Name"
+    },
+    "tracks": {
+     "anyOf": [
+      {
+       "items": {
+        "$ref": "#/components/schemas/TrackKey"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Tracks"
+    },
+    "project_description": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Project Description"
+    },
+    "demo_video_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Demo Video Url"
+    },
+    "repo_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Repo Url"
+    },
+    "x_post_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "X Post Url"
+    },
+    "agree_rules": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Agree Rules"
+    },
+    "confirm_no_secrets": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Confirm No Secrets"
+    }
+   },
+   "additionalProperties": false,
+   "type": "object",
+   "title": "HackathonSubmissionFields",
+   "description": "Partial request body used by both draft-save and final-submit.\n\nRequiredness is deliberately enforced by the service on final submit so the\nfrontend receives field-specific errors instead of a generic FastAPI 422."
+  },
+  "HackathonTrack": {
+   "properties": {
+    "key": {
+     "$ref": "#/components/schemas/TrackKey"
+    },
+    "title": {
+     "type": "string",
+     "title": "Title"
+    }
+   },
+   "type": "object",
+   "required": [
+    "key",
+    "title"
+   ],
+   "title": "HackathonTrack"
+  },
+  "MarketIntelligence": {
+   "properties": {
+    "regime": {
+     "type": "string",
+     "title": "Regime",
+     "default": "NEUTRAL"
+    },
+    "capital_rotation": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Capital Rotation"
+    },
+    "risk_budget": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Risk Budget"
+    },
+    "total_mcap_usd": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Total Mcap Usd"
+    },
+    "mcap_change_24h_pct": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Mcap Change 24H Pct"
+    },
+    "btc_dominance_pct": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Btc Dominance Pct"
+    },
+    "breadth_pct": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Breadth Pct"
+    },
+    "fear_greed": {
+     "anyOf": [
+      {
+       "$ref": "#/components/schemas/FearGreed"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "readiness": {
+     "items": {
+      "$ref": "#/components/schemas/ReadinessRow"
+     },
+     "type": "array",
+     "title": "Readiness"
+    },
+    "trending": {
+     "items": {
+      "$ref": "#/components/schemas/ReadinessRow"
+     },
+     "type": "array",
+     "title": "Trending"
+    },
+    "scanner": {
+     "items": {
+      "$ref": "#/components/schemas/ScannerPick"
+     },
+     "type": "array",
+     "title": "Scanner"
+    },
+    "backend": {
+     "type": "string",
+     "title": "Backend",
+     "default": ""
+    },
+    "generated_at": {
+     "type": "string",
+     "title": "Generated At",
+     "default": ""
+    }
+   },
+   "type": "object",
+   "title": "MarketIntelligence",
+   "description": "``GET /market/intelligence`` — the market dashboard payload."
+  },
+  "MarketOverview": {
+   "properties": {
+    "regime": {
+     "anyOf": [
+      {
+       "type": "string",
+       "enum": [
+        "risk_on",
+        "risk_off",
+        "rotation",
+        "chop"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Regime"
+    },
+    "fear_greed": {
+     "anyOf": [
+      {
+       "$ref": "#/components/schemas/FearGreed"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "global": {
+     "$ref": "#/components/schemas/GlobalMarket"
+    },
+    "top_movers": {
+     "$ref": "#/components/schemas/TopMovers"
+    },
+    "generated_at": {
+     "type": "string",
+     "title": "Generated At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "global",
+    "top_movers",
+    "generated_at"
+   ],
+   "title": "MarketOverview",
+   "description": "``GET /market/overview``."
+  },
+  "McpKeyBatchCreateRequest": {
+   "properties": {
+    "ttl_days": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "maximum": 365.0,
+       "minimum": 1.0
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Ttl Days"
+    },
+    "expires_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Expires At"
+    },
+    "rate_per_min": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "maximum": 10000.0,
+       "minimum": 1.0
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Rate Per Min"
+    },
+    "scopes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "maxItems": 8,
+     "minItems": 1,
+     "title": "Scopes"
+    },
+    "prefix": {
+     "type": "string",
+     "maxLength": 60,
+     "minLength": 2,
+     "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]*$",
+     "title": "Prefix"
+    },
+    "count": {
+     "type": "integer",
+     "maximum": 100.0,
+     "minimum": 2.0,
+     "title": "Count"
+    }
+   },
+   "additionalProperties": false,
+   "type": "object",
+   "required": [
+    "prefix",
+    "count"
+   ],
+   "title": "McpKeyBatchCreateRequest"
+  },
+  "McpKeyBatchIssued": {
+   "properties": {
+    "items": {
+     "items": {
+      "$ref": "#/components/schemas/McpKeyIssued"
+     },
+     "type": "array",
+     "title": "Items"
+    }
+   },
+   "type": "object",
+   "required": [
+    "items"
+   ],
+   "title": "McpKeyBatchIssued"
+  },
+  "McpKeyBatchRevokeRequest": {
+   "properties": {
+    "key_ids": {
+     "items": {
+      "type": "string",
+      "maxLength": 8,
+      "minLength": 8,
+      "pattern": "^[A-Za-z0-9]+$"
+     },
+     "type": "array",
+     "maxItems": 100,
+     "minItems": 1,
+     "title": "Key Ids"
+    }
+   },
+   "additionalProperties": false,
+   "type": "object",
+   "required": [
+    "key_ids"
+   ],
+   "title": "McpKeyBatchRevokeRequest"
+  },
+  "McpKeyBatchRevokeResponse": {
+   "properties": {
+    "items": {
+     "items": {
+      "$ref": "#/components/schemas/McpKeyRevokeResponse"
+     },
+     "type": "array",
+     "title": "Items"
+    },
+    "revoked_count": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Revoked Count"
+    },
+    "unchanged_count": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Unchanged Count"
+    }
+   },
+   "type": "object",
+   "required": [
+    "items",
+    "revoked_count",
+    "unchanged_count"
+   ],
+   "title": "McpKeyBatchRevokeResponse"
+  },
+  "McpKeyCreateRequest": {
+   "properties": {
+    "ttl_days": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "maximum": 365.0,
+       "minimum": 1.0
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Ttl Days"
+    },
+    "expires_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Expires At"
+    },
+    "rate_per_min": {
+     "anyOf": [
+      {
+       "type": "integer",
+       "maximum": 10000.0,
+       "minimum": 1.0
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Rate Per Min"
+    },
+    "scopes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "maxItems": 8,
+     "minItems": 1,
+     "title": "Scopes"
+    },
+    "label": {
+     "type": "string",
+     "maxLength": 80,
+     "minLength": 2,
+     "pattern": "^[^\\r\\n]+$",
+     "title": "Label"
+    }
+   },
+   "additionalProperties": false,
+   "type": "object",
+   "required": [
+    "label"
+   ],
+   "title": "McpKeyCreateRequest"
+  },
+  "McpKeyIssued": {
+   "properties": {
+    "key": {
+     "$ref": "#/components/schemas/McpKeyView"
+    },
+    "credential": {
+     "type": "string",
+     "title": "Credential"
+    }
+   },
+   "type": "object",
+   "required": [
+    "key",
+    "credential"
+   ],
+   "title": "McpKeyIssued"
+  },
+  "McpKeyListResponse": {
+   "properties": {
+    "items": {
+     "items": {
+      "$ref": "#/components/schemas/McpKeyView"
+     },
+     "type": "array",
+     "title": "Items"
+    },
+    "summary": {
+     "$ref": "#/components/schemas/McpKeySummary"
+    }
+   },
+   "type": "object",
+   "required": [
+    "items",
+    "summary"
+   ],
+   "title": "McpKeyListResponse"
+  },
+  "McpKeyRevokeResponse": {
+   "properties": {
+    "key_id": {
+     "type": "string",
+     "title": "Key Id"
+    },
+    "revoked": {
+     "type": "boolean",
+     "title": "Revoked"
+    },
+    "revoked_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Revoked At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "key_id",
+    "revoked"
+   ],
+   "title": "McpKeyRevokeResponse"
+  },
+  "McpKeyStatus": {
+   "type": "string",
+   "enum": [
+    "active",
+    "expired",
+    "revoked"
+   ],
+   "title": "McpKeyStatus"
+  },
+  "McpKeySummary": {
+   "properties": {
+    "total": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Total"
+    },
+    "active": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Active"
+    },
+    "expiring_soon": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Expiring Soon"
+    },
+    "expired": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Expired"
+    },
+    "revoked": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Revoked"
+    },
+    "total_calls": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Total Calls"
+    }
+   },
+   "type": "object",
+   "required": [
+    "total",
+    "active",
+    "expiring_soon",
+    "expired",
+    "revoked",
+    "total_calls"
+   ],
+   "title": "McpKeySummary"
+  },
+  "McpKeyView": {
+   "properties": {
+    "key_id": {
+     "type": "string",
+     "title": "Key Id"
+    },
+    "label": {
+     "type": "string",
+     "title": "Label"
+    },
+    "scopes": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "title": "Scopes"
+    },
+    "rate_per_min": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Rate Per Min"
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "title": "Created At"
+    },
+    "expires_at": {
+     "type": "string",
+     "format": "date-time",
+     "title": "Expires At"
+    },
+    "revoked_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Revoked At"
+    },
+    "last_used_at": {
+     "anyOf": [
+      {
+       "type": "string",
+       "format": "date-time"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Last Used At"
+    },
+    "call_count": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Call Count"
+    },
+    "status": {
+     "$ref": "#/components/schemas/McpKeyStatus"
+    }
+   },
+   "type": "object",
+   "required": [
+    "key_id",
+    "label",
+    "scopes",
+    "created_at",
+    "expires_at",
+    "call_count",
+    "status"
+   ],
+   "title": "McpKeyView"
+  },
+  "McpToolInfo": {
+   "properties": {
+    "name": {
+     "type": "string",
+     "title": "Name"
+    },
+    "description": {
+     "type": "string",
+     "title": "Description"
+    },
+    "inputSchema": {
+     "type": "object",
+     "title": "Inputschema"
+    }
+   },
+   "type": "object",
+   "required": [
+    "name",
+    "description",
+    "inputSchema"
+   ],
+   "title": "McpToolInfo",
+   "description": "One published tool. ``inputSchema`` is camelCase because that is what the MCP\n``tools/list`` result requires — the registry's own ``ToolSpec`` uses\n``input_schema``, so this is a deliberate rename at the boundary rather than a\nchange to the shared registry."
+  },
+  "RepoRequestResponse": {
+   "properties": {
+    "repo_request_status": {
+     "$ref": "#/components/schemas/RepoRequestStatus"
+    },
+    "requested_at": {
+     "type": "string",
+     "title": "Requested At"
+    },
+    "next_request_allowed_at": {
+     "type": "string",
+     "title": "Next Request Allowed At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "repo_request_status",
+    "requested_at",
+    "next_request_allowed_at"
+   ],
+   "title": "RepoRequestResponse"
+  },
+  "RepoRequestStatus": {
+   "type": "string",
+   "enum": [
+    "none",
+    "pending",
+    "created"
+   ],
+   "title": "RepoRequestStatus"
+  },
+  "ScanCandidate": {
+   "properties": {
+    "symbol": {
+     "type": "string",
+     "title": "Symbol"
+    },
+    "name": {
+     "type": "string",
+     "title": "Name"
+    },
+    "contract": {
+     "type": "string",
+     "title": "Contract"
+    },
+    "score": {
+     "type": "number",
+     "title": "Score"
+    },
+    "reason": {
+     "type": "string",
+     "title": "Reason"
+    },
+    "price_usd": {
+     "type": "string",
+     "title": "Price Usd"
+    },
+    "change_24h_pct": {
+     "type": "number",
+     "title": "Change 24H Pct"
+    },
+    "liquidity_usd": {
+     "type": "string",
+     "title": "Liquidity Usd"
+    }
+   },
+   "type": "object",
+   "required": [
+    "symbol",
+    "name",
+    "contract",
+    "score",
+    "reason",
+    "price_usd",
+    "change_24h_pct",
+    "liquidity_usd"
+   ],
+   "title": "ScanCandidate"
+  },
+  "ScanResult": {
+   "properties": {
+    "chain": {
+     "$ref": "#/components/schemas/Chain"
+    },
+    "candidates": {
+     "items": {
+      "$ref": "#/components/schemas/ScanCandidate"
+     },
+     "type": "array",
+     "title": "Candidates"
+    },
+    "generated_at": {
+     "type": "string",
+     "title": "Generated At"
+    }
+   },
+   "type": "object",
+   "required": [
+    "chain",
+    "generated_at"
+   ],
+   "title": "ScanResult",
+   "description": "``GET /market/scan``."
+  },
+  "ScannerPick": {
+   "properties": {
+    "symbol": {
+     "type": "string",
+     "title": "Symbol"
+    },
+    "name": {
+     "type": "string",
+     "title": "Name",
+     "default": ""
+    },
+    "cmc_id": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Cmc Id"
+    },
+    "logo_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Logo Url"
+    },
+    "price_velocity_24h_pct": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Price Velocity 24H Pct"
+    },
+    "volume_multiplier": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Volume Multiplier"
+    },
+    "narrative_strength": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Narrative Strength"
+    },
+    "momentum_rank": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Momentum Rank"
+    },
+    "ema_cross": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Ema Cross"
+    },
+    "whitelisted": {
+     "type": "boolean",
+     "title": "Whitelisted",
+     "default": false
+    }
+   },
+   "type": "object",
+   "required": [
+    "symbol"
+   ],
+   "title": "ScannerPick",
+   "description": "A live breakout-scanner candidate."
+  },
+  "SkillArgSchema": {
+   "properties": {
+    "name": {
+     "type": "string",
+     "title": "Name"
+    },
+    "type": {
+     "$ref": "#/components/schemas/SkillArgType"
+    },
+    "required": {
+     "type": "boolean",
+     "title": "Required",
+     "default": true
+    },
+    "description": {
+     "type": "string",
+     "title": "Description"
+    },
+    "enum": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Enum"
+    },
+    "items": {
+     "anyOf": [
+      {
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Items",
+     "description": "JSON-Schema for array items (only meaningful when type is 'array')."
+    }
+   },
+   "type": "object",
+   "required": [
+    "name",
+    "type",
+    "description"
+   ],
+   "title": "SkillArgSchema"
+  },
+  "SkillArgType": {
+   "type": "string",
+   "enum": [
+    "string",
+    "number",
+    "boolean",
+    "object",
+    "array"
+   ],
+   "title": "SkillArgType"
+  },
+  "SkillCallRecord": {
+   "properties": {
+    "id": {
+     "type": "string",
+     "title": "Id"
+    },
+    "name": {
+     "type": "string",
+     "title": "Name"
+    },
+    "args": {
+     "type": "object",
+     "title": "Args"
+    },
+    "status": {
+     "type": "string",
+     "title": "Status"
+    },
+    "result": {
+     "anyOf": [
+      {
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Result"
+    },
+    "latency_ms": {
+     "type": "integer",
+     "title": "Latency Ms",
+     "default": 0
+    },
+    "xp": {
+     "type": "integer",
+     "title": "Xp",
+     "default": 0
+    },
+    "started_at": {
+     "type": "string",
+     "title": "Started At",
+     "default": ""
+    },
+    "ended_at": {
+     "type": "string",
+     "title": "Ended At",
+     "default": ""
+    }
+   },
+   "type": "object",
+   "required": [
+    "id",
+    "name",
+    "status"
+   ],
+   "title": "SkillCallRecord"
+  },
+  "SkillCallRequest": {
+   "properties": {
+    "name": {
+     "$ref": "#/components/schemas/SkillName"
+    },
+    "args": {
+     "type": "object",
+     "title": "Args"
+    },
+    "conversation_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Conversation Id"
+    }
+   },
+   "type": "object",
+   "required": [
+    "name",
+    "args"
+   ],
+   "title": "SkillCallRequest"
+  },
+  "SkillCallResponse": {
+   "properties": {
+    "name": {
+     "$ref": "#/components/schemas/SkillName"
+    },
+    "status": {
+     "$ref": "#/components/schemas/SkillCastStatus"
+    },
+    "result": {
+     "type": "object",
+     "title": "Result"
+    },
+    "latency_ms": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Latency Ms"
+    },
+    "xp": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Xp"
+    },
+    "guard_decision": {
+     "anyOf": [
+      {
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Guard Decision",
+     "description": "Present when the skill was guard-gated (execute_*/orders)."
+    }
+   },
+   "type": "object",
+   "required": [
+    "name",
+    "status",
+    "result"
+   ],
+   "title": "SkillCallResponse"
+  },
+  "SkillCastStatus": {
+   "type": "string",
+   "enum": [
+    "pending",
+    "running",
+    "success",
+    "error"
+   ],
+   "title": "SkillCastStatus",
+   "description": "Lifecycle of a single streamed skill invocation."
+  },
+  "SkillDefinition": {
+   "properties": {
+    "name": {
+     "$ref": "#/components/schemas/SkillName"
+    },
+    "description": {
+     "type": "string",
+     "title": "Description"
+    },
+    "args": {
+     "items": {
+      "$ref": "#/components/schemas/SkillArgSchema"
+     },
+     "type": "array",
+     "title": "Args"
+    },
+    "requires_guard": {
+     "type": "boolean",
+     "title": "Requires Guard",
+     "description": "True for execute_*/place_limit_order/cancel_order — routed through Ryo Guard before signing.",
+     "default": false
+    },
+    "xp": {
+     "type": "integer",
+     "minimum": 0.0,
+     "title": "Xp",
+     "description": "XP awarded for casting this skill.",
+     "default": 0
+    }
+   },
+   "type": "object",
+   "required": [
+    "name",
+    "description"
+   ],
+   "title": "SkillDefinition",
+   "description": "Static definition of a skill — drives the LLM tool registry + the /api/skills list."
+  },
+  "SkillName": {
+   "type": "string",
+   "enum": [
+    "scan_market",
+    "analyze_token",
+    "deep_analysis",
+    "compare_tokens",
+    "check_safety",
+    "build_trade_setup",
+    "market_overview",
+    "get_portfolio",
+    "get_pnl",
+    "execute_trade",
+    "place_limit_order",
+    "cancel_order",
+    "swap",
+    "swap_batch",
+    "open_position",
+    "sell_limit",
+    "list_positions",
+    "close_position",
+    "watch_token",
+    "transfer_token",
+    "transfer_batch",
+    "supported_tokens",
+    "create_wallet",
+    "find_skill",
+    "execute_skill",
+    "transaction_log",
+    "notifications"
+   ],
+   "title": "SkillName"
+  },
+  "SubmissionResponse": {
+   "properties": {
+    "status": {
+     "$ref": "#/components/schemas/SubmissionStatus"
+    },
+    "repo_request_status": {
+     "$ref": "#/components/schemas/RepoRequestStatus"
+    },
+    "submission": {
+     "anyOf": [
+      {
+       "$ref": "#/components/schemas/HackathonSubmission"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "type": "object",
+   "required": [
+    "status",
+    "repo_request_status"
+   ],
+   "title": "SubmissionResponse"
+  },
+  "SubmissionStatus": {
+   "type": "string",
+   "enum": [
+    "not_started",
+    "draft",
+    "submitted",
+    "under_review",
+    "accepted",
+    "rejected",
+    "needs_changes"
+   ],
+   "title": "SubmissionStatus"
+  },
+  "TokenIntelligence": {
+   "properties": {
+    "narrative": {
+     "type": "string",
+     "title": "Narrative"
+    },
+    "catalysts": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "title": "Catalysts"
+    },
+    "risks": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "title": "Risks"
+    }
+   },
+   "type": "object",
+   "required": [
+    "narrative"
+   ],
+   "title": "TokenIntelligence"
+  },
+  "TokenMarket": {
+   "properties": {
+    "mcap_usd": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Mcap Usd"
+    },
+    "fdv_usd": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Fdv Usd"
+    },
+    "volume_24h_usd": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Volume 24H Usd"
+    },
+    "liquidity_usd": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Liquidity Usd"
+    }
+   },
+   "type": "object",
+   "title": "TokenMarket"
+  },
+  "VitalsReport": {
+   "properties": {
+    "metric": {
+     "type": "string",
+     "title": "Metric",
+     "description": "LCP | INP | CLS | TTFB | FCP"
+    },
+    "value": {
+     "type": "number",
+     "title": "Value"
+    },
+    "url": {
+     "type": "string",
+     "title": "Url"
+    },
+    "route": {
+     "type": "string",
+     "title": "Route"
+    }
+   },
+   "type": "object",
+   "required": [
+    "metric",
+    "value",
+    "url",
+    "route"
+   ],
+   "title": "VitalsReport"
+  }
+ }
+}
