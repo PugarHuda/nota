@@ -149,7 +149,8 @@ def _cached_call(ledger: Ledger, llm: LLM, pack_hash: str, role: str, system: st
         if hit is not None:
             return schema.model_validate_json(hit), True
     out = llm.complete_json(system=system, user=user, schema=schema)
-    ledger.put_cached(key, pack_hash, role, PROMPT_VERSION, llm.model, out.model_dump_json())
+    if use_cache:  # a fresh (cache-bypassing) run must not overwrite the original decision's outputs
+        ledger.put_cached(key, pack_hash, role, PROMPT_VERSION, llm.model, out.model_dump_json())
     return out, False
 
 

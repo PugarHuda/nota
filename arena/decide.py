@@ -1,0 +1,23 @@
+"""Orchestration: gather -> council -> risk -> receipt -> ledger."""
+
+from __future__ import annotations
+
+from arena.calibration import role_scores, role_weights
+from arena.council import run_council
+from arena.evidence import gather
+from arena.ledger import Ledger
+from arena.llm import LLM
+from arena.receipt import Receipt, build_receipt
+from arena.risk import RiskLimits, size_trade
+from arena.ryo_client import RyoSource
+
+
+def decide(symbol: str, source: RyoSource, llm: LLM, ledger: Ledger, limits: RiskLimits | None = None, use_cache: bool = True) -> Receipt:
+    pack = gather(source, symbol)
+    ledger.save_pack(pack.pack_hash(), pack.symbol, pack.source, pack.model_dump_json())
+    weights = role_weights(role_scores(ledger))
+    council = run_council(pack, llm, ledger, weights=weights, use_cache=use_cache)
+    trade = size_trade(council.verdict, pack, limits)
+    receipt = build_receipt(pack, council, trade)
+    ledger.save_decision(receipt.id, receipt.pack_hash, receipt.symbol, receipt.model, receipt.model_dump_json())
+    return receipt
