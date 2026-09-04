@@ -1,0 +1,32 @@
+{
+ "schema_version": "1",
+ "tool": "monitor_market_sentiment_shift",
+ "status": "partial",
+ "data_mode": "live",
+ "as_of": "2026-09-01T00:00:00Z",
+ "request": {
+  "time_window": "7d"
+ },
+ "data": {
+  "fear_greed": {
+   "now": 62,
+   "seven_days_ago": 48,
+   "change": 14
+  },
+  "phase": "expansion",
+  "derivatives": null,
+  "regime": "improving"
+ },
+ "summary": {
+  "headline": "Sentiment improved 14 points in 7d",
+  "key_points": []
+ },
+ "availability": {
+  "sentiment": "ok",
+  "derivatives": "unavailable"
+ },
+ "warnings": [
+  "derivatives source rate-limited"
+ ],
+ "trace_id": "fixture"
+}

@@ -1,0 +1,42 @@
+{
+ "schema_version": "1",
+ "tool": "analyze_token",
+ "status": "ok",
+ "data_mode": "live",
+ "as_of": "2026-09-01T00:00:00Z",
+ "request": {
+  "symbol": "SOL"
+ },
+ "data": {
+  "market": {
+   "price_usd": 150.2
+  },
+  "performance": {
+   "24h_pct": 6.1
+  },
+  "technicals": {
+   "rsi_14": 61.0,
+   "atr_14": 6.1
+  },
+  "intelligence": {
+   "narrative": "L1 rotation",
+   "catalysts": [
+    "ETF filing chatter"
+   ],
+   "risks": []
+  },
+  "verdict": {
+   "bias": "bullish"
+  }
+ },
+ "summary": {
+  "headline": "SOL steady",
+  "key_points": []
+ },
+ "availability": {
+  "market": "ok",
+  "technicals": "ok"
+ },
+ "warnings": [],
+ "trace_id": "fixture"
+}

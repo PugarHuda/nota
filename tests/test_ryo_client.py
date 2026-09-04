@@ -77,6 +77,7 @@ def test_health_is_unauthenticated():
 
 def test_fixture_name():
     assert fixture_name("analyze_token", {"symbol": "sol"}) == "SOL"
+    assert fixture_name("deep_analysis", {"symbol": "sol", "include_perp": True}) == "SOL"
     assert fixture_name("market_overview", {}) == "default"
     assert fixture_name("market_overview", None) == "default"
     assert len(fixture_name("scan_market", {"chain": "bsc", "top_n": 5})) == 12

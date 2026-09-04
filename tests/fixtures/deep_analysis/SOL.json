@@ -1,0 +1,69 @@
+{
+ "schema_version": "1",
+ "tool": "deep_analysis",
+ "status": "partial",
+ "data_mode": "live",
+ "as_of": "2026-09-01T00:00:00Z",
+ "request": {
+  "symbol": "SOL",
+  "include_perp": true
+ },
+ "data": {
+  "market": {
+   "price_usd": 150.0,
+   "mcap_usd": "7.1e10",
+   "volume_24h_usd": "3.2e9"
+  },
+  "performance": {
+   "24h_pct": 6.1,
+   "7d_pct": 11.4,
+   "30d_pct": -3.2
+  },
+  "technicals": {
+   "rsi_14": 61.3,
+   "atr_14": 6.0,
+   "ema_cross": "bullish"
+  },
+  "confluence": {
+   "score": 0.7,
+   "signals": [
+    "ema_cross_bullish",
+    "rsi_rising"
+   ]
+  },
+  "verdict": {
+   "bias": "bullish",
+   "confidence": "medium"
+  },
+  "token_profile": null,
+  "derivatives": {
+   "funding_rate": 0.01,
+   "open_interest_usd": "1.1e9"
+  },
+  "catalysts": [
+   "ETF filing chatter"
+  ],
+  "risks": [
+   "30d trend still negative"
+  ],
+  "preview_plan": {
+   "entry": 150.0,
+   "stop": 138.0,
+   "target": 168.0
+  }
+ },
+ "summary": {
+  "headline": "SOL bullish confluence",
+  "key_points": []
+ },
+ "availability": {
+  "market": "ok",
+  "technicals": "ok",
+  "token_profile": "unavailable",
+  "derivatives": "ok"
+ },
+ "warnings": [
+  "token profile unavailable"
+ ],
+ "trace_id": "fixture"
+}

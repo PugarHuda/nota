@@ -36,9 +36,12 @@ class RyoSource(Protocol):
 
 
 def fixture_name(tool: str, args: dict[str, Any] | None) -> str:
-    """Stable file name for a (tool, args) pair: symbol when present, else a short hash."""
+    """Stable file name for a (tool, args) pair: the symbol when present, else a short hash.
+
+    ponytail: symbol wins even with extra args (include_perp), so one fixture per token.
+    """
     args = args or {}
-    if "symbol" in args and len(args) == 1:
+    if "symbol" in args:
         return str(args["symbol"]).upper()
     if not args:
         return "default"
