@@ -182,6 +182,9 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 - SQLite ledger in WAL mode; every write is idempotent by content hash, so a restart resumes.
 - `watch` survives a failing symbol, a failing notifier and a failing resolution.
 - RSS is parsed with `defusedxml` (no entity expansion from untrusted feeds).
+- Some ISPs DNS-block exchange domains (seen from Indonesia: Coinbase and Kraken resolve to a
+  block page with a bad certificate). `price_crosscheck` then reports those sources
+  `unavailable` and works from whatever remains; the hosted demo on Vercel reaches all three.
 
 ## Layout
 
