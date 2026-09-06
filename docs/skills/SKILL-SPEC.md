@@ -46,10 +46,19 @@ Count independent sources for a claim and attach the token's RYO market read.
 | `symbol` | string | no | attaches `analyze_token` evidence when a RYO source is configured |
 | `max_results` | integer | no | default 6, max 20 |
 
-`data`: `claim`, `sources[]{title,url,domain,score,published_date,snippet}`, `distinct_domains`,
-`domains`, `top_score`, `verdict` (`corroborated` >= 3 domains scoring >= 0.5, `weak` 1-2,
+`data`: `claim`, `method.search` (`tavily` | `venice_web_search`), `sources[]{title,url,domain,score,published_date,snippet}`,
+`distinct_domains`, `domains`, `top_score`, `verdict` (`corroborated` >= 3 domains scoring >= 0.5, `weak` 1-2,
 `unverified` 0, `null` when search failed), `thresholds`, `market_context{...}`.
 `availability`: `search` (primary), `market`.
+
+Search backend: Tavily when `TAVILY_API_KEY` is set, otherwise Venice web search through the same
+`OPENAI_API_KEY` the council uses (`arena/skills/sources.py::search_backend`). Venice returns no
+relevance scores and usually no dates, so the envelope carries a warning that corroboration is
+not time-bound; `score` and `published_date` stay `null` rather than being invented.
+
+Sentiment lexicon is `lexicon_v2`: v1 trader slang plus news-wire verbs (`hits`, `soars`,
+`plunges`, `outflows`, ...) so headline-style channels such as WatcherGuru score instead of
+returning `null` for every post. Sizes are echoed in `data.method.lexicon_sizes`.
 
 ## Calling them
 

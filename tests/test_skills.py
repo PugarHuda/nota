@@ -86,7 +86,7 @@ def test_narrative_convergence_detects_convergence_and_reports_failures():
     assert sol["mentions"] == 2  # the 2020 'dump' post is outside the window
     assert tokens["BTC"]["sentiment_mean"] == 1.0 and tokens["BTC"]["voice_count"] == 1  # alpha's BTC post is 30h old
     assert "SOL bullish (2 voices)" in env.summary.headline
-    assert env.data["method"]["sentiment"] == "lexicon_v1"
+    assert env.data["method"]["sentiment"] == "lexicon_v2"
     assert env.data["tokens"][0]["symbol"] in ("SOL", "BTC") and env.data["tokens"][0]["converging"]
 
 

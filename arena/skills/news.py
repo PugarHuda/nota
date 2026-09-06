@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from arena.envelope import Envelope
 from arena.ryo_client import RyoError, RyoSource
 from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
-from arena.skills.sources import Tavily
+from arena.skills.sources import Tavily, VeniceSearch, search_backend
 
 DEFINITION = SkillDefinition(
     name="news_verify",
@@ -36,15 +36,18 @@ def _domain(url: str) -> str:
 
 
 def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
-                tavily: Tavily | None = None, ryo: RyoSource | None = None) -> Envelope:
-    tavily = tavily or Tavily()
+                tavily: Tavily | VeniceSearch | None = None, ryo: RyoSource | None = None) -> Envelope:
+    search = tavily or search_backend()
     max_results = max(1, min(int(max_results), 20))
     availability: dict[str, str] = {}
     warnings: list[str] = []
-    data: dict[str, Any] = {"claim": claim, "sources": [], "distinct_domains": None, "top_score": None, "verdict": None}
+    data: dict[str, Any] = {"claim": claim, "sources": [], "distinct_domains": None, "top_score": None, "verdict": None,
+                            "method": {"search": getattr(search, "name", "tavily")}}
 
     try:
-        results = tavily.search(claim, max_results=max_results, topic="news", time_range="week")
+        results = search.search(claim, max_results=max_results, topic="news", time_range="week")
+        if not getattr(search, "has_dates", True):
+            warnings.append("search backend returns no dates or relevance scores: corroboration is not time-bound and every hit counts as relevant")
         sources = [{"title": r.title, "url": r.url, "domain": _domain(r.url), "score": r.score,
                     "published_date": r.published_date, "snippet": r.content[:300]} for r in results]
         relevant = [s for s in sources if s["score"] is None or s["score"] >= MIN_SCORE]

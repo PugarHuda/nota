@@ -30,11 +30,13 @@ DEFINITION = SkillDefinition(
     ],
 )
 
-METHOD = "lexicon_v1"
+METHOD = "lexicon_v2"  # v2 adds news-wire verbs (hits/soars/plunges...) so headline-style channels score
 BULL = {"bullish", "buy", "buying", "long", "breakout", "moon", "pump", "pumping", "accumulate", "accumulating", "undervalued",
-        "ath", "rally", "surge", "surging", "higher", "support", "bottom", "bounce", "reversal", "adoption", "approved", "etf"}
+        "ath", "rally", "surge", "surging", "higher", "support", "bottom", "bounce", "reversal", "adoption", "approved", "etf",
+        "hits", "record", "highs", "soars", "soaring", "jumps", "gains", "rises", "climbs", "inflows", "recovers", "rebounds"}
 BEAR = {"bearish", "sell", "selling", "short", "dump", "dumping", "crash", "crashing", "rug", "scam", "exit", "overvalued",
-        "lower", "resistance", "top", "rejection", "liquidated", "liquidation", "hack", "exploit", "delist", "lawsuit", "ban"}
+        "lower", "resistance", "top", "rejection", "liquidated", "liquidation", "hack", "exploit", "delist", "lawsuit", "ban",
+        "falls", "drops", "plunges", "plunging", "slides", "tumbles", "loses", "outflows", "declines", "sinks", "lows", "selloff"}
 CONVICTION = {"all in", "conviction", "guaranteed", "100%", "massive", "huge", "generational", "no doubt", "easy", "obvious"}
 URGENCY = {"now", "today", "breaking", "urgent", "asap", "immediately", "just in", "right now", "last chance", "alert"}
 NAMES = {"bitcoin": "BTC", "ethereum": "ETH", "ether": "ETH", "solana": "SOL", "bnb": "BNB", "xrp": "XRP", "dogecoin": "DOGE",

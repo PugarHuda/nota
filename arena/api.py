@@ -93,6 +93,8 @@ def what_changed(led: Ledger, cur: Receipt, prev: Receipt | None) -> list[dict[s
         a, b = prev.availability.get(k), cur.availability.get(k)
         if a != b:
             add(f"availability.{k}", a, b, 800, "evidence section availability changed")
+    if cur.model != prev.model:
+        add("model", prev.model, cur.model, 300, "a different model produced this receipt")
     dp = abs(cur.verdict.p_up_7d - prev.verdict.p_up_7d)
     if dp >= 0.05:
         add("verdict.p_up_7d", prev.verdict.p_up_7d, cur.verdict.p_up_7d, 500 + dp * 100, "judge probability moved")
