@@ -11,13 +11,13 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from arena.calibration import role_scores, role_weights
-from arena.council import run_council
-from arena.evidence import EvidencePack
-from arena.ledger import Ledger
-from arena.llm import LLM
-from arena.receipt import Receipt, build_receipt
-from arena.risk import RiskLimits, size_trade
+from nota.calibration import role_scores, role_weights
+from nota.council import run_council
+from nota.evidence import EvidencePack
+from nota.ledger import Ledger
+from nota.llm import LLM
+from nota.receipt import Receipt, build_receipt
+from nota.risk import RiskLimits, size_trade
 
 COMPARE_FIELDS = ("opinions", "verdict", "trade", "headline", "availability")
 
@@ -62,6 +62,15 @@ def replay(decision_id: str, ledger: Ledger, llm: LLM, limits: RiskLimits | None
     if pack_json is None:
         raise KeyError(f"evidence {original.pack_hash} missing from ledger")
     pack = EvidencePack.model_validate_json(pack_json)
+    if not fresh and llm.model != original.model:
+        # Cached outputs are keyed by model, so a cache-only replay under a different model would
+        # silently call that model and report the answer as drift. Refuse instead of billing for a
+        # comparison that proves nothing.
+        raise ValueError(
+            f"receipt {decision_id} was made with model {original.model!r}, but {llm.model!r} is configured. "
+            f"A cached replay needs the receipt's own model; pass --fresh to re-run it on {llm.model!r} "
+            "and see the difference reported as drift."
+        )
     weights = role_weights(role_scores(ledger))
     council = run_council(pack, llm, ledger, weights=weights, use_cache=not fresh, prompt_version=original.prompt_version)
     trade = size_trade(council.verdict, pack, limits)

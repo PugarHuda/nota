@@ -10,9 +10,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from arena import paths
-from arena.council import Verdict
-from arena.evidence import PRIMARY, EvidencePack, first_present
+from nota import paths
+from nota.council import Verdict
+from nota.evidence import PRIMARY, EvidencePack, first_present
 
 
 class RiskLimits(BaseModel):

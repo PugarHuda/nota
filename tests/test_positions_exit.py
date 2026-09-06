@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from arena.calibration import CannotResolve, close_position, role_scores
-from arena.decide import decide
-from arena.ledger import Ledger
-from arena.ryo_client import RecordedRyoClient
+from nota.calibration import CannotResolve, close_position, role_scores
+from nota.decide import decide
+from nota.ledger import Ledger
+from nota.ryo_client import RecordedRyoClient
 from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"

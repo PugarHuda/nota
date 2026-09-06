@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from arena.calibration import CannotResolve, resolve, role_scores, role_weights
-from arena.council import Citation, Opinion, Verdict
-from arena.decide import decide
-from arena.envelope import Envelope
-from arena.ledger import Ledger
-from arena.llm import FakeLLM
-from arena.ryo_client import RecordedRyoClient
+from nota.calibration import CannotResolve, resolve, role_scores, role_weights
+from nota.council import Citation, Opinion, Verdict
+from nota.decide import decide
+from nota.envelope import Envelope
+from nota.ledger import Ledger
+from nota.llm import FakeLLM
+from nota.ryo_client import RecordedRyoClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

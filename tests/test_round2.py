@@ -9,18 +9,18 @@ import respx
 from httpx import Response
 from typer.testing import CliRunner
 
-from arena import cli
-from arena.calibration import Outcome, reliability
-from arena.council import Verdict
-from arena.decide import decide
-from arena.evidence import gather
-from arena.ledger import Ledger
-from arena.risk import Blocked, size_trade
-from arena.ryo_client import RecordedRyoClient, RyoClient, RyoError
-from arena.skills.contract import SourceUnavailable
-from arena.skills.narrative import narrative_convergence
-from arena.skills.price_check import ExchangePrices, price_crosscheck
-from arena.skills.sources import BlueskyPublic
+from nota import cli
+from nota.calibration import Outcome, reliability
+from nota.council import Verdict
+from nota.decide import decide
+from nota.evidence import gather
+from nota.ledger import Ledger
+from nota.risk import Blocked, size_trade
+from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError
+from nota.skills.contract import SourceUnavailable
+from nota.skills.narrative import narrative_convergence
+from nota.skills.price_check import ExchangePrices, price_crosscheck
+from nota.skills.sources import BlueskyPublic
 from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -99,7 +99,7 @@ def test_reliability_bins_judge_probabilities():
 
 
 def test_watch_scan_top_picks_candidates(tmp_path, monkeypatch):
-    monkeypatch.setenv("ARENA_DB", str(tmp_path / "w.db"))
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "w.db"))
     monkeypatch.setattr(cli, "_llm", lambda kind: make_llm())
     res = CliRunner().invoke(cli.app, ["watch", "--scan-top", "1", "--source", "fixture", "--cycles", "1", "--every", "0", "--no-price-check"])
     assert res.exit_code == 0, res.output

@@ -3,10 +3,10 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from arena import api
-from arena.decide import decide
-from arena.ledger import Ledger
-from arena.ryo_client import RecordedRyoClient
+from nota import api
+from nota.decide import decide
+from nota.ledger import Ledger
+from nota.ryo_client import RecordedRyoClient
 from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -14,7 +14,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def _seed(tmp_path, monkeypatch):
     db = str(tmp_path / "t.db")
-    monkeypatch.setenv("ARENA_DB", db)
+    monkeypatch.setenv("NOTA_DB", db)
     led = Ledger(db)
     first = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(action="no_trade", p=0.5), led)
     # second run on perturbed evidence: price up, technicals RSI gone, verdict flips to long
@@ -22,10 +22,10 @@ def _seed(tmp_path, monkeypatch):
     da = raw["sections"]["deep_analysis"]["envelope"]["data"]
     da["market"]["price_usd"] = round(da["market"]["price_usd"] * 1.10, 4)
     da["technicals"]["rsi_14"] = None
-    from arena.council import run_council
-    from arena.evidence import EvidencePack
-    from arena.receipt import build_receipt
-    from arena.risk import size_trade
+    from nota.council import run_council
+    from nota.evidence import EvidencePack
+    from nota.receipt import build_receipt
+    from nota.risk import size_trade
 
     pack = EvidencePack.model_validate(raw)
     led.save_pack(pack.pack_hash(), pack.symbol, pack.source, pack.model_dump_json())
@@ -58,15 +58,15 @@ def test_list_detail_diff_positions_scores(tmp_path, monkeypatch):
 
     s = c.get("/api/scores").json()
     assert s["scores"] == {} and s["unresolved"] == 2 and set(s["weights"]) == {"macro", "technician", "narrative"}
-    assert "RYO Arena" in c.get(f"/r/{second.id}").text
+    assert "Nota" in c.get(f"/r/{second.id}").text
 
 
 def test_new_section_is_one_availability_row_not_one_row_per_leaf(tmp_path, monkeypatch):
-    from arena.council import run_council
-    from arena.evidence import EvidencePack
-    from arena.receipt import build_receipt
-    from arena.risk import size_trade
-    from arena.skills.contract import make_envelope
+    from nota.council import run_council
+    from nota.evidence import EvidencePack
+    from nota.receipt import build_receipt
+    from nota.risk import size_trade
+    from nota.skills.contract import make_envelope
 
     first, second = _seed(tmp_path, monkeypatch)
     led = Ledger(str(tmp_path / "t.db"))
@@ -84,8 +84,8 @@ def test_new_section_is_one_availability_row_not_one_row_per_leaf(tmp_path, monk
 
 
 def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
-    from arena.envelope import Envelope
-    from arena.evidence import EvidencePack, Section
+    from nota.envelope import Envelope
+    from nota.evidence import EvidencePack, Section
 
     def pack(domains, since):
         env = Envelope(schema_version="1", tool="news_verify", status="ok", data_mode="live", as_of="2026-09-01T00:00:00Z", request={},
@@ -100,7 +100,7 @@ def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
 
 
 def test_demo_video_is_served_when_bundled(tmp_path, monkeypatch):
-    from arena.api import STATIC
+    from nota.api import STATIC
     _seed(tmp_path, monkeypatch)
     r = TestClient(api.app).get("/demo.mp4")
     if (STATIC / "demo.mp4").exists():

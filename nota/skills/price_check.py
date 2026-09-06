@@ -14,9 +14,9 @@ from typing import Any
 
 import httpx
 
-from arena.envelope import Envelope
-from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
-from arena.skills.sources import UA
+from nota.envelope import Envelope
+from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.skills.sources import UA
 
 DEFINITION = SkillDefinition(
     name="price_crosscheck",

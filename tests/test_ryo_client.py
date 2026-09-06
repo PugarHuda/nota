@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from arena.ryo_client import RecordedRyoClient, RyoClient, RyoError, fixture_name, record
+from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, fixture_name, record
 
 BASE = "https://ryo.test/api/mcp"
 ENVELOPE = {

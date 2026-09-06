@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from arena.council import Citation, Opinion, Verdict
-from arena.decide import decide
-from arena.ledger import Ledger
-from arena.llm import FakeLLM
-from arena.receipt import Receipt, render_markdown
-from arena.replay import replay
-from arena.risk import PracticeTrade
-from arena.ryo_client import RecordedRyoClient
+from nota.council import Citation, Opinion, Verdict
+from nota.decide import decide
+from nota.ledger import Ledger
+from nota.llm import FakeLLM
+from nota.receipt import Receipt, render_markdown
+from nota.replay import replay
+from nota.risk import PracticeTrade
+from nota.ryo_client import RecordedRyoClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -37,7 +37,7 @@ def test_same_evidence_same_receipt_id():
 
 
 def test_replay_survives_a_prompt_version_bump(monkeypatch):
-    from arena import council
+    from nota import council
 
     led = Ledger(":memory:")
     r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
@@ -60,3 +60,20 @@ def test_replay_is_identical_from_cache_and_fresh_reports_drift():
     # fresh replay must not have overwritten the original cached outputs
     again = replay(r.id, led, drifted)
     assert again.identical
+
+
+
+def test_cached_replay_refuses_a_different_model():
+    """A receipt made under one model cannot be verified against another: the cache is keyed by
+    model, so the comparison would call the new model and mislabel its answer as drift."""
+    import pytest
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    other = make_llm(action="no_trade", p=0.5)
+    other.model = "some-other-model"
+    with pytest.raises(ValueError, match="cached replay needs the receipt's own model"):
+        replay(r.id, led, other)
+    assert other.calls == []                                  # and no tokens were spent proving nothing
+    assert replay(r.id, led, make_llm()).identical             # the receipt's own model still verifies
+    assert replay(r.id, led, other, fresh=True).identical is False  # --fresh is the escape hatch

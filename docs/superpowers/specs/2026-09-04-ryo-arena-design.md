@@ -1,4 +1,4 @@
-# RYO Arena: Design Spec
+# Nota: Design Spec
 
 Date: 2026-09-04. Hackathon: RYO-CHAN Hackathon 2026 (see `docs/HACKATHON-ANALYSIS.md`).
 
@@ -31,7 +31,7 @@ A council of specialised AI agents debates live RYO market evidence, records the
 ## Foundation architecture
 
 ```
-arena/
+nota/
   envelope.py     RYO public response contract (pydantic) + parsers (REST, MCP text block)
   ryo_client.py   RyoClient (httpx, backoff, rate-limit headers, error envelope) + RecordedRyoClient (fixtures)
   ledger.py       SQLite: evidence, decisions, positions, llm_cache. Content-hash packs.
@@ -42,7 +42,7 @@ arena/
   receipt.py      Receipt model, build + render (JSON, markdown)
   replay.py       replay(decision_id): same pack + cached LLM outputs -> identical receipt; fresh mode shows drift
   calibration.py  resolve outcomes, Brier score per agent, vote weights
-  cli.py          arena decide SOL | replay <id> | resolve | health
+  cli.py          nota decide SOL | replay <id> | resolve | health
 tests/            pytest, FakeLLM + recorded fixtures, no network
 ```
 
@@ -59,6 +59,6 @@ LLM outputs are cached in the ledger keyed by `(pack_hash, role, prompt_version,
 ### Global constraints
 
 - Python 3.12, `uv` for env. Dependencies: httpx, pydantic>=2, anthropic, typer. Tests: pytest, respx.
-- Default model `claude-sonnet-5`; configurable via `ARENA_MODEL`.
-- Env vars: `RYO_MCP_URL` (default `https://app-ryochan.com/api/mcp`), `RYO_MCP_KEY`, `ANTHROPIC_API_KEY`, `ARENA_MODEL`, `ARENA_DB` (default `arena.db`), `TAVILY_API_KEY` (phase 2).
+- Default model `claude-sonnet-5`; configurable via `NOTA_MODEL`.
+- Env vars: `RYO_MCP_URL` (default `https://app-ryochan.com/api/mcp`), `RYO_MCP_KEY`, `ANTHROPIC_API_KEY`, `NOTA_MODEL`, `NOTA_DB` (default `nota.db`), `TAVILY_API_KEY` (phase 2).
 - Tool calls only through the 6-tool builder catalog: market_overview, scan_market, analyze_token, deep_analysis, compare_tokens, monitor_market_sentiment_shift.

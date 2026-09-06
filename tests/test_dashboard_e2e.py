@@ -11,7 +11,7 @@ import time
 import pytest
 import uvicorn
 
-from arena import api
+from nota import api
 from tests.test_api import _seed
 
 playwright = pytest.importorskip("playwright.sync_api")

@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from arena.council import Citation, Opinion, Verdict, run_council, validate_citations
-from arena.evidence import gather
-from arena.ledger import Ledger
-from arena.llm import FakeLLM
-from arena.ryo_client import RecordedRyoClient
+from nota.council import Citation, Opinion, Verdict, run_council, validate_citations
+from nota.evidence import gather
+from nota.ledger import Ledger
+from nota.llm import FakeLLM
+from nota.ryo_client import RecordedRyoClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

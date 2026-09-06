@@ -1,6 +1,6 @@
 """Skill contract: RYO's tool definition shape plus RYO's public response envelope.
 
-A skill is a plain function that returns an `Envelope` (arena.envelope), exactly the shape
+A skill is a plain function that returns an `Envelope` (nota.envelope), exactly the shape
 RYO's six builder tools return, so a consumer that already reads RYO output can read ours
 without new code. The definition mirrors RYO's internal `SkillDefinition`
 (`docs/ryo-openapi-subset.json`): name, description, args[], requires_guard, xp.
@@ -13,9 +13,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from arena.envelope import DataMode, Envelope, Status, Summary
+from nota.envelope import DataMode, Envelope, Status, Summary
 
-SCHEMA_VERSION = "arena-skill-1"
+SCHEMA_VERSION = "nota-skill-1"
 ArgType = Literal["string", "integer", "number", "boolean", "array", "object"]
 
 

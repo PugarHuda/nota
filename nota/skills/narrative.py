@@ -15,11 +15,11 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from arena.envelope import Envelope
-from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.envelope import Envelope
+from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-from arena.skills.sources import BlueskyPublic, Message, NitterPublic, Tavily, TelegramPublic
+from nota.skills.sources import BlueskyPublic, Message, NitterPublic, Tavily, TelegramPublic
 
 DEFINITION = SkillDefinition(
     name="narrative_convergence",

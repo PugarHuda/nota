@@ -5,6 +5,6 @@ __pycache__
 tests
 docs
 *.png
-arena.db*
+nota.db*
 .env
 .playwright-mcp

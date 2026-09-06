@@ -3,7 +3,7 @@ import pytest
 import respx
 from httpx import Response
 
-from arena.skills.technicals import atr, rsi, technicals_crosscheck, to_daily
+from nota.skills.technicals import atr, rsi, technicals_crosscheck, to_daily
 
 
 def test_rsi_matches_wilder_reference():

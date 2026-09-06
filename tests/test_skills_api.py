@@ -3,7 +3,7 @@ import respx
 from fastapi.testclient import TestClient
 from httpx import Response
 
-from arena import api
+from nota import api
 from tests.test_api import _seed
 
 
@@ -39,22 +39,22 @@ def test_invoke_returns_skill_call_response(tmp_path, monkeypatch):
 
 
 def test_positions_report_stopped_target_open(tmp_path, monkeypatch):
-    from arena.api import positions
+    from nota.api import positions
 
     first, second = _seed(tmp_path, monkeypatch)  # second: long from 162 (perturbed fixture), stop 150, target 180
     rows = positions()
     assert rows[0]["status"] == "open" and rows[0]["pnl_usd"] == 0.0
     import json
 
-    from arena.ledger import Ledger
+    from nota.ledger import Ledger
 
     led = Ledger(str(tmp_path / "t.db"))
     raw = json.loads(led.get_pack(second.pack_hash))
     raw["sections"]["deep_analysis"]["envelope"]["data"]["market"]["price_usd"] = 140.0  # below the 150 stop
-    from arena.council import run_council
-    from arena.evidence import EvidencePack
-    from arena.receipt import build_receipt
-    from arena.risk import size_trade
+    from nota.council import run_council
+    from nota.evidence import EvidencePack
+    from nota.receipt import build_receipt
+    from nota.risk import size_trade
     from tests.test_decide_replay import make_llm
 
     pack = EvidencePack.model_validate(raw)

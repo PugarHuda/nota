@@ -4,13 +4,13 @@ from pathlib import Path
 import respx
 from httpx import Response
 
-from arena import notify
-from arena.calibration import due
-from arena.council import ROLE_SECTIONS, _section_view
-from arena.decide import decide
-from arena.evidence import candidate_symbols, gather, ryo_args
-from arena.ledger import Ledger
-from arena.ryo_client import RecordedRyoClient, fixture_name
+from nota import notify
+from nota.calibration import due
+from nota.council import ROLE_SECTIONS, _section_view
+from nota.decide import decide
+from nota.evidence import candidate_symbols, gather, ryo_args
+from nota.ledger import Ledger
+from nota.ryo_client import RecordedRyoClient, fixture_name
 from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -60,7 +60,7 @@ def test_notify_telegram_and_discord_payloads(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "-100")
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1/x")
-    monkeypatch.setenv("ARENA_PUBLIC_URL", "https://arena.example")
+    monkeypatch.setenv("NOTA_PUBLIC_URL", "https://nota.example")
     tg = respx.post("https://api.telegram.org/bot123:abc/sendMessage").mock(return_value=Response(200, json={"ok": True, "result": {"message_id": 7}}))
     dc = respx.post("https://discord.com/api/webhooks/1/x").mock(return_value=Response(200, json={"id": "99"}))
     r = _receipt()
@@ -70,6 +70,6 @@ def test_notify_telegram_and_discord_payloads(monkeypatch):
     body = json.loads(tg.calls[0].request.content)
     assert body["chat_id"] == "-100" and body["parse_mode"] == "HTML" and "No order was placed" in body["text"] and f"/r/{r.id}" in body["text"]
     embed = json.loads(dc.calls[0].request.content)["embeds"][0]
-    assert embed["url"] == f"https://arena.example/r/{r.id}" and embed["title"] == r.headline
+    assert embed["url"] == f"https://nota.example/r/{r.id}" and embed["title"] == r.headline
     tg.mock(return_value=Response(400, json={"ok": False, "description": "chat not found"}))
     assert notify.telegram(r)["status"] == "error"

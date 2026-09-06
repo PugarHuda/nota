@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from arena.council import Verdict
-from arena.evidence import gather
-from arena.risk import Blocked, PracticeTrade, RiskLimits, size_trade
-from arena.ryo_client import RecordedRyoClient
+from nota.council import Verdict
+from nota.evidence import gather
+from nota.risk import Blocked, PracticeTrade, RiskLimits, size_trade
+from nota.ryo_client import RecordedRyoClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

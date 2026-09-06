@@ -1,4 +1,4 @@
-"""`arena` command line."""
+"""`nota` command line."""
 
 from __future__ import annotations
 
@@ -11,31 +11,31 @@ from dotenv import load_dotenv
 
 import time
 
-from arena.calibration import CannotResolve, close_position, due, resolve, role_scores, role_weights
-from arena.decide import decide
-from arena import paths
-from arena.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
-from arena.ledger import Ledger, now_iso
-from arena.notify import notify_receipt
-from arena.receipt import Receipt, render_markdown
-from arena.replay import replay
-from arena.risk import RiskLimits
-from arena.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
-from arena.skills import definitions as skill_definitions, invoke as skill_invoke
-from arena.skills.narrative import narrative_convergence
-from arena.skills.news import news_verify
-from arena.skills.price_check import price_crosscheck
-from arena.skills.technicals import technicals_crosscheck
+from nota.calibration import CannotResolve, close_position, due, resolve, role_scores, role_weights
+from nota.decide import decide
+from nota import paths
+from nota.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
+from nota.ledger import Ledger, now_iso
+from nota.notify import notify_receipt
+from nota.receipt import Receipt, render_markdown
+from nota.replay import replay
+from nota.risk import RiskLimits
+from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
+from nota.skills import definitions as skill_definitions, invoke as skill_invoke
+from nota.skills.narrative import narrative_convergence
+from nota.skills.news import news_verify
+from nota.skills.price_check import price_crosscheck
+from nota.skills.technicals import technicals_crosscheck
 
 load_dotenv()
-app = typer.Typer(help="RYO Arena: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
+app = typer.Typer(help="Nota: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
 
 RECORDED_ROOT = Path("fixtures/recorded")
 FIXTURE_ROOT = Path("tests/fixtures")
 
 
 def _ledger() -> Ledger:
-    return Ledger(os.environ.get("ARENA_DB", "arena.db"))
+    return Ledger(os.environ.get("NOTA_DB", "nota.db"))
 
 
 def _source(kind: str):
@@ -52,17 +52,17 @@ def _source(kind: str):
 
 def _llm(kind: str):
     if kind == "openai":
-        from arena.llm import OpenAICompatLLM
+        from nota.llm import OpenAICompatLLM
 
         return OpenAICompatLLM()
     if kind == "anthropic":
-        from arena.llm import AnthropicLLM
+        from nota.llm import AnthropicLLM
 
         return AnthropicLLM()
-    raise typer.BadParameter("llm must be anthropic or openai (env ARENA_LLM)")
+    raise typer.BadParameter("llm must be anthropic or openai (env NOTA_LLM)")
 
 
-LLM_HELP = "anthropic | openai (env ARENA_LLM)"
+LLM_HELP = "anthropic | openai (env NOTA_LLM)"
 
 
 @app.command()
@@ -90,9 +90,9 @@ def health():
 def decide_cmd(
     symbol: str = typer.Argument(..., help="Token symbol, e.g. SOL"),
     source: str = typer.Option("live", help="live | recorded | fixture"),
-    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP),
+    llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the LLM output cache"),
-    voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env ARENA_VOICES)"),
+    voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env NOTA_VOICES)"),
     news: bool = typer.Option(False, help="Add news_check via news_verify (Tavily or Venice web search)"),
     notify: bool = typer.Option(False, help="Post the receipt to configured Telegram/Discord channels"),
     price_check: bool = typer.Option(True, help="Add price_check: keyless CoinGecko/Coinbase/Kraken spot prices vs RYO's price"),
@@ -109,7 +109,7 @@ def decide_cmd(
 
 def _extras(src, voices: str, news: bool, price_check: bool = True):
     extras = {}
-    voice_list = [v for v in (voices or os.environ.get("ARENA_VOICES", "")).split(",") if v.strip()]
+    voice_list = [v for v in (voices or os.environ.get("NOTA_VOICES", "")).split(",") if v.strip()]
     if voice_list:
         extras["narrative_signal"] = lambda sym, _pack: narrative_convergence(voice_list, tokens=[sym], hours=24)
     if news:
@@ -137,7 +137,7 @@ def scan(
     theme: str = typer.Option("", help="Optional theme context, e.g. news"),
     source: str = typer.Option("live", help="live | recorded | fixture"),
     decide_top: int = typer.Option(0, help="Run the council on the first N candidates"),
-    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP),
+    llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
 ):
     """RYO's research funnel: scan_market -> analyze_token on each candidate -> optional council decisions."""
     src = _source(source)
@@ -168,7 +168,7 @@ def watch(
     every: int = typer.Option(3600, help="Seconds between cycles"),
     cycles: int = typer.Option(0, help="Stop after N cycles (0 = run until interrupted)"),
     source: str = typer.Option("live", help="live | recorded | fixture"),
-    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP),
+    llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
     voices: str = typer.Option("", help="Telegram/X voices for narrative_signal"),
     news: bool = typer.Option(False, help="Add news_check"),
     notify: bool = typer.Option(False, help="Post each new receipt to Telegram/Discord"),
@@ -202,7 +202,7 @@ def watch(
             except Exception as exc:  # one symbol failing must not stop the loop
                 typer.echo(f"[{now_iso()}] {sym}: failed {type(exc).__name__}: {exc}")
         if close_on_stop:
-            from arena.api import positions as open_positions
+            from nota.api import positions as open_positions
 
             for p in open_positions():
                 if p["status"] in ("stopped", "target") and p["latest_price"] is not None:
@@ -222,9 +222,13 @@ def watch(
 
 @app.command("replay")
 def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call the model again instead of using cached outputs"),
-               llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP)):
+               llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP)):
     """Rebuild a receipt from stored evidence and report whether it is identical."""
-    res = replay(decision_id, _ledger(), _llm(llm), RiskLimits(), fresh=fresh)
+    try:
+        res = replay(decision_id, _ledger(), _llm(llm), RiskLimits(), fresh=fresh)
+    except ValueError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1)
     typer.echo(f"identical: {res.identical}  (fresh={res.fresh})")
     for d in res.diff:
         typer.echo(f"  {d}")
@@ -270,7 +274,7 @@ def show(decision_id: str, as_json: bool = typer.Option(False, "--json")):
 @app.command("positions")
 def positions_cmd(as_json: bool = typer.Option(False, "--json")):
     """Open practice positions against the latest independent price: open, past stop, or at target."""
-    from arena.api import positions as open_positions
+    from nota.api import positions as open_positions
 
     rows = open_positions()
     if as_json:
@@ -306,7 +310,7 @@ def serve(host: str = "127.0.0.1", port: int = 8000):
     """Serve the read-only API and the diff-first dashboard (Track 2)."""
     import uvicorn
 
-    uvicorn.run("arena.api:app", host=host, port=port)
+    uvicorn.run("nota.api:app", host=host, port=port)
 
 
 skill_app = typer.Typer(help="Track 3 skills: RYO-shaped research tools RYO does not have yet.", no_args_is_help=True)

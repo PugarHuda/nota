@@ -6,15 +6,15 @@ import pytest
 import respx
 from httpx import Response
 
-from arena.calibration import resolve
-from arena.decide import decide
-from arena.ledger import Ledger
-from arena.ryo_client import RecordedRyoClient, RyoError
-from arena.skills.contract import SourceUnavailable
-from arena.skills.narrative import narrative_convergence, score_text
-from arena.skills.news import news_verify
-from arena.skills.price_check import ExchangePrices, price_crosscheck
-from arena.skills.sources import NitterPublic, RssNews, Tavily, parse_nitter_timeline
+from nota.calibration import resolve
+from nota.decide import decide
+from nota.ledger import Ledger
+from nota.ryo_client import RecordedRyoClient, RyoError
+from nota.skills.contract import SourceUnavailable
+from nota.skills.narrative import narrative_convergence, score_text
+from nota.skills.news import news_verify
+from nota.skills.price_check import ExchangePrices, price_crosscheck
+from nota.skills.sources import NitterPublic, RssNews, Tavily, parse_nitter_timeline
 from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"

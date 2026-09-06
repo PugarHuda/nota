@@ -10,10 +10,10 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlparse
 
-from arena.envelope import Envelope
-from arena.ryo_client import RyoError, RyoSource
-from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
-from arena.skills.sources import RssNews, Tavily, TavilyResult, VeniceSearch, search_backend
+from nota.envelope import Envelope
+from nota.ryo_client import RyoError, RyoSource
+from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.skills.sources import RssNews, Tavily, TavilyResult, VeniceSearch, search_backend
 
 DEFINITION = SkillDefinition(
     name="news_verify",

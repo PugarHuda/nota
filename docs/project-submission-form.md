@@ -11,23 +11,23 @@
 
 | field | value |
 |---|---|
-| `team_name` | RYO Arena |
+| `team_name` | Nota |
 | `participant_name` | Pugar Huda Mantoro |
 | `email` | hudapugar@gmail.com |
 | `discord_id` | Lynx (hajislamet) |
 | `github_username` | PugarHuda |
-| `project_name` | RYO Arena |
+| `project_name` | Nota |
 | `tracks` | `track_1`, `track_2`, `track_3` |
-| `repo_url` | _pending_ — organiser's private repo not yet issued; working mirror: https://github.com/PugarHuda/ryo-arena (private) |
-| `demo_video_url` | https://ryo-arena.vercel.app/demo.mp4 (the 2-minute walkthrough, served by the project itself) |
+| `repo_url` | _pending_ — organiser's private repo not yet issued; working mirror: https://github.com/PugarHuda/nota (private) |
+| `demo_video_url` | https://nota-ryo.vercel.app/demo.mp4 (the 2-minute walkthrough, served by the project itself) |
 | `x_post_url` | _pending post_ |
 | `agree_rules` | yes |
 | `confirm_no_secrets` | yes — `.env` is gitignored, `.env.example` carries names only, `git grep` for `ryo_mcp_`, `tvly-`, `sk-or-v1-` and `VENICE_INFERENCE_KEY_` returns only placeholders and test doubles (verified 2026-09-06) |
 
 ## `project_description`
 
-RYO Arena makes an AI trading opinion auditable. Every decision is a receipt you can re-run:
-`arena replay <id>` rebuilds it from the stored evidence and cached model output and prints
+Nota makes an AI trading opinion auditable. Every decision is a receipt you can re-run:
+`nota replay <id>` rebuilds it from the stored evidence and cached model output and prints
 identical: true, so nothing can be rewritten after the fact. Each cited number carries its dotted RYO
 path and is read back out of the evidence, never retyped by the model; citations pointing at absent
 evidence are dropped in code; null is never turned into 0. Independent sources audit RYO itself -
@@ -39,11 +39,11 @@ diffs each receipt against the last, ranked by impact. Read-only; no orders.
 
 ## Evidence the judges can check without any key
 
-- Two-minute captioned walkthrough: https://ryo-arena.vercel.app/demo.mp4
-- Hosted dashboard: https://ryo-arena.vercel.app (read-only ledger snapshot, `/api/health` reports
+- Two-minute captioned walkthrough: https://nota-ryo.vercel.app/demo.mp4
+- Hosted dashboard: https://nota-ryo.vercel.app (read-only ledger snapshot, `/api/health` reports
   `ryo_key_set: false` — nothing is disguised as live).
-- `ARENA_DB=data/demo.db uv run arena serve`, `uv run arena skill run price_crosscheck '{"symbol":"SOL"}'`,
-  `uv run pytest -q` (111 tests, no network).
+- `NOTA_DB=data/demo.db uv run nota serve`, `uv run nota skill run price_crosscheck '{"symbol":"SOL"}'`,
+  `uv run pytest -q` (112 tests, no network).
 
 ## Declarations
 

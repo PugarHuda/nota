@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from arena import paths
-from arena.evidence import EvidencePack, first_present, gather
-from arena.ryo_client import RecordedRyoClient
+from nota import paths
+from nota.evidence import EvidencePack, first_present, gather
+from nota.ryo_client import RecordedRyoClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

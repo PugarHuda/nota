@@ -4,14 +4,14 @@ import json
 
 from typer.testing import CliRunner
 
-from arena import cli
+from nota import cli
 from tests.test_decide_replay import make_llm
 
 runner = CliRunner()
 
 
 def _env(tmp_path, monkeypatch, action="long"):
-    monkeypatch.setenv("ARENA_DB", str(tmp_path / "cli.db"))
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "cli.db"))
     monkeypatch.delenv("RYO_MCP_KEY", raising=False)
     monkeypatch.setattr(cli, "_llm", lambda kind: make_llm(action=action))
 
@@ -36,7 +36,7 @@ def test_live_source_without_key_fails_clearly(tmp_path, monkeypatch):
 
 
 def test_unknown_llm_kind_is_rejected(tmp_path, monkeypatch):
-    monkeypatch.setenv("ARENA_DB", str(tmp_path / "cli.db"))
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "cli.db"))
     res = runner.invoke(cli.app, ["decide", "SOL", "--source", "fixture", "--llm", "fake", "--no-price-check"])
     assert res.exit_code != 0 and "anthropic or openai" in res.output
 

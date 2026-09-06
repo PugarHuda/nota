@@ -2,7 +2,7 @@
 
 TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID  -> Bot API sendMessage (HTML parse mode)
 DISCORD_WEBHOOK_URL                     -> incoming webhook with one embed
-ARENA_PUBLIC_URL (optional)             -> base for the receipt permalink in the message
+NOTA_PUBLIC_URL (optional)             -> base for the receipt permalink in the message
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ from typing import Any
 
 import httpx
 
-from arena.receipt import Receipt
-from arena.risk import PracticeTrade
+from nota.receipt import Receipt
+from nota.risk import PracticeTrade
 
 
 def _permalink(r: Receipt) -> str | None:
-    base = os.environ.get("ARENA_PUBLIC_URL", "").rstrip("/")
+    base = os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/")
     return f"{base}/r/{r.id}" if base else None
 
 
@@ -69,7 +69,7 @@ def discord(r: Receipt, http: httpx.Client | None = None) -> dict[str, Any]:
     link = _permalink(r)
     if link:
         embed["url"] = link
-        embed["image"] = {"url": f"{link}.png"}  # receipt card rendered by `arena serve`
+        embed["image"] = {"url": f"{link}.png"}  # receipt card rendered by `nota serve`
     http = http or httpx.Client(timeout=20.0)
     resp = http.post(url, params={"wait": "true"}, json={"embeds": [embed]})
     ok = resp.status_code in (200, 204)

@@ -4,10 +4,10 @@ import pytest
 import respx
 from httpx import Response
 
-from arena.skills.contract import SourceUnavailable
-from arena.skills.narrative import score_text
-from arena.skills.news import news_verify
-from arena.skills.sources import Tavily, VeniceSearch, search_backend
+from nota.skills.contract import SourceUnavailable
+from nota.skills.narrative import score_text
+from nota.skills.news import news_verify
+from nota.skills.sources import Tavily, VeniceSearch, search_backend
 
 VENICE = "https://api.venice.ai/api/v1/chat/completions"
 

@@ -12,13 +12,13 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from arena import paths
-from arena.council import ROLES
-from arena.evidence import EvidencePack, Section, first_present
-from arena.ledger import Ledger, now_iso
-from arena.receipt import Receipt
-from arena.risk import PracticeTrade
-from arena.ryo_client import RyoError, RyoSource
+from nota import paths
+from nota.council import ROLES
+from nota.evidence import EvidencePack, Section, first_present
+from nota.ledger import Ledger, now_iso
+from nota.receipt import Receipt
+from nota.risk import PracticeTrade
+from nota.ryo_client import RyoError, RyoSource
 
 HORIZON_DAYS = 7
 
@@ -66,7 +66,7 @@ def _price_now(symbol: str, source: RyoSource) -> tuple[float | None, str | None
             return price, env.as_of, f"ryo:{source.name}"
     except RyoError:
         pass
-    from arena.skills.price_check import price_crosscheck
+    from nota.skills.price_check import price_crosscheck
 
     check = price_crosscheck(symbol)
     med = check.get("median_usd")

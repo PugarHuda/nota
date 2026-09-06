@@ -5,7 +5,7 @@ import respx
 from httpx import Response
 from pydantic import BaseModel
 
-from arena.llm import OpenAICompatLLM
+from nota.llm import OpenAICompatLLM
 
 
 class Out(BaseModel):

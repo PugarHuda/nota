@@ -37,10 +37,10 @@ def now_iso() -> str:
 
 
 class Ledger:
-    def __init__(self, path: str = "arena.db", readonly: bool | None = None):
-        """`readonly` (or env ARENA_READONLY=1) opens a shipped snapshot immutably, e.g. on a serverless host
+    def __init__(self, path: str = "nota.db", readonly: bool | None = None):
+        """`readonly` (or env NOTA_READONLY=1) opens a shipped snapshot immutably, e.g. on a serverless host
         whose filesystem cannot be written; every write method then raises instead of pretending."""
-        self.readonly = bool(readonly if readonly is not None else os.environ.get("ARENA_READONLY") == "1") and path != ":memory:"
+        self.readonly = bool(readonly if readonly is not None else os.environ.get("NOTA_READONLY") == "1") and path != ":memory:"
         if self.readonly:
             self.conn = sqlite3.connect(f"file:{Path(path).as_posix()}?mode=ro&immutable=1", uri=True, isolation_level=None)
         else:

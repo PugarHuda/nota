@@ -19,26 +19,26 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
-from arena import paths
-from arena.calibration import due, reliability, role_scores, role_weights
-from arena.card import render_card
-from arena.evidence import EvidencePack, first_present
-from arena.ledger import Ledger
-from arena.receipt import Receipt, render_markdown
-from arena.replay import replay
-from arena.risk import PracticeTrade
-from arena.ryo_client import RyoClient
-from arena.skills import definitions as skill_definitions, invoke as skill_invoke
+from nota import paths
+from nota.calibration import due, reliability, role_scores, role_weights
+from nota.card import render_card
+from nota.evidence import EvidencePack, first_present
+from nota.ledger import Ledger
+from nota.receipt import Receipt, render_markdown
+from nota.replay import replay
+from nota.risk import PracticeTrade
+from nota.ryo_client import RyoClient
+from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 
 load_dotenv()
-app = FastAPI(title="RYO Arena", description="Read-only view over decision receipts. No orders, no wallets.")
+app = FastAPI(title="Nota", description="Read-only view over decision receipts. No orders, no wallets.")
 STATIC = Path(__file__).parent / "static"
 KEY_PATHS = set(paths.PRICE_USD + paths.ATR_14 + paths.RSI_14)
 
 
 def _ledger() -> Ledger:
     # ponytail: one connection per request; sqlite objects cannot cross FastAPI's worker threads
-    return Ledger(os.environ.get("ARENA_DB", "arena.db"))
+    return Ledger(os.environ.get("NOTA_DB", "nota.db"))
 
 
 def _receipt(led: Ledger, id: str) -> Receipt:
@@ -233,7 +233,7 @@ def health() -> dict[str, Any]:
         ryo = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
     return {
         "ryo": ryo, "ryo_key_set": bool(client.key), "readonly": led.readonly,
-        "llm": {"kind": os.environ.get("ARENA_LLM", "anthropic"), "model": os.environ.get("ARENA_MODEL")},
+        "llm": {"kind": os.environ.get("NOTA_LLM", "anthropic"), "model": os.environ.get("NOTA_MODEL")},
         "ledger": {"decisions": led.conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0],
                    "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()), "due": len(due(led))},
         "notify": {"telegram": bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")),
@@ -248,7 +248,7 @@ class _CacheOnlyLLM:
         self.model = model
 
     def complete_json(self, system: str, user: str, schema: Any) -> Any:
-        raise RuntimeError("cache miss: this receipt's model outputs are not in the ledger; run `arena replay <id>` from the CLI")
+        raise RuntimeError("cache miss: this receipt's model outputs are not in the ledger; run `nota replay <id>` from the CLI")
 
 
 @app.get("/api/decisions/{id}/replay")
@@ -349,7 +349,7 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
     _throttle(request.client.host if request.client else "unknown")
     led = _ledger()
     if led.readonly:
-        raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot; backing works on a writable `arena serve`")
+        raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot; backing works on a writable `nota serve`")
     _receipt(led, id)
     led.add_backing(id, body.handle, body.stance)
     return _backing_counts(led, id)
@@ -421,7 +421,7 @@ def permalink(id: str, request: Request) -> HTMLResponse:
     if raw is None:
         return HTMLResponse(page)
     r = Receipt.model_validate_json(raw)
-    base = os.environ.get("ARENA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    base = os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     desc = html.escape(f"{r.verdict.action} (p_up_7d {r.verdict.p_up_7d:.2f}). {r.verdict.rationale}"[:200])
     tags = "\n".join([
         f'<meta property="og:title" content="{html.escape(r.headline)}">',

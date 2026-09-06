@@ -11,10 +11,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from arena.council import CouncilResult, Opinion, Verdict
-from arena.evidence import EvidencePack
-from arena.ledger import now_iso
-from arena.risk import Blocked, PracticeTrade
+from nota.council import CouncilResult, Opinion, Verdict
+from nota.evidence import EvidencePack
+from nota.ledger import now_iso
+from nota.risk import Blocked, PracticeTrade
 
 
 class Receipt(BaseModel):

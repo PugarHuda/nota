@@ -4,16 +4,16 @@
 
 **Goal:** A CLI that gathers RYO evidence for a symbol, runs a council of LLM agents, sizes a practice trade, stores a replayable decision receipt, and scores agent calibration.
 
-**Architecture:** One Python package `arena/` with small single-purpose modules. All external data enters through `RyoSource.call(tool, args) -> Envelope`. Everything derived is stored in a SQLite ledger keyed by the content hash of the evidence pack, and LLM outputs are cached by `(pack_hash, role, prompt_version, model)` so replay is deterministic.
+**Architecture:** One Python package `nota/` with small single-purpose modules. All external data enters through `RyoSource.call(tool, args) -> Envelope`. Everything derived is stored in a SQLite ledger keyed by the content hash of the evidence pack, and LLM outputs are cached by `(pack_hash, role, prompt_version, model)` so replay is deterministic.
 
 **Tech Stack:** Python 3.12, uv, httpx (RYO REST), pydantic v2, anthropic 1.x (`client.messages.parse` structured outputs, model `claude-opus-5`), typer CLI, sqlite3 stdlib, pytest + respx.
 
-**Spec:** `docs/superpowers/specs/2026-09-04-ryo-arena-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-04-nota-design.md`
 
 ## Global Constraints
 
 - Only the six builder tools: `market_overview`, `scan_market`, `analyze_token`, `deep_analysis`, `compare_tokens`, `monitor_market_sentiment_shift`.
-- Env: `RYO_MCP_URL` default `https://app-ryochan.com/api/mcp`, `RYO_MCP_KEY`, `ANTHROPIC_API_KEY`, `ARENA_MODEL` default `claude-opus-5`, `ARENA_DB` default `arena.db`.
+- Env: `RYO_MCP_URL` default `https://app-ryochan.com/api/mcp`, `RYO_MCP_KEY`, `ANTHROPIC_API_KEY`, `NOTA_MODEL` default `claude-opus-5`, `NOTA_DB` default `nota.db`.
 - Never convert `null`/unavailable to 0. Never write a real key to disk. Test fixtures live in `tests/fixtures/` and carry `source: "fixture"`; recorded live captures go to `fixtures/recorded/` with `source: "recorded"`.
 - No network in tests (respx mocks httpx; FakeLLM replaces Anthropic).
 
@@ -21,35 +21,35 @@
 
 | File | Responsibility |
 |---|---|
-| `arena/envelope.py` | RYO public response contract + parsers for REST and MCP shapes |
-| `arena/ryo_client.py` | `RyoSource` protocol, `RyoClient` (httpx, backoff, rate-limit headers), `RecordedRyoClient` (fixtures), `record()` |
-| `arena/ledger.py` | SQLite tables: evidence, llm_cache, decisions, outcomes |
-| `arena/evidence.py` | `EvidencePack`, `gather()`, path lookup, available paths |
-| `arena/paths.py` | Candidate dotted paths for price and ATR (single place to fix when live schema is known) |
-| `arena/llm.py` | `LLM` protocol, `AnthropicLLM`, `FakeLLM` |
-| `arena/council.py` | Role prompts, `Opinion`, `Verdict`, citation validation, cached `run_council()` |
-| `arena/risk.py` | Pure `size_trade()` -> `PracticeTrade | Blocked` |
-| `arena/receipt.py` | `Receipt` model, `build_receipt()`, `render_markdown()` |
-| `arena/decide.py` | `decide(symbol)` orchestration: gather -> council -> risk -> receipt -> ledger |
-| `arena/replay.py` | `replay(decision_id, fresh)` -> identical flag + diff |
-| `arena/calibration.py` | `resolve()`, Brier scores, role weights |
-| `arena/cli.py` | typer commands: health, decide, replay, resolve, scores, show |
+| `nota/envelope.py` | RYO public response contract + parsers for REST and MCP shapes |
+| `nota/ryo_client.py` | `RyoSource` protocol, `RyoClient` (httpx, backoff, rate-limit headers), `RecordedRyoClient` (fixtures), `record()` |
+| `nota/ledger.py` | SQLite tables: evidence, llm_cache, decisions, outcomes |
+| `nota/evidence.py` | `EvidencePack`, `gather()`, path lookup, available paths |
+| `nota/paths.py` | Candidate dotted paths for price and ATR (single place to fix when live schema is known) |
+| `nota/llm.py` | `LLM` protocol, `AnthropicLLM`, `FakeLLM` |
+| `nota/council.py` | Role prompts, `Opinion`, `Verdict`, citation validation, cached `run_council()` |
+| `nota/risk.py` | Pure `size_trade()` -> `PracticeTrade | Blocked` |
+| `nota/receipt.py` | `Receipt` model, `build_receipt()`, `render_markdown()` |
+| `nota/decide.py` | `decide(symbol)` orchestration: gather -> council -> risk -> receipt -> ledger |
+| `nota/replay.py` | `replay(decision_id, fresh)` -> identical flag + diff |
+| `nota/calibration.py` | `resolve()`, Brier scores, role weights |
+| `nota/cli.py` | typer commands: health, decide, replay, resolve, scores, show |
 
 ---
 
 ### Task 1: Envelope contract and parsers
 
-**Files:** Create `arena/__init__.py`, `arena/envelope.py`, `tests/test_envelope.py`
+**Files:** Create `nota/__init__.py`, `nota/envelope.py`, `tests/test_envelope.py`
 
 **Produces:** `Envelope` (fields per guide), `Envelope.get(path)`, `parse_rest(body)`, `parse_mcp(body)`, `RyoToolError`.
 
 - [ ] Write failing tests: parse REST `{"result": {...}}`, parse MCP text block, `isError` raises, `get("a.b")` returns None for missing, never 0.
-- [ ] Implement `arena/envelope.py`.
+- [ ] Implement `nota/envelope.py`.
 - [ ] `uv run pytest tests/test_envelope.py -q` passes. Commit `feat: RYO envelope contract`.
 
 ### Task 2: RyoClient with backoff and RecordedRyoClient
 
-**Files:** Create `arena/ryo_client.py`, `tests/test_ryo_client.py`, `tests/fixtures/analyze_token/SOL.json`
+**Files:** Create `nota/ryo_client.py`, `tests/test_ryo_client.py`, `tests/fixtures/analyze_token/SOL.json`
 
 **Produces:** `RyoSource` protocol (`call(tool, args) -> Envelope`), `RyoClient(base_url, key, http=None, sleep=time.sleep)`, `.health()`, `.whoami()`, `.tools()`, `.call()`, `.last_rate_limit`, `RyoError(status_code, code, message, trace_id)`, `RecordedRyoClient(root)`, `record(client, tool, args, root)`, `fixture_name(tool, args)`.
 
@@ -58,7 +58,7 @@
 
 ### Task 3: Ledger
 
-**Files:** Create `arena/ledger.py`, `tests/test_ledger.py`
+**Files:** Create `nota/ledger.py`, `tests/test_ledger.py`
 
 **Produces:** `Ledger(path)` with `save_pack(pack_hash, symbol, source, pack_json)`, `get_pack(pack_hash)`, `get_cached(key)`, `put_cached(key, pack_hash, role, prompt_version, model, output_json)`, `save_decision(id, pack_hash, symbol, model, receipt_json)`, `get_decision(id)`, `list_decisions(limit)`, `save_outcome(decision_id, outcome_json)`, `get_outcome(decision_id)`, `unresolved()`.
 
@@ -67,7 +67,7 @@
 
 ### Task 4: Evidence pack and gather
 
-**Files:** Create `arena/paths.py`, `arena/evidence.py`, `tests/test_evidence.py`, fixtures for `market_overview/default.json`, `monitor_market_sentiment_shift/default.json`, `deep_analysis/SOL.json`
+**Files:** Create `nota/paths.py`, `nota/evidence.py`, `tests/test_evidence.py`, fixtures for `market_overview/default.json`, `monitor_market_sentiment_shift/default.json`, `deep_analysis/SOL.json`
 
 **Produces:** `Section(tool, status, envelope, error)`, `EvidencePack(symbol, created_at, source, sections)`, `.pack_hash()`, `.get(path)`, `.available_paths()`, `.primary_ok`, `.availability()`, `.provenance()`, `gather(source, symbol, include_perp=True) -> EvidencePack`, `first_present(pack, candidates) -> (path, value) | (None, None)`.
 
@@ -76,16 +76,16 @@
 
 ### Task 5: LLM abstraction
 
-**Files:** Create `arena/llm.py`, `tests/test_llm.py`
+**Files:** Create `nota/llm.py`, `tests/test_llm.py`
 
-**Produces:** `LLM` protocol `complete_json(system, user, schema: type[T]) -> T`, `AnthropicLLM(model=env ARENA_MODEL or "claude-opus-5")` using `client.messages.parse(..., output_format=schema)`, `FakeLLM(handlers: dict[str, Callable[[str], BaseModel]])` keyed by role tag found in `system`.
+**Produces:** `LLM` protocol `complete_json(system, user, schema: type[T]) -> T`, `AnthropicLLM(model=env NOTA_MODEL or "claude-opus-5")` using `client.messages.parse(..., output_format=schema)`, `FakeLLM(handlers: dict[str, Callable[[str], BaseModel]])` keyed by role tag found in `system`.
 
 - [ ] Tests: FakeLLM dispatch by role tag; unknown role raises.
 - [ ] Implement. Commit `feat: LLM abstraction`.
 
 ### Task 6: Council with cache and citation validation
 
-**Files:** Create `arena/council.py`, `tests/test_council.py`
+**Files:** Create `nota/council.py`, `tests/test_council.py`
 
 **Produces:** `Citation(path, value, note)`, `Opinion(role, stance, p_up_7d, confidence, thesis, citations, invalidation, dropped_citations)`, `Verdict(action, p_up_7d, rationale, agreed_with, disagreed_with, key_risks)`, `CouncilResult(opinions, verdict, cache_hits)`, `ROLES = ("macro","technician","narrative")`, `PROMPT_VERSION = "v1"`, `run_council(pack, llm, ledger, weights=None, use_cache=True) -> CouncilResult`.
 
@@ -94,7 +94,7 @@
 
 ### Task 7: Risk sizing
 
-**Files:** Create `arena/risk.py`, `tests/test_risk.py`
+**Files:** Create `nota/risk.py`, `tests/test_risk.py`
 
 **Produces:** `RiskLimits`, `PracticeTrade`, `Blocked(reason)`, `size_trade(verdict, pack, limits) -> PracticeTrade | Blocked`.
 
@@ -103,7 +103,7 @@
 
 ### Task 8: Receipt, decide, replay
 
-**Files:** Create `arena/receipt.py`, `arena/decide.py`, `arena/replay.py`, `tests/test_decide_replay.py`
+**Files:** Create `nota/receipt.py`, `nota/decide.py`, `nota/replay.py`, `tests/test_decide_replay.py`
 
 **Produces:** `Receipt`, `build_receipt(pack, council, trade, model) -> Receipt`, `render_markdown(receipt) -> str`, `decide(symbol, source, llm, ledger, limits, model) -> Receipt`, `replay(decision_id, ledger, llm, limits, fresh=False) -> ReplayResult(original, replayed, identical, diff)`.
 
@@ -112,7 +112,7 @@
 
 ### Task 9: Calibration
 
-**Files:** Create `arena/calibration.py`, `tests/test_calibration.py`
+**Files:** Create `nota/calibration.py`, `tests/test_calibration.py`
 
 **Produces:** `resolve(decision_id, ledger, source) -> Outcome`, `Outcome(decision_id, price_then, price_now, return_pct, went_up, brier: dict[role, float])`, `role_scores(ledger) -> dict[role, {n, brier_mean}]`, `role_weights(scores) -> dict[role, float]`.
 
@@ -121,7 +121,7 @@
 
 ### Task 10: CLI, README, .env.example
 
-**Files:** Create `arena/cli.py`, `README.md`, `.env.example`; modify `pyproject.toml` (script `arena = "arena.cli:app"`)
+**Files:** Create `nota/cli.py`, `README.md`, `.env.example`; modify `pyproject.toml` (script `nota = "nota.cli:app"`)
 
-- [ ] `uv run arena health` prints MCP health JSON. `uv run arena decide SOL --source recorded` prints markdown receipt. `replay`, `resolve`, `scores`, `show` wired.
+- [ ] `uv run nota health` prints MCP health JSON. `uv run nota decide SOL --source recorded` prints markdown receipt. `replay`, `resolve`, `scores`, `show` wired.
 - [ ] README: what, how to run, tracks, honesty rules, disclosed libraries. Commit `feat: CLI and docs`.

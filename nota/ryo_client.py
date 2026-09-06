@@ -18,7 +18,7 @@ from typing import Any, Callable, Protocol
 
 import httpx
 
-from arena.envelope import Envelope, parse_rest, parse_mcp, RyoToolError
+from nota.envelope import Envelope, parse_rest, parse_mcp, RyoToolError
 
 DEFAULT_URL = "https://app-ryochan.com/api/mcp"
 RETRYABLE = {429, 503}

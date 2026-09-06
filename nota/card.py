@@ -9,8 +9,8 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 
-from arena.receipt import Receipt
-from arena.risk import PracticeTrade
+from nota.receipt import Receipt
+from nota.risk import PracticeTrade
 
 W, H = 1200, 630
 BG, FG, DIM, LINE = (15, 17, 21), (230, 232, 238), (139, 147, 167), (38, 44, 56)
@@ -44,7 +44,7 @@ def render_card(r: Receipt) -> bytes:
     d = ImageDraw.Draw(img)
     accent = COLOUR.get(r.verdict.action, DIM)
     d.rectangle([0, 0, 14, H], fill=accent)
-    d.text((48, 40), "RYO ARENA · DECISION RECEIPT", font=_font(24), fill=DIM)
+    d.text((48, 40), "NOTA · DECISION RECEIPT", font=_font(24), fill=DIM)
     d.text((W - 48, 40), r.symbol, font=_font(56), fill=FG, anchor="ra")
     y = 100
     for line in _wrap(d, r.headline, _font(46), W - 96, 2):

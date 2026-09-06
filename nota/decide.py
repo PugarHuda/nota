@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from arena.calibration import role_scores, role_weights
-from arena.council import run_council
-from arena.evidence import Extra, gather
-from arena.ledger import Ledger
-from arena.llm import LLM
-from arena.receipt import Receipt, build_receipt
-from arena.risk import RiskLimits, size_trade
-from arena.ryo_client import RyoSource
+from nota.calibration import role_scores, role_weights
+from nota.council import run_council
+from nota.evidence import Extra, gather
+from nota.ledger import Ledger
+from nota.llm import LLM
+from nota.receipt import Receipt, build_receipt
+from nota.risk import RiskLimits, size_trade
+from nota.ryo_client import RyoSource
 
 
 def decide(symbol: str, source: RyoSource, llm: LLM, ledger: Ledger, limits: RiskLimits | None = None, use_cache: bool = True,

@@ -1,8 +1,8 @@
-# RYO Arena
+# Nota
 
 An AI trading opinion you can audit. A council of specialised agents debates live RYO market
 evidence and records the practice trade it would make as a **replayable decision receipt**:
-`arena replay <id>` rebuilds it from the stored evidence and prints `identical: true`, every cited
+`nota replay <id>` rebuilds it from the stored evidence and prints `identical: true`, every cited
 number is read back out of the evidence rather than retyped by the model, and independent sources
 audit RYO's own price and indicators before anything is sized. Built for the RYO-CHAN Hackathon 2026.
 
@@ -34,7 +34,7 @@ gather ──────────► council ──► judge ──► risk 
 
 - **Evidence pack**: `market_overview`, `monitor_market_sentiment_shift`, `deep_analysis`,
   `analyze_token`, `compare_tokens` (the token against BTC/ETH peers). `scan_market` drives
-  `arena scan`, RYO's recommended funnel. A failed tool becomes a section with status `error`;
+  `nota scan`, RYO's recommended funnel. A failed tool becomes a section with status `error`;
   the pack still exists. Own skills are added as further sections (`price_check` by default,
   `narrative_signal` with `--voices`, `news_check` with `--news`).
 - **Council**: three agents (macro, technician, narrative) each return a stance, a
@@ -46,18 +46,18 @@ gather ──────────► council ──► judge ──► risk 
 - **Risk**: a pure function. Stop = 2×ATR(14), target = 3×ATR, size from 1% account risk,
   capped at 20% of the account. No price or no ATR means **Blocked**, never a guessed number.
 - **Replay**: LLM outputs are cached by `(evidence hash, role, prompt version, model)`.
-  `arena replay <id>` reproduces the receipt exactly; `--fresh` re-asks the model and prints
+  `nota replay <id>` reproduces the receipt exactly; `--fresh` re-asks the model and prints
   the drift honestly. The dashboard's "Verify replay" button does the cached check only.
-- **Calibration**: `arena resolve --all` scores every decision whose seven-day horizon has
+- **Calibration**: `nota resolve --all` scores every decision whose seven-day horizon has
   passed (Brier per agent) against a fresh RYO price read, falling back to the exchange median
   from `price_crosscheck` when RYO cannot give a price; the outcome records which source was used.
-- **Autonomy**: `arena watch SOL,BTC --every 3600 --notify` decides on a schedule, resolves
+- **Autonomy**: `nota watch SOL,BTC --every 3600 --notify` decides on a schedule, resolves
   matured decisions, and posts each new receipt to Telegram / Discord. `--scan-top 3` lets the
   loop pick its own candidates from `scan_market` every cycle.
 - **Simulated data never trades**: when RYO marks the primary evidence `data_mode: simulated`,
   sizing is blocked and the receipt says so.
 - **Transport**: REST (`/tools/{tool}/call`) by default, or MCP JSON-RPC (`tools/list`,
-  `tools/call` on the same base URL) with `RYO_TRANSPORT=mcp`; `arena health` lists the live
+  `tools/call` on the same base URL) with `RYO_TRANSPORT=mcp`; `nota health` lists the live
   tool catalog over MCP when a key is set.
 
 ## Honesty rules this code enforces
@@ -68,7 +68,7 @@ gather ──────────► council ──► judge ──► risk 
 - Recorded fixtures keep RYO's original `as_of` and `data_mode` and are labelled
   `source: recorded`. Synthetic test fixtures live only under `tests/fixtures/` and are
   labelled `source: fixture`; receipts print the label. There is no fake-LLM mode in the CLI.
-- The RYO surface is read-only; practice trades exist only in `arena.db`.
+- The RYO surface is read-only; practice trades exist only in `nota.db`.
 - External sources say what they cannot do: Venice web search carries no dates, the X mirror
   is unofficial, RSS feeds that fail are listed, exchange prices never replace RYO's value.
 
@@ -76,22 +76,22 @@ gather ──────────► council ──► judge ──► risk 
 
 ```bash
 uv sync
-cp .env.example .env            # RYO_MCP_KEY + an LLM key (Anthropic, or ARENA_LLM=openai for Venice/OpenRouter)
-uv run arena health             # MCP health (no key) + whoami/quota (with key)
-uv run arena decide SOL         # live evidence + price cross-check, council, receipt
-uv run arena decide SOL --voices tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social --news --notify
-uv run arena scan --top-n 5 --decide-top 2      # scan_market -> analyze_token -> council
-uv run arena watch SOL,BTC --every 3600 --notify
-uv run arena replay <id>        # identical: True
-uv run arena replay <id> --fresh
-uv run arena resolve --all      # after 7 days: Brier scores per agent
-uv run arena scores
-uv run arena record SOL         # capture all six live tools into fixtures/recorded
-uv run arena decide SOL --source recorded   # replay those recordings without a key (after `record`)
-uv run arena positions                      # open practice positions vs the latest independent price
-uv run arena serve                          # dashboard + read API on http://127.0.0.1:8000
-uv run arena skill spec                     # Track 3 definitions
-uv run arena skill run price_crosscheck '{"symbol":"SOL","reference_price":150}'
+cp .env.example .env            # RYO_MCP_KEY + an LLM key (Anthropic, or NOTA_LLM=openai for Venice/OpenRouter)
+uv run nota health             # MCP health (no key) + whoami/quota (with key)
+uv run nota decide SOL         # live evidence + price cross-check, council, receipt
+uv run nota decide SOL --voices tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social --news --notify
+uv run nota scan --top-n 5 --decide-top 2      # scan_market -> analyze_token -> council
+uv run nota watch SOL,BTC --every 3600 --notify
+uv run nota replay <id>        # identical: True
+uv run nota replay <id> --fresh
+uv run nota resolve --all      # after 7 days: Brier scores per agent
+uv run nota scores
+uv run nota record SOL         # capture all six live tools into fixtures/recorded
+uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
+uv run nota positions                      # open practice positions vs the latest independent price
+uv run nota serve                          # dashboard + read API on http://127.0.0.1:8000
+uv run nota skill spec                     # Track 3 definitions
+uv run nota skill run price_crosscheck '{"symbol":"SOL","reference_price":150}'
 uv run pytest -q
 ```
 
@@ -120,7 +120,7 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
 
 ## Dashboard (Track 2)
 
-`arena serve` exposes a read-only API over the ledger (`/api/decisions`, `/api/decisions/{id}`,
+`nota serve` exposes a read-only API over the ledger (`/api/decisions`, `/api/decisions/{id}`,
 `/api/decisions/{id}/replay`, `/api/positions`, `/api/scores`, `/api/health`, exports
 `/r/{id}.json` and `/r/{id}.md`, OpenAPI at `/docs`) and a single-page dashboard:
 
@@ -161,10 +161,10 @@ The repository ships a ledger snapshot with real receipts (fixture-sourced, labe
 
 ```bash
 uv sync
-ARENA_DB=data/demo.db uv run arena serve      # dashboard, replay verification, cards, skills, backing
-ARENA_DB=data/demo.db uv run arena positions
-uv run arena skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 111 tests, no network
+NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
+NOTA_DB=data/demo.db uv run nota positions
+uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
+uv run pytest -q                              # 112 tests, no network
 ```
 
 A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as
@@ -172,12 +172,12 @@ Venice) and live RYO evidence needs the builder key; everything else runs withou
 
 ## Hosted demo
 
-A read-only copy of the dashboard runs at https://ryo-arena.vercel.app (Vercel, framework-detected
+A read-only copy of the dashboard runs at https://nota-ryo.vercel.app (Vercel, framework-detected
 FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (fixture-sourced
-receipts, labelled as such) with `ARENA_READONLY=1`: reads, replay verification, cards and exports
+receipts, labelled as such) with `NOTA_READONLY=1`: reads, replay verification, cards and exports
 work; backing answers 503 because a serverless filesystem cannot be written. The full system,
 including live RYO evidence, the `watch` loop, notifications and backing, runs with
-`uv run arena serve` on any machine with a writable disk.
+`uv run nota serve` on any machine with a writable disk.
 
 ## Failure handling
 
@@ -195,7 +195,7 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 ## Layout
 
 ```
-arena/
+nota/
   envelope.py     RYO public response contract + REST/MCP parsers
   ryo_client.py   RyoClient (httpx) + RecordedRyoClient + record()
   ledger.py       SQLite: evidence, llm_cache, decisions, outcomes

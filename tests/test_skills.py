@@ -5,13 +5,13 @@ import httpx
 import pytest
 import respx
 
-from arena.envelope import Envelope
-from arena.ryo_client import RecordedRyoClient, RyoError
-from arena.skills import definitions, invoke
-from arena.skills.contract import SourceUnavailable, status_from
-from arena.skills.narrative import narrative_convergence, score_text
-from arena.skills.news import news_verify
-from arena.skills.sources import Tavily, TelegramPublic, parse_telegram_preview
+from nota.envelope import Envelope
+from nota.ryo_client import RecordedRyoClient, RyoError
+from nota.skills import definitions, invoke
+from nota.skills.contract import SourceUnavailable, status_from
+from nota.skills.narrative import narrative_convergence, score_text
+from nota.skills.news import news_verify
+from nota.skills.sources import Tavily, TelegramPublic, parse_telegram_preview
 
 HTML = Path(__file__).parent / "fixtures" / "html"
 FIXTURES = Path(__file__).parent / "fixtures"

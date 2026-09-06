@@ -19,9 +19,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from arena.evidence import EvidencePack
-from arena.ledger import Ledger
-from arena.llm import LLM
+from nota.evidence import EvidencePack
+from nota.ledger import Ledger
+from nota.llm import LLM
 
 PROMPT_VERSION = "v2"  # v2: explicit list-index path syntax + cite-only-existing instruction
 ROLES: tuple[str, ...] = ("macro", "technician", "narrative")

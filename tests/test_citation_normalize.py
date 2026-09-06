@@ -1,4 +1,4 @@
-from arena.council import Citation, Opinion, normalize_path, validate_citations
+from nota.council import Citation, Opinion, normalize_path, validate_citations
 
 
 def test_normalize_path_bracket_index_and_quotes():

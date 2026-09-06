@@ -1,4 +1,4 @@
-from arena.ledger import Ledger
+from nota.ledger import Ledger
 
 
 def test_pack_roundtrip_and_idempotent():

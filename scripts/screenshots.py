@@ -15,10 +15,10 @@ import uvicorn
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-os.environ.setdefault("ARENA_DB", str(ROOT / "data" / "demo.db"))
-os.environ.setdefault("ARENA_READONLY", "1")
+os.environ.setdefault("NOTA_DB", str(ROOT / "data" / "demo.db"))
+os.environ.setdefault("NOTA_READONLY", "1")
 
-from arena.api import app  # noqa: E402
+from nota.api import app  # noqa: E402
 
 OUT = ROOT / "docs" / "img"
 

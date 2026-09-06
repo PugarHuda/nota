@@ -1,4 +1,4 @@
-# Arena skills: contract and definitions (Track 3)
+# Nota skills: contract and definitions (Track 3)
 
 Two research tools RYO does not have yet. Both follow the published tool specification:
 the definition shape is RYO's own `SkillDefinition` (`name`, `description`, `args[]`,
@@ -12,7 +12,7 @@ as_of · request · data · summary{headline,key_points} · availability · warn
 Honesty convention as implemented:
 
 - A failed dependency becomes `availability[<section>] = "unavailable"` plus a warning that
-  names the cause. `status` is derived from availability (`arena/skills/contract.py`), never
+  names the cause. `status` is derived from availability (`nota/skills/contract.py`), never
   set by hand.
 - A measurement that cannot be made is `null`. Sentiment with no sentiment-bearing words is
   `null`, not `0`. Timestamps the source does not supply are `null` and a warning says so.
@@ -52,7 +52,7 @@ Count independent sources for a claim and attach the token's RYO market read.
 `availability`: `search` (primary), `market`.
 
 Search backend: Tavily when `TAVILY_API_KEY` is set, otherwise Venice web search through the same
-`OPENAI_API_KEY` the council uses (`arena/skills/sources.py::search_backend`). Venice returns no
+`OPENAI_API_KEY` the council uses (`nota/skills/sources.py::search_backend`). Venice returns no
 relevance scores and usually no dates, so the envelope carries a warning that corroboration is
 not time-bound; `score` and `published_date` stay `null` rather than being invented.
 
@@ -106,9 +106,9 @@ days here). Fewer than 15 daily candles means `rsi_14`/`atr_14` are `null` with 
 ## Calling them
 
 ```bash
-uv run arena skill spec                               # definitions as JSON
-uv run arena skill run narrative_convergence '{"voices":["tg:WatcherGuru"],"hours":24}'
-uv run arena skill run news_verify '{"claim":"SOL ETF approved","symbol":"SOL"}'
+uv run nota skill spec                               # definitions as JSON
+uv run nota skill run narrative_convergence '{"voices":["tg:WatcherGuru"],"hours":24}'
+uv run nota skill run news_verify '{"claim":"SOL ETF approved","symbol":"SOL"}'
 ```
 
 Inside the council, `--voices tg:a,tg:b` adds a `narrative_signal` section and `--news`

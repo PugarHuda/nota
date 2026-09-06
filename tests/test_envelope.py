@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from arena.envelope import Envelope, RyoToolError, parse_mcp, parse_rest
+from nota.envelope import Envelope, RyoToolError, parse_mcp, parse_rest
 
 SAMPLE = {
     "schema_version": "1",

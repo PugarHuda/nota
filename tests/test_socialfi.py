@@ -2,11 +2,11 @@ import json
 
 from fastapi.testclient import TestClient
 
-from arena import api
-from arena.api import backer_correct
-from arena.calibration import Outcome
-from arena.card import render_card
-from arena.ledger import Ledger
+from nota import api
+from nota.api import backer_correct
+from nota.calibration import Outcome
+from nota.card import render_card
+from nota.ledger import Ledger
 from tests.test_api import _seed
 
 
@@ -45,8 +45,8 @@ def test_readonly_snapshot_serves_reads_and_refuses_backing(tmp_path, monkeypatc
 
     first, second = _seed(tmp_path, monkeypatch)
     sqlite3.connect(str(tmp_path / "t.db")).execute(f"VACUUM INTO '{(tmp_path / 'snap.db').as_posix()}'")
-    monkeypatch.setenv("ARENA_DB", str(tmp_path / "snap.db"))
-    monkeypatch.setenv("ARENA_READONLY", "1")
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "snap.db"))
+    monkeypatch.setenv("NOTA_READONLY", "1")
     c = TestClient(api.app)
     assert c.get("/api/health").json()["readonly"] is True
     assert [r["id"] for r in c.get("/api/decisions").json()] == [second.id, first.id]
@@ -80,5 +80,5 @@ def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):
     assert f'<meta property="og:image" content="http://testserver/r/{second.id}.png">' in page
     assert 'name="twitter:card" content="summary_large_image"' in page and "<!--OG-->" not in page
     assert "<!--OG-->" in c.get("/").text and "<!--OG-->" in c.get("/r/nope").text
-    monkeypatch.setenv("ARENA_PUBLIC_URL", "https://arena.example/")
-    assert 'content="https://arena.example/r/' in c.get(f"/r/{second.id}").text
+    monkeypatch.setenv("NOTA_PUBLIC_URL", "https://nota.example/")
+    assert 'content="https://nota.example/r/' in c.get(f"/r/{second.id}").text

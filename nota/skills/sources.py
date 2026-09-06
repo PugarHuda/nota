@@ -20,9 +20,9 @@ from defusedxml.common import DefusedXmlException
 import httpx
 from pydantic import BaseModel
 
-from arena.skills.contract import SourceUnavailable
+from nota.skills.contract import SourceUnavailable
 
-UA = "Mozilla/5.0 (compatible; ryo-arena/0.1; +https://ryobuild.com)"
+UA = "Mozilla/5.0 (compatible; nota/0.1; +https://ryobuild.com)"
 
 
 class Message(BaseModel):
@@ -304,7 +304,7 @@ class VeniceSearch:
     def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str | None = None, http: httpx.Client | None = None):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY") or os.environ.get("VENICE_API_KEY", "")
         self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL", "https://api.venice.ai/api/v1")).rstrip("/")
-        self.model = model or os.environ.get("ARENA_MODEL", "qwen3-235b-a22b-instruct-2507")
+        self.model = model or os.environ.get("NOTA_MODEL", "qwen3-235b-a22b-instruct-2507")
         self.http = http or httpx.Client(timeout=90.0)
 
     @property

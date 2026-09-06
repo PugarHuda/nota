@@ -13,9 +13,9 @@ from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field
 
-from arena.envelope import Envelope
-from arena.ledger import now_iso
-from arena.ryo_client import RyoError, RyoSource
+from nota.envelope import Envelope
+from nota.ledger import now_iso
+from nota.ryo_client import RyoError, RyoSource
 
 SectionStatus = Literal["ok", "partial", "unavailable", "error"]
 

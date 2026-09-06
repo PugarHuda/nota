@@ -21,10 +21,10 @@ import uvicorn
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-os.environ.setdefault("ARENA_DB", str(ROOT / "data" / "demo.db"))
-os.environ.setdefault("ARENA_READONLY", "1")
+os.environ.setdefault("NOTA_DB", str(ROOT / "data" / "demo.db"))
+os.environ.setdefault("NOTA_READONLY", "1")
 
-from arena.api import app  # noqa: E402
+from nota.api import app  # noqa: E402
 
 OUT = ROOT / "docs" / "demo"
 
@@ -70,7 +70,7 @@ def main() -> None:
         page.goto(base + "/")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")
-        say(page, "RYO Arena: an AI trading opinion you can audit. Every decision is a receipt you can re-run "
+        say(page, "Nota: an AI trading opinion you can audit. Every decision is a receipt you can re-run "
                   "and get identical output, with every number traced back to the RYO path it came from.", 5500)
         say(page, "Header, left to right: read-only snapshot, RYO MCP up with 6 tools, NO builder key. "
                   "So these receipts are fixture-sourced, and the page says so rather than pretending.", 6500)
