@@ -66,11 +66,15 @@ LLM_HELP = "anthropic | openai (env ARENA_LLM)"
 
 
 @app.command()
-def health(source: str = "live"):
+def health():
     """Check RYO MCP health (no key needed) and, when a key is set, whoami/quota."""
     client = RyoClient()
     typer.echo(json.dumps(client.health(), indent=1))
     typer.echo(f"transport: {client.transport} (env RYO_TRANSPORT)")
+    typer.echo(f"key_set: {bool(client.key)} (env RYO_MCP_KEY)")
+    if not client.key:
+        typer.echo("no builder key: live RYO evidence is unavailable; --source fixture|recorded, "
+                   "the skills and the dashboard still run")
     if client.key:
         try:
             typer.echo(json.dumps(client.whoami(), indent=1))

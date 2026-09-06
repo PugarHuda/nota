@@ -87,9 +87,10 @@ class EvidencePack(BaseModel):
                 return None
         return node
 
-    def available_paths(self) -> set[str]:
-        """Every leaf path under `<section>.data` that holds a non-null value. Used to validate citations."""
-        out: set[str] = set()
+    def available_paths(self) -> dict[str, Any]:
+        """Every leaf path under `<section>.data` that holds a non-null value, mapped to that value.
+        Used to validate citations and to fill each citation with the evidence's own number."""
+        out: dict[str, Any] = {}
 
         def walk(prefix: str, node: Any) -> None:
             if isinstance(node, dict):
@@ -99,7 +100,7 @@ class EvidencePack(BaseModel):
                 for i, v in enumerate(node):
                     walk(f"{prefix}.{i}", v)
             elif node is not None:
-                out.add(prefix)
+                out[prefix] = node
 
         for key, sec in self.sections.items():
             if sec.envelope is not None:

@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -142,14 +143,23 @@ def _judge_prompt(pack: EvidencePack, opinions: list[Opinion], weights: dict[str
 _INDEX = re.compile(r"\[(\d+)\]")
 
 
+def _as_text(value: Any) -> str:
+    return f"{value:g}" if isinstance(value, float) else str(value)
+
+
 def normalize_path(path: str) -> str:
     """`market_overview.data.gainers[0].pct` -> `market_overview.data.gainers.0.pct`; strips backticks/quotes/space."""
     return _INDEX.sub(r".\1", path.strip().strip("`'\" ")).replace("..", ".")
 
 
-def validate_citations(opinion: Opinion, allowed: set[str]) -> Opinion:
+def validate_citations(opinion: Opinion, allowed: set[str] | Mapping[str, Any]) -> Opinion:
+    """Drop citations that point at nothing. When `allowed` maps paths to values (the normal case,
+    `EvidencePack.available_paths()`), the citation's `value` is taken from the evidence rather than
+    from whatever the model retyped, so a receipt can never show a number the evidence does not hold."""
     normalized = [c.model_copy(update={"path": normalize_path(c.path)}) for c in opinion.citations]
     kept = [c for c in normalized if c.path in allowed]
+    if isinstance(allowed, Mapping):
+        kept = [c.model_copy(update={"value": _as_text(allowed[c.path])}) for c in kept]
     dropped = len(opinion.citations) - len(kept)
     confidence = opinion.confidence
     if not kept and opinion.citations:
