@@ -45,7 +45,7 @@ gather ──► council ──► judge ──► risk (pure ATR math) ──�
 
 ```bash
 uv sync
-cp .env.example .env            # fill RYO_MCP_KEY and ANTHROPIC_API_KEY
+cp .env.example .env            # fill RYO_MCP_KEY and an LLM key (Anthropic, or ARENA_LLM=openai for Venice/OpenRouter)
 uv run arena health             # MCP health (no key) + whoami/quota (with key)
 uv run arena decide SOL         # live evidence, Anthropic council
 uv run arena replay <id>        # identical: True

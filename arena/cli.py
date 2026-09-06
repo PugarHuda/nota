@@ -54,6 +54,10 @@ def _llm(kind: str):
                                       citations=[Citation(path="deep_analysis.data.technicals.rsi_14", value="?")], invalidation="n/a")
         return FakeLLM({"macro": op("macro"), "technician": op("technician"), "narrative": op("narrative"),
                         "judge": lambda _u: Verdict(action="no_trade", p_up_7d=0.5, rationale="FAKE LLM placeholder.")})
+    if kind == "openai":
+        from arena.llm import OpenAICompatLLM
+
+        return OpenAICompatLLM()
     from arena.llm import AnthropicLLM
 
     return AnthropicLLM()
@@ -75,7 +79,7 @@ def health(source: str = "live"):
 def decide_cmd(
     symbol: str = typer.Argument(..., help="Token symbol, e.g. SOL"),
     source: str = typer.Option("live", help="live | recorded | fixture"),
-    llm: str = typer.Option("anthropic", help="anthropic | fake"),
+    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help="anthropic | openai | fake (env ARENA_LLM)"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the LLM output cache"),
     voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env ARENA_VOICES)"),
     news: bool = typer.Option(False, help="Add news_check via news_verify (needs TAVILY_API_KEY)"),
@@ -95,7 +99,8 @@ def decide_cmd(
 
 
 @app.command("replay")
-def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call the model again instead of using cached outputs"), llm: str = "anthropic"):
+def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call the model again instead of using cached outputs"),
+               llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help="anthropic | openai | fake (env ARENA_LLM)")):
     """Rebuild a receipt from stored evidence and report whether it is identical."""
     res = replay(decision_id, _ledger(), _llm(llm), RiskLimits(), fresh=fresh)
     typer.echo(f"identical: {res.identical}  (fresh={res.fresh})")
