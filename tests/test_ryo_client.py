@@ -80,7 +80,10 @@ def test_fixture_name():
     assert fixture_name("deep_analysis", {"symbol": "sol", "include_perp": True}) == "SOL"
     assert fixture_name("market_overview", {}) == "default"
     assert fixture_name("market_overview", None) == "default"
-    assert len(fixture_name("scan_market", {"chain": "bsc", "top_n": 5})) == 12
+    assert fixture_name("scan_market", {"chain": "bsc", "top_n": 5}) == "bsc-any"
+    assert fixture_name("scan_market", {"theme": "news"}) == "any-news" and fixture_name("scan_market", {"top_n": 3}) == "default"
+    assert fixture_name("compare_tokens", {"symbols": "sol avax", "intent": "swing"}) == "SOL-AVAX"
+    assert len(fixture_name("scan_market", {"weird": 1})) == 12
 
 
 def test_recorded_client_reads_fixture_and_raises_when_missing(tmp_path):

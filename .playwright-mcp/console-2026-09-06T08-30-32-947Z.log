@@ -7,3 +7,4 @@
 [  272076ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8770/api/decisions?limit=200:0
 [  302100ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8770/api/decisions?limit=200:0
 [  332665ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8770/api/decisions?limit=200:0
+[  362089ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8770/api/decisions?limit=200:0
