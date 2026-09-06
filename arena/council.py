@@ -75,7 +75,9 @@ ROLE_SYSTEM: dict[str, str] = {
     "technician": "[role:technician] You are the Technician. You read price, multi-window performance, RSI(14), ATR(14), "
     "confluence, derivatives and the tool's own verdict, and judge trend, momentum and volatility for this token." + COMMON_RULES,
     "narrative": "[role:narrative] You are the Narrative agent. You read catalysts, risks, the token profile and intelligence "
-    "narrative, and judge whether the story supports or undermines the price. Be explicit when profile data is unavailable." + COMMON_RULES,
+    "narrative, plus, when present, `narrative_signal` (what selected voices say, lexicon-scored) and `news_check` "
+    "(how many independent sources corroborate a story). Judge whether the story supports or undermines the price. "
+    "Be explicit when profile data is unavailable and treat unavailable voices as silence, not agreement." + COMMON_RULES,
     "judge": "[role:judge] You are the Judge. You receive the council's opinions with their calibration weights and the evidence "
     "availability. Weigh them, resolve disagreement explicitly, and decide long, short or no_trade. Prefer no_trade when primary "
     "evidence is unavailable or the council is split with low confidence." + COMMON_RULES,
@@ -85,7 +87,7 @@ ROLE_SYSTEM: dict[str, str] = {
 ROLE_SECTIONS: dict[str, tuple[str, ...]] = {
     "macro": ("market_overview", "sentiment_shift"),
     "technician": ("deep_analysis", "analyze_token"),
-    "narrative": ("deep_analysis", "analyze_token"),
+    "narrative": ("deep_analysis", "analyze_token", "narrative_signal", "news_check"),
 }
 
 

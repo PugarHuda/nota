@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field
 
@@ -129,7 +129,10 @@ def first_present(pack: EvidencePack, candidates: list[str]) -> tuple[str | None
     return None, None
 
 
-def gather(source: RyoSource, symbol: str, include_perp: bool = True) -> EvidencePack:
+Extra = Callable[[str], Envelope]  # our own skill, called with the symbol
+
+
+def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: dict[str, Extra] | None = None) -> EvidencePack:
     symbol = symbol.upper()
     args: dict[str, dict[str, Any]] = {
         "market_overview": {},
@@ -144,4 +147,10 @@ def gather(source: RyoSource, symbol: str, include_perp: bool = True) -> Evidenc
             pack.sections[key] = Section(tool=tool, status=env.status, envelope=env)
         except RyoError as exc:
             pack.sections[key] = Section(tool=tool, status="error", error=f"{exc.code}: {exc.message}")
+    for key, fn in (extras or {}).items():
+        try:
+            env = fn(symbol)
+            pack.sections[key] = Section(tool=env.tool, status=env.status, envelope=env)
+        except Exception as exc:  # a skill must never take the decision down with it
+            pack.sections[key] = Section(tool=key, status="error", error=f"{type(exc).__name__}: {exc}")
     return pack

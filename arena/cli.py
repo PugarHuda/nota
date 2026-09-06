@@ -18,6 +18,9 @@ from arena.receipt import Receipt, render_markdown
 from arena.replay import replay
 from arena.risk import RiskLimits
 from arena.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
+from arena.skills import definitions as skill_definitions, invoke as skill_invoke
+from arena.skills.narrative import narrative_convergence
+from arena.skills.news import news_verify
 
 load_dotenv()
 app = typer.Typer(help="RYO Arena: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
@@ -74,10 +77,19 @@ def decide_cmd(
     source: str = typer.Option("live", help="live | recorded | fixture"),
     llm: str = typer.Option("anthropic", help="anthropic | fake"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the LLM output cache"),
+    voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env ARENA_VOICES)"),
+    news: bool = typer.Option(False, help="Add news_check via news_verify (needs TAVILY_API_KEY)"),
     as_json: bool = typer.Option(False, "--json"),
 ):
     """Gather evidence, run the council, size a practice trade, store the receipt."""
-    receipt = decide(symbol, _source(source), _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache)
+    src = _source(source)
+    extras = {}
+    voice_list = [v for v in (voices or os.environ.get("ARENA_VOICES", "")).split(",") if v.strip()]
+    if voice_list:
+        extras["narrative_signal"] = lambda sym: narrative_convergence(voice_list, tokens=[sym], hours=24)
+    if news:
+        extras["news_check"] = lambda sym: news_verify(f"{sym} crypto news this week", symbol=sym, ryo=src)
+    receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=extras or None)
     typer.echo(receipt.model_dump_json(indent=1) if as_json else render_markdown(receipt))
 
 
@@ -143,6 +155,29 @@ def record_cmd(symbol: str):
             typer.echo(f"recorded {record(client, tool, args, RECORDED_ROOT)}")
         except RyoError as exc:
             typer.echo(f"{tool}: {exc}")
+
+
+skill_app = typer.Typer(help="Track 3 skills: RYO-shaped research tools RYO does not have yet.", no_args_is_help=True)
+app.add_typer(skill_app, name="skill")
+
+
+@skill_app.command("spec")
+def skill_spec():
+    """Print the skill definitions (RYO SkillDefinition shape)."""
+    typer.echo(json.dumps([d.model_dump() for d in skill_definitions()], indent=1))
+
+
+@skill_app.command("run")
+def skill_run(name: str, args_json: str = typer.Argument("{}", help="JSON object of arguments"), source: str = typer.Option("live", help="RYO source for market context")):
+    """Invoke a skill and print its envelope."""
+    args = json.loads(args_json)
+    deps = {}
+    if name == "news_verify" and args.get("symbol"):
+        try:
+            deps["ryo"] = _source(source)
+        except typer.BadParameter:
+            pass  # skill reports the missing market context itself
+    typer.echo(skill_invoke(name, args, **deps).model_dump_json(indent=1))
 
 
 if __name__ == "__main__":

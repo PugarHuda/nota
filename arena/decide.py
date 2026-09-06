@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from arena.calibration import role_scores, role_weights
 from arena.council import run_council
-from arena.evidence import gather
+from arena.evidence import Extra, gather
 from arena.ledger import Ledger
 from arena.llm import LLM
 from arena.receipt import Receipt, build_receipt
@@ -12,8 +12,9 @@ from arena.risk import RiskLimits, size_trade
 from arena.ryo_client import RyoSource
 
 
-def decide(symbol: str, source: RyoSource, llm: LLM, ledger: Ledger, limits: RiskLimits | None = None, use_cache: bool = True) -> Receipt:
-    pack = gather(source, symbol)
+def decide(symbol: str, source: RyoSource, llm: LLM, ledger: Ledger, limits: RiskLimits | None = None, use_cache: bool = True,
+           extras: dict[str, Extra] | None = None) -> Receipt:
+    pack = gather(source, symbol, extras=extras)
     ledger.save_pack(pack.pack_hash(), pack.symbol, pack.source, pack.model_dump_json())
     weights = role_weights(role_scores(ledger))
     council = run_council(pack, llm, ledger, weights=weights, use_cache=use_cache)
