@@ -7,8 +7,10 @@ one writer process ever exists.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 SCHEMA = """
@@ -35,12 +37,19 @@ def now_iso() -> str:
 
 
 class Ledger:
-    def __init__(self, path: str = "arena.db"):
-        self.conn = sqlite3.connect(path, isolation_level=None)  # autocommit
+    def __init__(self, path: str = "arena.db", readonly: bool | None = None):
+        """`readonly` (or env ARENA_READONLY=1) opens a shipped snapshot immutably, e.g. on a serverless host
+        whose filesystem cannot be written; every write method then raises instead of pretending."""
+        self.readonly = bool(readonly if readonly is not None else os.environ.get("ARENA_READONLY") == "1") and path != ":memory:"
+        if self.readonly:
+            self.conn = sqlite3.connect(f"file:{Path(path).as_posix()}?mode=ro&immutable=1", uri=True, isolation_level=None)
+        else:
+            self.conn = sqlite3.connect(path, isolation_level=None)  # autocommit
         self.conn.row_factory = sqlite3.Row
-        if path != ":memory:":
-            self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.executescript(SCHEMA)
+        if not self.readonly:
+            if path != ":memory:":
+                self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.executescript(SCHEMA)
 
     # evidence ------------------------------------------------------------------------
     def save_pack(self, pack_hash: str, symbol: str, source: str, pack_json: str) -> None:

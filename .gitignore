@@ -7,3 +7,10 @@ __pycache__/
 .pytest_cache/
 node_modules/
 dist/
+
+# Read-only ledger snapshot shipped with the Vercel demo (fixture-sourced receipts, labelled as such)
+!data/demo.db
+
+.vercel
+.env*
+!.env.example

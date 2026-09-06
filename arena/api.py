@@ -216,7 +216,7 @@ def health() -> dict[str, Any]:
     except Exception as exc:  # the dashboard must load even when RYO is down
         ryo = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
     return {
-        "ryo": ryo, "ryo_key_set": bool(client.key),
+        "ryo": ryo, "ryo_key_set": bool(client.key), "readonly": led.readonly,
         "llm": {"kind": os.environ.get("ARENA_LLM", "anthropic"), "model": os.environ.get("ARENA_MODEL")},
         "ledger": {"decisions": led.conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0],
                    "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()), "due": len(due(led))},
@@ -291,6 +291,8 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
         raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ @ . -")
     _throttle(request.client.host if request.client else "unknown")
     led = _ledger()
+    if led.readonly:
+        raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot; backing works on a writable `arena serve`")
     _receipt(led, id)
     led.add_backing(id, body.handle, body.stance)
     return _backing_counts(led, id)

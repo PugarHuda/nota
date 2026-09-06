@@ -40,6 +40,21 @@ def test_backing_flow_and_leaderboard(tmp_path, monkeypatch):
     assert c.get("/api/backers").json()[0] == {"handle": "dave", "backed": 1, "scored": 1, "correct": 1, "accuracy": 1.0}
 
 
+def test_readonly_snapshot_serves_reads_and_refuses_backing(tmp_path, monkeypatch):
+    import sqlite3
+
+    first, second = _seed(tmp_path, monkeypatch)
+    sqlite3.connect(str(tmp_path / "t.db")).execute(f"VACUUM INTO '{(tmp_path / 'snap.db').as_posix()}'")
+    monkeypatch.setenv("ARENA_DB", str(tmp_path / "snap.db"))
+    monkeypatch.setenv("ARENA_READONLY", "1")
+    c = TestClient(api.app)
+    assert c.get("/api/health").json()["readonly"] is True
+    assert [r["id"] for r in c.get("/api/decisions").json()] == [second.id, first.id]
+    assert c.get(f"/api/decisions/{second.id}/replay").json()["identical"] is True
+    res = c.post(f"/api/decisions/{second.id}/back", json={"handle": "alice", "stance": "agree"})
+    assert res.status_code == 503 and "read-only" in res.json()["detail"]
+
+
 def test_backing_throttle_per_ip():
     from fastapi import HTTPException
     import pytest
