@@ -62,8 +62,7 @@ re-record the moment the key lands; nothing else in the script changes.
    exchanges, real Telegram, RYO envelope shape, per-voice availability, method named.
 7. (2:55) Close: read-only, practice trades only, not financial advice.
 
-Recorded so far: `uv run python scripts/demo_video.py` captures the dashboard half (steps 5) as
-`docs/demo/dashboard-<ts>.webm`/`.mp4` (gitignored). The terminal half is screen-recorded by hand.
+`uv run python scripts/demo_video.py` records the whole walkthrough with on-screen captions (~2 min, `docs/demo/dashboard-<ts>.webm`/`.mp4`, gitignored): summary, no-trade guard, keyboard nav, ranked diff, verify-replay, council citations, provenance, a live `narrative_convergence` run, positions and the leaderboard. Nothing is staged - it drives the real page against the shipped ledger snapshot. The terminal steps (1-4 above) are still screen-recorded by hand if you want them; the captioned dashboard video stands alone as the submission video otherwise.
 
 ## Help Desk message (paste into https://discord.gg/qkWPjxzxtC)
 

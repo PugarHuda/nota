@@ -33,6 +33,26 @@ def pause(page, ms: int) -> None:
     page.wait_for_timeout(ms)
 
 
+CAPTION_JS = """(text) => {
+  let el = document.getElementById('__cap');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '__cap';
+    el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;pointer-events:none;'
+      + 'background:rgba(12,14,18,.92);color:#f2f4f8;font:16px/1.45 system-ui,sans-serif;'
+      + 'padding:12px 20px;border-top:2px solid #4c8dff';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+}"""
+
+
+def say(page, text: str, ms: int = 3200) -> None:
+    """Caption what the viewer is looking at. The UI underneath is untouched and still live."""
+    page.evaluate(CAPTION_JS, text)
+    pause(page, ms)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     with socket.socket() as s:
@@ -50,27 +70,56 @@ def main() -> None:
         page.goto(base + "/")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")
-        pause(page, 4000)  # thirty-second summary + attention strip
-        page.keyboard.press("j"); pause(page, 900)
+        say(page, "RYO Arena - a council of agents argues over RYO evidence and leaves a receipt you can audit.", 4000)
+        say(page, "Header, left to right: read-only snapshot, RYO MCP up with 6 tools, NO builder key. "
+                  "So these receipts are fixture-sourced, and the page says so rather than pretending.", 6500)
+        say(page, "The 30-second summary answers: what now, what changed most, where the practice position stands, what happens next.", 5500)
+        say(page, "The newest call is no_trade - and here is why that matters: an independent exchange cross-check "
+                  "found the evidence price 42% away from the exchange median, so the judge refused to size anything.", 7000)
+        page.keyboard.press("j"); pause(page, 700)
+        say(page, "Keyboard-first: j / k move, Enter opens, / filters, ? shows the keys. No mouse needed.", 3000)
         page.keyboard.press("Enter")
-        page.wait_for_selector("#summary"); pause(page, 3500)
-        page.keyboard.press("k"); pause(page, 800)
-        page.keyboard.press("Enter"); pause(page, 2500)
+        page.wait_for_selector("#summary"); pause(page, 2500)
+        say(page, "Every receipt is diffed against the previous one for the same symbol, ranked by impact - "
+                  "not a wall of JSON, just what actually moved.", 5000)
+        try:
+            page.locator("h2:has-text('What changed')").first.scroll_into_view_if_needed()
+            say(page, "before -> after per dotted RYO path, with why it matters and how hard it hit.", 5000)
+        except Exception:
+            say(page, "This receipt has no earlier sibling to diff against yet.", 2500)
         page.click("#verify")
         page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')")
-        page.locator("#verify").scroll_into_view_if_needed(); pause(page, 3000)
-        page.locator("h2:has-text('Council')").scroll_into_view_if_needed(); pause(page, 3500)
-        page.locator("h2:has-text('Evidence provenance')").scroll_into_view_if_needed(); pause(page, 3000)
-        page.evaluate("window.scrollTo(0, 0); document.querySelector('#detail').scrollTop = 0"); pause(page, 800)
+        page.locator("#verify").scroll_into_view_if_needed()
+        say(page, "Verify replay: re-runs the decision from the stored evidence and cached model output. "
+                  "identical: true means nothing was rewritten after the fact.", 6000)
+        page.locator("h2:has-text('Council')").scroll_into_view_if_needed()
+        say(page, "Three specialists - macro, technician, narrative. Each cites dotted RYO paths, and the value shown "
+                  "is read back out of the evidence, not retyped by the model.", 6500)
+        say(page, "Citations pointing at absent evidence are dropped in code and counted, so a confident sentence "
+                  "cannot rest on a number that was never there.", 5500)
+        page.locator("h2:has-text('Evidence provenance')").scroll_into_view_if_needed()
+        say(page, "Provenance per section: status, data_mode, as_of, trace id. A partial section stays partial; "
+                  "null is never turned into 0; the risk layer refuses to size on simulated data.", 6500)
+        page.evaluate("window.scrollTo(0, 0); document.querySelector('#detail').scrollTop = 0"); pause(page, 600)
+        say(page, "Track 3: the skills are served on RYO's own /api/skills paths, so plugging them into RYO "
+                  "is a route registration. This panel is generated from their definitions.", 5500)
         page.select_option("#skill-name", "narrative_convergence")
         page.fill("#skill-args [data-arg='voices']", "tg:WatcherGuru, bs:decrypt.co")
         page.fill("#skill-args [data-arg='hours']", "48")
         page.click("#skill-run")
+        say(page, "Running narrative_convergence live right now against public Telegram and Bluesky - no key needed.", 3000)
         page.wait_for_function("document.querySelector('#skill-out').textContent.length > 10", timeout=90000)
-        page.locator("#skill-out").scroll_into_view_if_needed(); pause(page, 6000)
-        page.locator("h2:has-text('Open practice positions')").scroll_into_view_if_needed(); pause(page, 3000)
-        page.keyboard.press("?"); pause(page, 2500)
-        page.keyboard.press("Escape"); pause(page, 1000)
+        page.locator("#skill-out").scroll_into_view_if_needed()
+        say(page, "Back comes RYO's envelope field for field: status, data_mode, as_of, availability per voice, "
+                  "warnings, and the sentiment method named. Silence is null, never 0.", 6500)
+        page.locator("h2:has-text('Open practice positions')").scroll_into_view_if_needed()
+        say(page, "The practice position is sized from ATR: stop at 2x ATR, size from 1% risk. "
+                  "It is marked against an independent exchange price, and it is past its stop here - shown, not hidden.", 6500)
+        say(page, "Agents are weighted by their own Brier score once calls resolve at the 7-day horizon. "
+                  "Nothing has resolved yet, so every weight is 1.0 and the table says so.", 6000)
+        page.keyboard.press("?"); pause(page, 2000)
+        say(page, "Read-only research on RYO evidence. No order is ever placed. Not financial advice.", 4500)
+        page.keyboard.press("Escape"); pause(page, 800)
         page.close()
         video_path = Path(page.video.path())
         ctx.close()
