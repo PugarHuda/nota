@@ -10,6 +10,7 @@ import html
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -121,8 +122,13 @@ def what_changed(led: Ledger, cur: Receipt, prev: Receipt | None) -> list[dict[s
 
     pa, pb = led.get_pack(prev.pack_hash), led.get_pack(cur.pack_hash)
     if pa and pb:
-        la, lb = _leaves(EvidencePack.model_validate_json(pa)), _leaves(EvidencePack.model_validate_json(pb))
+        packs = (EvidencePack.model_validate_json(pa), EvidencePack.model_validate_json(pb))
+        la, lb = _leaves(packs[0]), _leaves(packs[1])
+        # a section present in only one receipt is one availability row above, not one row per leaf
+        both = {k for k, s in packs[0].sections.items() if s.envelope} & {k for k, s in packs[1].sections.items() if s.envelope}
         for path in sorted(set(la) | set(lb)):
+            if path.split(".", 1)[0] not in both:
+                continue
             a, b = la.get(path), lb.get(path)
             if a == b:
                 continue
@@ -265,11 +271,25 @@ def _backing_counts(led: Ledger, id: str) -> dict[str, Any]:
             "handles": [{"handle": r["handle"], "stance": r["stance"]} for r in rows[-20:]]}
 
 
+_BACKING_HITS: dict[str, list[float]] = {}
+BACKING_LIMIT, BACKING_WINDOW = 30, 3600.0  # ponytail: in-process per-IP throttle; a shared store if ever run on >1 worker
+
+
+def _throttle(ip: str, now: float | None = None) -> None:
+    now = now if now is not None else time.time()
+    hits = [t for t in _BACKING_HITS.get(ip, []) if now - t < BACKING_WINDOW]
+    if len(hits) >= BACKING_LIMIT:
+        raise HTTPException(429, f"too many backings from this address; limit {BACKING_LIMIT} per hour")
+    hits.append(now)
+    _BACKING_HITS[ip] = hits
+
+
 @app.post("/api/decisions/{id}/back")
-def back_decision(id: str, body: BackingIn) -> dict[str, Any]:
+def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
     """Unauthenticated by design for the hackathon: one stance per handle per receipt, latest wins."""
     if not HANDLE.match(body.handle):
         raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ @ . -")
+    _throttle(request.client.host if request.client else "unknown")
     led = _ledger()
     _receipt(led, id)
     led.add_backing(id, body.handle, body.stance)

@@ -41,11 +41,13 @@ def fixture_name(tool: str, args: dict[str, Any] | None) -> str:
 
     ponytail: symbol wins even with extra args (include_perp), so one fixture per token.
     """
-    args = args or {}
+    args = {k: v for k, v in (args or {}).items() if k != "top_n"}  # top_n only trims a list; same recording serves any size
     if "symbol" in args:
         return str(args["symbol"]).upper()
     if "symbols" in args:  # compare_tokens: "SOL, BTC, ETH" -> SOL-BTC-ETH
         return "-".join(s.strip().upper() for s in re.split(r"[,\s]+", str(args["symbols"])) if s.strip())
+    if set(args) <= {"chain", "theme"} and args:  # scan_market: bsc-news, any-news, bsc-any
+        return f"{args.get('chain') or 'any'}-{args.get('theme') or 'any'}".lower()
     if not args:
         return "default"
     digest = hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()[:12]

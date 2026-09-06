@@ -61,6 +61,28 @@ def test_list_detail_diff_positions_scores(tmp_path, monkeypatch):
     assert "RYO Arena" in c.get(f"/r/{second.id}").text
 
 
+def test_new_section_is_one_availability_row_not_one_row_per_leaf(tmp_path, monkeypatch):
+    from arena.council import run_council
+    from arena.evidence import EvidencePack
+    from arena.receipt import build_receipt
+    from arena.risk import size_trade
+    from arena.skills.contract import make_envelope
+
+    first, second = _seed(tmp_path, monkeypatch)
+    led = Ledger(str(tmp_path / "t.db"))
+    raw = json.loads(led.get_pack(second.pack_hash))
+    env = make_envelope("price_crosscheck", {}, {"median_usd": 151.0, "sources": [{"name": "a", "price_usd": 151.0}], "spread_pct": 0.1}, {"coingecko": "ok"}, [], "h")
+    raw["sections"]["price_check"] = {"tool": "price_crosscheck", "status": "ok", "envelope": json.loads(env.model_dump_json())}
+    pack = EvidencePack.model_validate(raw)
+    led.save_pack(pack.pack_hash(), pack.symbol, pack.source, pack.model_dump_json())
+    council = run_council(pack, make_llm(action="long", p=0.7), led)
+    third = build_receipt(pack, council, size_trade(council.verdict, pack))
+    led.save_decision(third.id, third.pack_hash, third.symbol, third.model, third.model_dump_json())
+    changes = TestClient(api.app).get(f"/api/decisions/{third.id}").json()["changes"]
+    paths = [c["path"] for c in changes]
+    assert "availability.price_check" in paths and not any(p.startswith("price_check.data") for p in paths)
+
+
 def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
     from arena.envelope import Envelope
     from arena.evidence import EvidencePack, Section

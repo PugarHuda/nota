@@ -19,14 +19,16 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 ## project_description (≤ 1000 chars, paste as is)
 
 RYO Arena is a council of specialised AI agents (macro, technician, narrative) that debates live
-RYO evidence from the six builder tools, lets a judge weigh them by each agent's historical Brier
-score, and records the practice trade it would take as a replayable decision receipt. Every number
-in a receipt carries its RYO path, as_of, data_mode and trace id; null is never turned into 0, and
-citations that point at missing evidence are dropped in code. Track 2: a keyboard-first dashboard
-that diffs each receipt against the previous one and ranks what changed by impact on open practice
-positions, with degraded-mode banners. Track 3: two new RYO-shaped skills, narrative_convergence
-(Telegram/X voices, lexicon-scored, convergence detection) and news_verify (independent-source
-corroboration plus RYO market context), both returning the RYO envelope. Read-only; no orders.
+RYO evidence from all six builder tools, lets a judge weigh them by each agent's historical Brier
+score, sizes a practice trade with pure ATR math, and records everything as a replayable decision
+receipt. Every number carries its RYO path, as_of, data_mode and trace id; null is never turned
+into 0; citations that point at missing evidence are dropped in code; an independent exchange
+price check flags stale or wrong prices before any sizing. `arena watch` runs it autonomously and
+publishes receipts to Telegram/Discord. Track 2: a keyboard-first, accessible dashboard that diffs
+each receipt against the previous one, ranks what changed by impact, shows degraded evidence, and
+verifies replay from the page; receipts share as Open Graph cards and anyone can back a call, scored
+when it resolves. Track 3: three RYO-shaped skills (narrative_convergence, news_verify with dated RSS
+corroboration, price_crosscheck), all returning the RYO envelope. Read-only; no orders.
 
 ## X post (draft)
 

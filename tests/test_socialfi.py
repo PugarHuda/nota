@@ -40,6 +40,21 @@ def test_backing_flow_and_leaderboard(tmp_path, monkeypatch):
     assert c.get("/api/backers").json()[0] == {"handle": "dave", "backed": 1, "scored": 1, "correct": 1, "accuracy": 1.0}
 
 
+def test_backing_throttle_per_ip():
+    from fastapi import HTTPException
+    import pytest
+
+    api._BACKING_HITS.clear()
+    for i in range(api.BACKING_LIMIT):
+        api._throttle("1.2.3.4", now=1000.0 + i)
+    with pytest.raises(HTTPException) as exc:
+        api._throttle("1.2.3.4", now=1000.0 + api.BACKING_LIMIT)
+    assert exc.value.status_code == 429
+    api._throttle("5.6.7.8", now=1000.0)  # other addresses unaffected
+    api._throttle("1.2.3.4", now=1000.0 + api.BACKING_WINDOW + 1)  # window expired
+    api._BACKING_HITS.clear()
+
+
 def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):
     first, second = _seed(tmp_path, monkeypatch)
     c = TestClient(api.app)

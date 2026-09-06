@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "tool": "scan_market",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-01T00:00:00Z",
+  "request": {},
+  "data": {
+    "theme": null,
+    "chain": null,
+    "candidates": [
+      {"symbol": "SOL", "score": 0.81, "reason": "momentum + breadth"},
+      {"symbol": "AVAX", "score": 0.64, "reason": "volume expansion"},
+      {"symbol": "BNB", "score": 0.52, "reason": "steady"}
+    ]
+  },
+  "summary": {"headline": "3 candidates ranked by momentum and activity", "key_points": ["SOL leads"]},
+  "availability": {"candidates": "ok"},
+  "warnings": [],
+  "trace_id": "fixture"
+}
