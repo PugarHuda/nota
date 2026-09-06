@@ -77,7 +77,7 @@ uv sync
 cp .env.example .env            # RYO_MCP_KEY + an LLM key (Anthropic, or ARENA_LLM=openai for Venice/OpenRouter)
 uv run arena health             # MCP health (no key) + whoami/quota (with key)
 uv run arena decide SOL         # live evidence + price cross-check, council, receipt
-uv run arena decide SOL --voices tg:WatcherGuru,x:WatcherGuru --news --notify
+uv run arena decide SOL --voices tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social --news --notify
 uv run arena scan --top-n 5 --decide-top 2      # scan_market -> analyze_token -> council
 uv run arena watch SOL,BTC --every 3600 --notify
 uv run arena replay <id>        # identical: True
