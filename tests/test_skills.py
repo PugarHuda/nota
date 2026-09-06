@@ -35,7 +35,7 @@ def test_status_from():
 
 def test_registry_definitions_and_arg_validation():
     names = {d.name for d in definitions()}
-    assert names == {"narrative_convergence", "news_verify"}
+    assert names == {"narrative_convergence", "news_verify", "price_crosscheck"}
     assert all(not d.requires_guard and d.read_only for d in definitions())
     with pytest.raises(ValueError, match="missing required"):
         invoke("news_verify", {})
@@ -62,16 +62,17 @@ def test_parse_private_channel_is_unavailable():
 # --- lexicon ----------------------------------------------------------------------------
 def test_score_text_tokens_sentiment_conviction_urgency():
     toks, sent, conv, urg = score_text("BREAKING: $SOL breakout confirmed, buying more now! Bullish on solana.", None)
-    assert toks == ["SOL"] and sent == 1.0 and urg > 0 and conv > 0
+    assert toks == ["SOL"] and sent is not None and sent > 0.5 and urg > 0 and conv > 0
     toks, sent, _, _ = score_text("$1,000 in gold vs $BTC over 10 years. No opinion.", None)
     assert toks == ["BTC"] and sent is None  # no sentiment words -> None, not 0
     toks, sent, _, _ = score_text("$ETH resistance rejection, bearish. $USDT fine", {"ETH"})
-    assert toks == ["ETH"] and sent == -1.0
+    assert toks == ["ETH"] and sent is not None and sent < -0.3
 
 
 # --- narrative_convergence --------------------------------------------------------------
 @respx.mock
 def test_narrative_convergence_detects_convergence_and_reports_failures():
+    respx.get(url__regex=r"https://twiiit\.com/.*").mock(return_value=httpx.Response(502))
     respx.get("https://t.me/s/alpha").mock(return_value=httpx.Response(200, text=page("alpha")))
     respx.get("https://t.me/s/beta").mock(return_value=httpx.Response(200, text=page("beta")))
     respx.get("https://t.me/s/private").mock(return_value=httpx.Response(200, text=page("private")))
@@ -84,9 +85,9 @@ def test_narrative_convergence_detects_convergence_and_reports_failures():
     sol = tokens["SOL"]
     assert sol["voice_count"] == 2 and sol["converging"] is True and sol["direction"] == "bullish"
     assert sol["mentions"] == 2  # the 2020 'dump' post is outside the window
-    assert tokens["BTC"]["sentiment_mean"] == 1.0 and tokens["BTC"]["voice_count"] == 1  # alpha's BTC post is 30h old
+    assert tokens["BTC"]["sentiment_mean"] > 0 and tokens["BTC"]["voice_count"] == 1  # alpha's BTC post is 30h old
     assert "SOL bullish (2 voices)" in env.summary.headline
-    assert env.data["method"]["sentiment"] == "lexicon_v2"
+    assert env.data["method"]["sentiment"].startswith("vader")
     assert env.data["tokens"][0]["symbol"] in ("SOL", "BTC") and env.data["tokens"][0]["converging"]
 
 
@@ -99,6 +100,7 @@ def test_narrative_all_voices_down_is_unavailable():
 
 @respx.mock
 def test_x_voice_via_tavily_marks_missing_times():
+    respx.get(url__regex=r"https://twiiit\.com/.*").mock(return_value=httpx.Response(502))
     respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(200, json={"results": [
         {"title": "Trader on X", "url": "https://x.com/trader/status/1", "content": "$AVAX breakout, long here", "score": 0.8}]}))
     env = narrative_convergence(["x:trader"], telegram=TelegramPublic(httpx.Client()), tavily=Tavily(api_key="tvly-test", http=httpx.Client()))
@@ -118,7 +120,7 @@ TAVILY = {"results": [
 @respx.mock
 def test_news_verify_corroboration_and_market_context():
     route = respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(200, json=TAVILY))
-    env = news_verify("SOL ETF filed", symbol="sol", tavily=Tavily(api_key="tvly-test", http=httpx.Client()),
+    env = news_verify("SOL ETF filed", symbol="sol", rss=False, tavily=Tavily(api_key="tvly-test", http=httpx.Client()),
                       ryo=RecordedRyoClient(FIXTURES, name="fixture"))
     assert route.calls[0].request.headers["Authorization"] == "Bearer tvly-test"
     assert env.status == "ok" and env.data["verdict"] == "weak"  # coindesk + theblock = 2 relevant domains
@@ -131,11 +133,11 @@ def test_news_verify_corroboration_and_market_context():
 @respx.mock
 def test_news_verify_search_down_is_unavailable_but_market_still_attached():
     respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(503))
-    env = news_verify("anything", symbol="SOL", tavily=Tavily(api_key="tvly-test", http=httpx.Client()), ryo=RecordedRyoClient(FIXTURES, name="fixture"))
+    env = news_verify("anything", symbol="SOL", rss=False, tavily=Tavily(api_key="tvly-test", http=httpx.Client()), ryo=RecordedRyoClient(FIXTURES, name="fixture"))
     assert env.status == "unavailable" and env.data["verdict"] is None and env.availability["market"] == "ok"
 
 
 def test_news_verify_without_key_and_without_ryo():
-    env = news_verify("x", symbol="SOL", tavily=Tavily(api_key=""), ryo=None)
+    env = news_verify("x", symbol="SOL", tavily=Tavily(api_key=""), ryo=None, rss=False)
     assert env.status == "unavailable"
     assert any("TAVILY_API_KEY" in w for w in env.warnings) and any("no RYO source" in w for w in env.warnings)

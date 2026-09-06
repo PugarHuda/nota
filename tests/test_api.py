@@ -59,3 +59,19 @@ def test_list_detail_diff_positions_scores(tmp_path, monkeypatch):
     s = c.get("/api/scores").json()
     assert s["scores"] == {} and s["unresolved"] == 2 and set(s["weights"]) == {"macro", "technician", "narrative"}
     assert "RYO Arena" in c.get(f"/r/{second.id}").text
+
+
+def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
+    from arena.envelope import Envelope
+    from arena.evidence import EvidencePack, Section
+
+    def pack(domains, since):
+        env = Envelope(schema_version="1", tool="news_verify", status="ok", data_mode="live", as_of="2026-09-01T00:00:00Z", request={},
+                       data={"domains": domains, "since": since, "sources": [{"url": "u", "snippet": since}], "n": 1},
+                       summary={"headline": "h", "key_points": []}, availability={}, warnings=[])
+        return EvidencePack(symbol="SOL", created_at="x", source="fixture", sections={"news_check": Section(tool="news_verify", status="ok", envelope=env)})
+
+    a = api._leaves(pack(["b.com", "a.com"], "t1"))
+    b = api._leaves(pack(["a.com", "b.com"], "t2"))
+    assert a == b and a["news_check.data.domains"] == ["a.com", "b.com"] and "news_check.data.since" not in a
+    assert api._leaves(pack(["a.com"], "t1"))["news_check.data.domains"] == ["a.com"]

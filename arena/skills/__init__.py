@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from arena.envelope import Envelope
-from arena.skills import narrative, news
+from arena.skills import narrative, news, price_check
 from arena.skills.contract import SkillDefinition
 
 SKILLS: dict[str, tuple[SkillDefinition, Callable[..., Envelope]]] = {
     narrative.DEFINITION.name: (narrative.DEFINITION, narrative.narrative_convergence),
     news.DEFINITION.name: (news.DEFINITION, news.news_verify),
+    price_check.DEFINITION.name: (price_check.DEFINITION, price_check.price_crosscheck),
 }
 
 

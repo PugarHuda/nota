@@ -19,14 +19,30 @@ from arena.ryo_client import RyoError, RyoSource
 
 SectionStatus = Literal["ok", "partial", "unavailable", "error"]
 
-# section key -> (tool, args builder)
+# section key -> tool
 SECTIONS: dict[str, str] = {
     "market_overview": "market_overview",
     "sentiment_shift": "monitor_market_sentiment_shift",
     "deep_analysis": "deep_analysis",
     "analyze_token": "analyze_token",
+    "compare": "compare_tokens",
 }
 PRIMARY = "deep_analysis"
+BENCHMARKS = ("BTC", "ETH", "SOL")  # relative-strength peers; the token itself is excluded
+
+
+def ryo_args(symbol: str, include_perp: bool = True) -> dict[str, dict[str, Any]]:
+    """The exact arguments every section is called with. `record` uses the same map, so a recorded
+    fixture is guaranteed to match what `gather` asks for."""
+    symbol = symbol.upper()
+    peers = [b for b in BENCHMARKS if b != symbol][:2]
+    return {
+        "market_overview": {},
+        "sentiment_shift": {},
+        "deep_analysis": {"symbol": symbol, "include_perp": include_perp},
+        "analyze_token": {"symbol": symbol},
+        "compare": {"symbols": ", ".join([symbol, *peers]), "intent": "swing"},
+    }
 
 
 class Section(BaseModel):
@@ -129,17 +145,33 @@ def first_present(pack: EvidencePack, candidates: list[str]) -> tuple[str | None
     return None, None
 
 
-Extra = Callable[[str], Envelope]  # our own skill, called with the symbol
+def candidate_symbols(node: Any) -> list[str]:
+    """Symbols found anywhere in a scan_market payload (`symbol`/`ticker` keys), in order, de-duplicated.
+    ponytail: schema-tolerant walk; trim to the real key once a live scan is recorded."""
+    out: list[str] = []
+
+    def walk(n: Any) -> None:
+        if isinstance(n, dict):
+            for k in ("symbol", "ticker"):
+                v = n.get(k)
+                if isinstance(v, str) and v.strip() and v.upper() not in out:
+                    out.append(v.strip().upper())
+            for v in n.values():
+                walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                walk(v)
+
+    walk(node)
+    return out
+
+
+Extra = Callable[[str, "EvidencePack"], Envelope]  # our own skill, called with the symbol and the RYO sections gathered so far
 
 
 def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: dict[str, Extra] | None = None) -> EvidencePack:
     symbol = symbol.upper()
-    args: dict[str, dict[str, Any]] = {
-        "market_overview": {},
-        "sentiment_shift": {},
-        "deep_analysis": {"symbol": symbol, "include_perp": include_perp},
-        "analyze_token": {"symbol": symbol},
-    }
+    args = ryo_args(symbol, include_perp)
     pack = EvidencePack(symbol=symbol, created_at=now_iso(), source=source.name)
     for key, tool in SECTIONS.items():
         try:
@@ -149,7 +181,7 @@ def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: di
             pack.sections[key] = Section(tool=tool, status="error", error=f"{exc.code}: {exc.message}")
     for key, fn in (extras or {}).items():
         try:
-            env = fn(symbol)
+            env = fn(symbol, pack)
             pack.sections[key] = Section(tool=env.tool, status=env.status, envelope=env)
         except Exception as exc:  # a skill must never take the decision down with it
             pack.sections[key] = Section(tool=key, status="error", error=f"{type(exc).__name__}: {exc}")

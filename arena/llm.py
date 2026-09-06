@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from typing import Callable, Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -72,8 +73,9 @@ class OpenAICompatLLM:
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY") or os.environ.get("VENICE_API_KEY", "")
         self.model = model or os.environ.get("ARENA_MODEL", "qwen3-235b-a22b-instruct-2507")
         self.max_tokens = max_tokens or int(os.environ.get("ARENA_MAX_TOKENS", "4000"))
-        self.http = httpx.Client(timeout=180.0, headers={"Authorization": f"Bearer {self.api_key}"})
+        self.http = httpx.Client(timeout=httpx.Timeout(180.0, connect=20.0), headers={"Authorization": f"Bearer {self.api_key}"})
         self.last_cost_usd: float | None = None
+        self.sleep = time.sleep
 
     def complete_json(self, system: str, user: str, schema: type[T]) -> T:
         body = {
@@ -84,7 +86,21 @@ class OpenAICompatLLM:
             # Venice-only knobs; other providers ignore unknown fields. Both save tokens.
             "venice_parameters": {"include_venice_system_prompt": False, "disable_thinking": True},
         }
-        r = self.http.post(f"{self.base_url}/chat/completions", json=body)
+        import httpx
+
+        for attempt in range(4):  # transient network / 429 / 5xx: back off and retry, then fail loudly
+            try:
+                r = self.http.post(f"{self.base_url}/chat/completions", json=body)
+            except httpx.TransportError as exc:
+                if attempt == 3:
+                    raise RuntimeError(f"LLM unreachable after 4 attempts: {type(exc).__name__}: {exc}") from exc
+                self.sleep(2.0 * (attempt + 1))
+                continue
+            if r.status_code in (408, 409, 429, 500, 502, 503, 504) and attempt < 3:
+                retry_after = r.headers.get("retry-after")
+                self.sleep(float(retry_after) if retry_after and retry_after.isdigit() else 2.0 * (attempt + 1))
+                continue
+            break
         if r.status_code >= 400:
             raise RuntimeError(f"LLM HTTP {r.status_code}: {r.text[:300]}")
         data = r.json()

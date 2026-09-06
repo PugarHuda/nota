@@ -15,7 +15,7 @@ def test_gather_builds_four_sections_with_statuses():
     pack = gather(source(), "sol")
     assert pack.symbol == "SOL" and pack.source == "fixture"
     assert pack.availability() == {
-        "market_overview": "ok", "sentiment_shift": "partial", "deep_analysis": "partial", "analyze_token": "ok",
+        "market_overview": "ok", "sentiment_shift": "partial", "deep_analysis": "partial", "analyze_token": "ok", "compare": "partial",
     }
     assert pack.primary_ok
     assert any("derivatives source rate-limited" in w for w in pack.warnings())

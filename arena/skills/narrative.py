@@ -17,7 +17,9 @@ from pydantic import BaseModel
 
 from arena.envelope import Envelope
 from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
-from arena.skills.sources import Message, Tavily, TelegramPublic
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+from arena.skills.sources import Message, NitterPublic, Tavily, TelegramPublic
 
 DEFINITION = SkillDefinition(
     name="narrative_convergence",
@@ -30,7 +32,7 @@ DEFINITION = SkillDefinition(
     ],
 )
 
-METHOD = "lexicon_v2"  # v2 adds news-wire verbs (hits/soars/plunges...) so headline-style channels score
+METHOD = "vader_3.3.2+crypto_lexicon_v2"  # VADER (MIT) handles negation/intensity; crypto terms added at +/-2.0
 BULL = {"bullish", "buy", "buying", "long", "breakout", "moon", "pump", "pumping", "accumulate", "accumulating", "undervalued",
         "ath", "rally", "surge", "surging", "higher", "support", "bottom", "bounce", "reversal", "adoption", "approved", "etf",
         "hits", "record", "highs", "soars", "soaring", "jumps", "gains", "rises", "climbs", "inflows", "recovers", "rebounds"}
@@ -44,6 +46,11 @@ NAMES = {"bitcoin": "BTC", "ethereum": "ETH", "ether": "ETH", "solana": "SOL", "
 CASHTAG = re.compile(r"\$([A-Za-z]{2,10})\b")
 WORD = re.compile(r"[a-z0-9%]+")
 STOP_TAGS = {"USD", "USDT", "USDC", "US"}
+
+_VADER = SentimentIntensityAnalyzer()
+_VADER.lexicon.update({w: 2.0 for w in BULL})
+_VADER.lexicon.update({w: -2.0 for w in BEAR})
+_VADER.lexicon.pop("no", None)  # "no opinion" must stay null, not negative
 
 
 class Scored(BaseModel):
@@ -70,9 +77,8 @@ def score_text(text: str, tracked: set[str] | None) -> tuple[list[str], float | 
             if re.search(rf"\b{re.escape(sym.lower())}\b", low):
                 tokens.add(sym)
         tokens &= tracked
-    bull = sum(w in BULL for w in words)
-    bear = sum(w in BEAR for w in words)
-    sentiment = None if bull + bear == 0 else round((bull - bear) / (bull + bear), 3)
+    # None when no lexicon word (VADER's or ours) is present: silence is not neutrality
+    sentiment = round(_VADER.polarity_scores(text)["compound"], 3) if any(w in _VADER.lexicon for w in words) else None
     conviction = min(1.0, round(0.25 * text.count("!") + 0.3 * sum(p in low for p in CONVICTION)
                                 + 0.2 * (sum(w.isupper() and len(w) > 3 for w in text.split()) >= 3), 3))
     urgency = min(1.0, round(0.4 * sum(p in low for p in URGENCY), 3))
@@ -90,7 +96,7 @@ def _within(msg: Message, since: datetime) -> bool:
 
 def narrative_convergence(
     voices: list[str], tokens: list[str] | None = None, hours: int = 24,
-    telegram: TelegramPublic | None = None, tavily: Tavily | None = None,
+    telegram: TelegramPublic | None = None, tavily: Tavily | None = None, nitter: NitterPublic | None = None,
 ) -> Envelope:
     voices = [v.strip() for v in voices if v.strip()][:20]
     tracked = {t.upper() for t in tokens} if tokens else None
@@ -98,6 +104,7 @@ def narrative_convergence(
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     telegram = telegram or TelegramPublic()
     tavily = tavily or Tavily()
+    nitter = nitter or NitterPublic()
 
     availability: dict[str, str] = {}
     warnings: list[str] = []
@@ -110,13 +117,18 @@ def narrative_convergence(
             if kind == "tg":
                 msgs = telegram.fetch(ident)
             elif kind == "x":
-                if not tavily.configured:
-                    raise SourceUnavailable(f"{voice}: TAVILY_API_KEY not set; X voices need Tavily")
-                res = tavily.search(f"from:{ident} OR \"@{ident}\"", max_results=10,
-                                    time_range="day" if hours <= 24 else "week", include_domains=["x.com", "twitter.com"])
-                msgs = [Message(voice=voice, id=r.url, url=r.url, at=r.published_date, text=f"{r.title} {r.content}".strip()) for r in res]
+                try:
+                    msgs = nitter.fetch(ident)
+                    warnings.append(f"{voice}: read through an unofficial Nitter mirror; treat as best effort")
+                except SourceUnavailable as exc:
+                    if not tavily.configured:
+                        raise SourceUnavailable(f"{exc}; no TAVILY_API_KEY to fall back on") from exc
+                    warnings.append(f"{exc}; fell back to Tavily search")
+                    res = tavily.search(f"from:{ident} OR \"@{ident}\"", max_results=10,
+                                        time_range="day" if hours <= 24 else "week", include_domains=["x.com", "twitter.com"])
+                    msgs = [Message(voice=voice, id=r.url, url=r.url, at=r.published_date, text=f"{r.title} {r.content}".strip()) for r in res]
                 if msgs and all(m.at is None for m in msgs):
-                    warnings.append(f"{voice}: publication times unavailable from search; window filter not applied")
+                    warnings.append(f"{voice}: publication times unavailable; window filter not applied")
             else:
                 raise SourceUnavailable(f"{voice}: unknown voice kind {kind!r} (use tg: or x:)")
         except SourceUnavailable as exc:

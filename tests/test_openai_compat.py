@@ -30,6 +30,20 @@ def test_sends_schema_and_parses():
 
 
 @respx.mock
+def test_retries_transient_errors_then_succeeds():
+    import httpx
+
+    route = respx.post("https://x.test/v1/chat/completions").mock(side_effect=[httpx.ConnectTimeout("slow"), Response(503), _reply('{"city":"P","n":2}')])
+    llm = OpenAICompatLLM(model="m", base_url="https://x.test/v1", api_key="k")
+    waits = []
+    llm.sleep = waits.append
+    assert llm.complete_json("s", "u", Out) == Out(city="P", n=2) and route.call_count == 3 and waits == [2.0, 4.0]
+    route.mock(side_effect=[httpx.ConnectTimeout("slow")] * 4)
+    with pytest.raises(RuntimeError, match="unreachable after 4 attempts"):
+        llm.complete_json("s", "u", Out)
+
+
+@respx.mock
 def test_truncation_and_http_errors_are_explicit():
     respx.post("https://x.test/v1/chat/completions").mock(side_effect=[_reply('{"city":"P', "length"), Response(402, text="no credits")])
     llm = OpenAICompatLLM(model="m", base_url="https://x.test/v1", api_key="k", max_tokens=5)

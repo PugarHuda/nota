@@ -56,9 +56,32 @@ Search backend: Tavily when `TAVILY_API_KEY` is set, otherwise Venice web search
 relevance scores and usually no dates, so the envelope carries a warning that corroboration is
 not time-bound; `score` and `published_date` stay `null` rather than being invented.
 
-Sentiment lexicon is `lexicon_v2`: v1 trader slang plus news-wire verbs (`hits`, `soars`,
-`plunges`, `outflows`, ...) so headline-style channels such as WatcherGuru score instead of
-returning `null` for every post. Sizes are echoed in `data.method.lexicon_sizes`.
+Headline pass: before the search backend, `news_verify` reads the RSS feeds of CoinDesk,
+Cointelegraph, The Block and Decrypt (`method.headlines = rss_headlines`), scoring each item by
+the share of claim keywords it contains and keeping its `pubDate`, so corroboration from that
+pass is dated and deterministic. Feeds that fail are listed in `warnings`; parsing uses
+`defusedxml`.
+
+Sentiment method is `vader_3.3.2+crypto_lexicon_v2`: VADER (MIT) with the crypto lexicon added
+at +/-2.0, so negation ("not bullish") and intensity ("very bullish!!") are handled. A text with
+no lexicon word at all stays `null`. `x:` voices are read through a Nitter mirror (unofficial,
+flagged in `warnings`) and fall back to Tavily when configured.
+
+## `price_crosscheck`
+
+Independent spot prices next to RYO's read, never instead of it.
+
+| arg | type | required | notes |
+|---|---|---|---|
+| `symbol` | string | yes | e.g. SOL |
+| `reference_price` | number | no | RYO's price to compare against |
+| `reference_path` | string | no | where the reference came from |
+
+`data`: `sources[]{name,price_usd,as_of,status,error}` (CoinGecko, Coinbase, Kraken; no keys),
+`median_usd`, `spread_pct`, `sources_ok`, `reference{price_usd,path,deviation_pct}`, `thresholds`.
+A deviation of 2% or more becomes a warning. `availability` is per exchange. The council's
+Technician sees this section as `price_check`; the calibration step uses the median only when
+RYO cannot supply a price, and records that in the outcome.
 
 ## Calling them
 

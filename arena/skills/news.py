@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 from arena.envelope import Envelope
 from arena.ryo_client import RyoError, RyoSource
 from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
-from arena.skills.sources import Tavily, VeniceSearch, search_backend
+from arena.skills.sources import RssNews, Tavily, TavilyResult, VeniceSearch, search_backend
 
 DEFINITION = SkillDefinition(
     name="news_verify",
@@ -36,18 +36,32 @@ def _domain(url: str) -> str:
 
 
 def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
-                tavily: Tavily | VeniceSearch | None = None, ryo: RyoSource | None = None) -> Envelope:
+                tavily: Tavily | VeniceSearch | None = None, ryo: RyoSource | None = None,
+                rss: RssNews | None | bool = None) -> Envelope:
+    """`rss=False` disables the headline pass (tests); `None` uses the four default feeds."""
     search = tavily or search_backend()
+    rss = rss if rss is not None else RssNews()
     max_results = max(1, min(int(max_results), 20))
     availability: dict[str, str] = {}
     warnings: list[str] = []
     data: dict[str, Any] = {"claim": claim, "sources": [], "distinct_domains": None, "top_score": None, "verdict": None,
-                            "method": {"search": getattr(search, "name", "tavily")}}
+                            "method": {"search": getattr(search, "name", "tavily"), "headlines": rss.name if rss else None}}
 
+    results: list[TavilyResult] = []
+    # dated headlines first (free, deterministic), then the search backend for breadth
+    if rss:
+        try:
+            results += rss.search(claim, max_results=max_results, time_range="week")
+            availability["headlines"] = "ok" if not rss.failed else "partial"
+            warnings += [f"rss: {f}" for f in rss.failed]
+        except SourceUnavailable as exc:
+            availability["headlines"] = "unavailable"
+            warnings.append(str(exc))
     try:
-        results = search.search(claim, max_results=max_results, topic="news", time_range="week")
+        seen = {r.url for r in results}
+        results += [r for r in search.search(claim, max_results=max_results, topic="news", time_range="week") if r.url not in seen]
         if not getattr(search, "has_dates", True):
-            warnings.append("search backend returns no dates or relevance scores: corroboration is not time-bound and every hit counts as relevant")
+            warnings.append("search backend returns no dates or relevance scores: its hits are not time-bound and each counts as relevant")
         sources = [{"title": r.title, "url": r.url, "domain": _domain(r.url), "score": r.score,
                     "published_date": r.published_date, "snippet": r.content[:300]} for r in results]
         relevant = [s for s in sources if s["score"] is None or s["score"] >= MIN_SCORE]
@@ -87,4 +101,5 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
         if data.get("market_context"):
             headline += f"; {symbol} market: {data['market_context']['headline']}"
     return make_envelope("news_verify", {"claim": claim, "symbol": symbol, "max_results": max_results}, data, availability,
-                         warnings, headline, key_points=[f"{s['domain']}: {s['title']}" for s in data["sources"][:5]], primary=["search"])
+                         warnings, headline, key_points=[f"{s['domain']}: {s['title']}" for s in data["sources"][:5]],
+                         primary=["search", "headlines"] if "headlines" in availability else ["search"])

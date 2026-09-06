@@ -72,10 +72,13 @@ Rules you must follow:
 """
 
 ROLE_SYSTEM: dict[str, str] = {
-    "macro": "[role:macro] You are the Macro agent. You read market regime, Fear & Greed, breadth, dominance "
-    "and the seven-day sentiment shift, and judge whether broad conditions favour or oppose a position in this token." + COMMON_RULES,
+    "macro": "[role:macro] You are the Macro agent. You read market regime, Fear & Greed, breadth, dominance, "
+    "the seven-day sentiment shift, and `compare` (this token against BTC/ETH peers on momentum, activity and volatility), "
+    "and judge whether broad conditions and relative strength favour or oppose a position in this token." + COMMON_RULES,
     "technician": "[role:technician] You are the Technician. You read price, multi-window performance, RSI(14), ATR(14), "
-    "confluence, derivatives and the tool's own verdict, and judge trend, momentum and volatility for this token." + COMMON_RULES,
+    "confluence, derivatives and the tool's own verdict, plus `compare` (peers) and `price_check` (independent exchange prices "
+    "and how far RYO's price deviates from them; a large deviation is a data-quality risk, not a trade signal), and judge trend, "
+    "momentum and volatility for this token." + COMMON_RULES,
     "narrative": "[role:narrative] You are the Narrative agent. You read catalysts, risks, the token profile and intelligence "
     "narrative, plus, when present, `narrative_signal` (what selected voices say, lexicon-scored) and `news_check` "
     "(how many independent sources corroborate a story). Judge whether the story supports or undermines the price. "
@@ -87,8 +90,8 @@ ROLE_SYSTEM: dict[str, str] = {
 
 # Which sections each role sees. ponytail: everyone gets availability/warnings; slices keep prompts small.
 ROLE_SECTIONS: dict[str, tuple[str, ...]] = {
-    "macro": ("market_overview", "sentiment_shift"),
-    "technician": ("deep_analysis", "analyze_token"),
+    "macro": ("market_overview", "sentiment_shift", "compare"),
+    "technician": ("deep_analysis", "analyze_token", "compare", "price_check"),
     "narrative": ("deep_analysis", "analyze_token", "narrative_signal", "news_check"),
 }
 
@@ -156,32 +159,36 @@ def validate_citations(opinion: Opinion, allowed: set[str]) -> Opinion:
     return opinion.model_copy(update={"citations": kept, "dropped_citations": dropped, "confidence": confidence})
 
 
-def _cached_call(ledger: Ledger, llm: LLM, pack_hash: str, role: str, system: str, user: str, schema, use_cache: bool):
-    key = cache_key(pack_hash, role, llm.model)
+def _cached_call(ledger: Ledger, llm: LLM, pack_hash: str, role: str, system: str, user: str, schema, use_cache: bool,
+                 prompt_version: str = PROMPT_VERSION):
+    key = cache_key(pack_hash, role, llm.model, prompt_version)
     if use_cache:
         hit = ledger.get_cached(key)
         if hit is not None:
             return schema.model_validate_json(hit), True
     out = llm.complete_json(system=system, user=user, schema=schema)
     if use_cache:  # a fresh (cache-bypassing) run must not overwrite the original decision's outputs
-        ledger.put_cached(key, pack_hash, role, PROMPT_VERSION, llm.model, out.model_dump_json())
+        ledger.put_cached(key, pack_hash, role, prompt_version, llm.model, out.model_dump_json())
     return out, False
 
 
 def run_council(
-    pack: EvidencePack, llm: LLM, ledger: Ledger, weights: dict[str, float] | None = None, use_cache: bool = True
+    pack: EvidencePack, llm: LLM, ledger: Ledger, weights: dict[str, float] | None = None, use_cache: bool = True,
+    prompt_version: str = PROMPT_VERSION,
 ) -> CouncilResult:
+    """`prompt_version` is part of the cache key. Replay passes the version stored in the receipt, so a
+    receipt made under an older prompt still replays from its own cached outputs after a prompt bump."""
     weights = weights or {r: 1.0 for r in ROLES}
     pack_hash = pack.pack_hash()
     allowed = pack.available_paths()
     hits = 0
     opinions: list[Opinion] = []
     for role in ROLES:
-        raw, hit = _cached_call(ledger, llm, pack_hash, role, ROLE_SYSTEM[role], _role_prompt(pack, role), Opinion, use_cache)
+        raw, hit = _cached_call(ledger, llm, pack_hash, role, ROLE_SYSTEM[role], _role_prompt(pack, role), Opinion, use_cache, prompt_version)
         hits += hit
         opinions.append(validate_citations(raw.model_copy(update={"role": role}), allowed))
     verdict, hit = _cached_call(
-        ledger, llm, pack_hash, "judge", ROLE_SYSTEM["judge"], _judge_prompt(pack, opinions, weights), Verdict, use_cache
+        ledger, llm, pack_hash, "judge", ROLE_SYSTEM["judge"], _judge_prompt(pack, opinions, weights), Verdict, use_cache, prompt_version
     )
     hits += hit
-    return CouncilResult(opinions=opinions, verdict=verdict, cache_hits=hits, model=llm.model)
+    return CouncilResult(opinions=opinions, verdict=verdict, cache_hits=hits, model=llm.model, prompt_version=prompt_version)

@@ -36,6 +36,17 @@ def test_same_evidence_same_receipt_id():
     assert a.id == b.id and b.cache_hits == 4
 
 
+def test_replay_survives_a_prompt_version_bump(monkeypatch):
+    from arena import council
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    monkeypatch.setattr(council, "PROMPT_VERSION", "v99")  # a later prompt bump must not orphan old receipts
+    drifted = make_llm(action="no_trade", p=0.5)
+    res = replay(r.id, led, drifted)
+    assert res.identical and drifted.calls == [] and res.replayed.id == r.id and res.replayed.prompt_version == r.prompt_version
+
+
 def test_replay_is_identical_from_cache_and_fresh_reports_drift():
     led = Ledger(":memory:")
     r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)

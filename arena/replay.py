@@ -63,7 +63,7 @@ def replay(decision_id: str, ledger: Ledger, llm: LLM, limits: RiskLimits | None
         raise KeyError(f"evidence {original.pack_hash} missing from ledger")
     pack = EvidencePack.model_validate_json(pack_json)
     weights = role_weights(role_scores(ledger))
-    council = run_council(pack, llm, ledger, weights=weights, use_cache=not fresh)
+    council = run_council(pack, llm, ledger, weights=weights, use_cache=not fresh, prompt_version=original.prompt_version)
     trade = size_trade(council.verdict, pack, limits)
     replayed = build_receipt(pack, council, trade)
     diff = diff_receipts(original, replayed)

@@ -44,10 +44,17 @@ def test_resolve_scores_brier_and_trade_result():
 
 
 def test_resolve_refuses_when_price_missing():
+    import respx
+    from httpx import Response
+
     led = Ledger(":memory:")
     r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
-    with pytest.raises(CannotResolve):
-        resolve(r.id, led, PriceSource(None))
+    with respx.mock:  # RYO has no price and every exchange fallback is down: refuse, never guess
+        respx.get(url__regex=r"https://api\.coingecko\.com/.*").mock(return_value=Response(500))
+        respx.get(url__regex=r"https://api\.coinbase\.com/.*").mock(return_value=Response(500))
+        respx.get(url__regex=r"https://api\.kraken\.com/.*").mock(return_value=Response(500))
+        with pytest.raises(CannotResolve):
+            resolve(r.id, led, PriceSource(None))
 
 
 def test_scores_and_weights_favour_low_brier():

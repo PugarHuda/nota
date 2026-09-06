@@ -8,19 +8,22 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from arena import paths
-from arena.calibration import role_scores, role_weights
+from arena.calibration import due, role_scores, role_weights
 from arena.evidence import EvidencePack, first_present
 from arena.ledger import Ledger
-from arena.receipt import Receipt
+from arena.receipt import Receipt, render_markdown
+from arena.replay import replay
 from arena.risk import PracticeTrade
+from arena.ryo_client import RyoClient
 
 load_dotenv()
 app = FastAPI(title="RYO Arena", description="Read-only view over decision receipts. No orders, no wallets.")
@@ -52,16 +55,26 @@ def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:
     }
 
 
+NOISE = re.compile(r"\.(since|fetched_at|as_of|window_hours|snippet|samples\.\d+\..*|sources\.\d+\.content)$")
+
+
 def _leaves(pack: EvidencePack) -> dict[str, Any]:
+    """Leaf values under `<section>.data`. A list of scalars is one leaf (sorted), so a re-ordered domain
+    list is not a change; timestamps and free text that differ on every run are skipped."""
     out: dict[str, Any] = {}
 
     def walk(prefix: str, node: Any) -> None:
+        if NOISE.search(prefix):
+            return
         if isinstance(node, dict):
             for k, v in node.items():
                 walk(f"{prefix}.{k}", v)
         elif isinstance(node, list):
-            for i, v in enumerate(node):
-                walk(f"{prefix}.{i}", v)
+            if all(not isinstance(v, (dict, list)) for v in node):
+                out[prefix] = sorted(node, key=lambda v: (v is None, str(v)))
+            else:
+                for i, v in enumerate(node):
+                    walk(f"{prefix}.{i}", v)
         else:
             out[prefix] = node
 
@@ -181,6 +194,61 @@ def scores() -> dict[str, Any]:
     led = _ledger()
     s = role_scores(led)
     return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved())}
+
+
+@app.get("/api/health")
+def health() -> dict[str, Any]:
+    """What this deployment can and cannot do right now. No secrets, only whether they are set."""
+    led = _ledger()
+    client = RyoClient()
+    try:
+        ryo: dict[str, Any] = client.health()
+    except Exception as exc:  # the dashboard must load even when RYO is down
+        ryo = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+    return {
+        "ryo": ryo, "ryo_key_set": bool(client.key),
+        "llm": {"kind": os.environ.get("ARENA_LLM", "anthropic"), "model": os.environ.get("ARENA_MODEL")},
+        "ledger": {"decisions": led.conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0],
+                   "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()), "due": len(due(led))},
+        "notify": {"telegram": bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")),
+                   "discord": bool(os.environ.get("DISCORD_WEBHOOK_URL"))},
+    }
+
+
+class _CacheOnlyLLM:
+    """Replay from the dashboard must never spend money or drift: it only reads the ledger's cached outputs."""
+
+    def __init__(self, model: str):
+        self.model = model
+
+    def complete_json(self, system: str, user: str, schema: Any) -> Any:
+        raise RuntimeError("cache miss: this receipt's model outputs are not in the ledger; run `arena replay <id>` from the CLI")
+
+
+@app.get("/api/decisions/{id}/replay")
+def replay_check(id: str) -> dict[str, Any]:
+    led = _ledger()
+    r = _receipt(led, id)
+    try:
+        res = replay(id, led, _CacheOnlyLLM(r.model))
+    except RuntimeError as exc:
+        return {"identical": None, "diff": [], "error": str(exc)}
+    return {"identical": res.identical, "diff": res.diff, "error": None}
+
+
+@app.get("/r/{id}.md")
+def receipt_markdown(id: str) -> PlainTextResponse:
+    return PlainTextResponse(render_markdown(_receipt(_ledger(), id)), media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/r/{id}.json")
+def receipt_json(id: str) -> dict[str, Any]:
+    return _receipt(_ledger(), id).model_dump(mode="json")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    return Response(status_code=204)
 
 
 @app.get("/")

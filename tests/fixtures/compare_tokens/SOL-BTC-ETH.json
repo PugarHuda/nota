@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "tool": "compare_tokens",
+  "status": "partial",
+  "data_mode": "live",
+  "as_of": "2026-09-01T00:00:00Z",
+  "request": {"symbols": "SOL, BTC, ETH", "intent": "swing"},
+  "data": {
+    "intent": "swing",
+    "factors": ["momentum", "market_activity", "volatility"],
+    "tokens": [
+      {"symbol": "SOL", "price_usd": 150.0, "momentum_score": 0.71, "activity_score": 0.62, "volatility_pct": 4.0, "rank": 1, "profile": null},
+      {"symbol": "BTC", "price_usd": 61000.0, "momentum_score": 0.55, "activity_score": 0.9, "volatility_pct": 2.1, "rank": 2, "profile": {"category": "store_of_value"}},
+      {"symbol": "ETH", "price_usd": 2400.0, "momentum_score": 0.48, "activity_score": 0.8, "volatility_pct": 3.0, "rank": 3, "profile": {"category": "smart_contract"}}
+    ],
+    "leader": "SOL",
+    "coverage": {"SOL": {"profile": "unavailable"}, "BTC": {"profile": "ok"}, "ETH": {"profile": "ok"}}
+  },
+  "summary": {"headline": "SOL leads on momentum; BTC leads on activity", "key_points": ["SOL momentum 0.71 vs BTC 0.55", "SOL profile unavailable"]},
+  "availability": {"momentum": "ok", "market_activity": "ok", "volatility": "ok", "profiles": "partial"},
+  "warnings": ["SOL token profile unavailable"],
+  "trace_id": "fixture"
+}

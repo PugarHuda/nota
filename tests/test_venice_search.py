@@ -58,7 +58,7 @@ def test_news_verify_on_venice_warns_about_missing_dates():
         {"title": "B", "url": "https://theblock.co/b", "content": "y"},
         {"title": "C", "url": "https://www.theblock.co/c", "content": "z"},
     ]))
-    env = news_verify("SOL ETF approved", tavily=VeniceSearch(api_key="k"))
+    env = news_verify("SOL ETF approved", tavily=VeniceSearch(api_key="k"), rss=False)
     assert env.status == "ok" and env.data["method"]["search"] == "venice_web_search"
     assert env.data["distinct_domains"] == 2 and env.data["verdict"] == "weak" and env.data["top_score"] is None
     assert any("not time-bound" in w for w in env.warnings)
@@ -66,7 +66,7 @@ def test_news_verify_on_venice_warns_about_missing_dates():
 
 def test_lexicon_v2_scores_news_wire_headlines():
     _, sent, _, _ = score_text("JUST IN: Bitcoin hits new record high above $120,000", None)
-    assert sent == 1.0
+    assert sent is not None and sent > 0.3
     _, sent, _, _ = score_text("Ethereum plunges 8% as ETF outflows continue", None)
     assert sent is not None and sent < 0  # 'etf' counts bullish, two bear verbs outweigh it
     _, sent, _, _ = score_text("$1,000 in gold vs $BTC over 10 years. No opinion.", None)

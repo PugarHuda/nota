@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -43,6 +44,8 @@ def fixture_name(tool: str, args: dict[str, Any] | None) -> str:
     args = args or {}
     if "symbol" in args:
         return str(args["symbol"]).upper()
+    if "symbols" in args:  # compare_tokens: "SOL, BTC, ETH" -> SOL-BTC-ETH
+        return "-".join(s.strip().upper() for s in re.split(r"[,\s]+", str(args["symbols"])) if s.strip())
     if not args:
         return "default"
     digest = hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()[:12]

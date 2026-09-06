@@ -9,11 +9,14 @@ from pathlib import Path
 import typer
 from dotenv import load_dotenv
 
-from arena.calibration import CannotResolve, resolve, role_scores, role_weights
-from arena.council import Citation, Opinion, Verdict
+import time
+
+from arena.calibration import CannotResolve, due, resolve, role_scores, role_weights
 from arena.decide import decide
-from arena.ledger import Ledger
-from arena.llm import FakeLLM
+from arena import paths
+from arena.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
+from arena.ledger import Ledger, now_iso
+from arena.notify import notify_receipt
 from arena.receipt import Receipt, render_markdown
 from arena.replay import replay
 from arena.risk import RiskLimits
@@ -21,6 +24,7 @@ from arena.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
 from arena.skills import definitions as skill_definitions, invoke as skill_invoke
 from arena.skills.narrative import narrative_convergence
 from arena.skills.news import news_verify
+from arena.skills.price_check import price_crosscheck
 
 load_dotenv()
 app = typer.Typer(help="RYO Arena: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
@@ -46,21 +50,18 @@ def _source(kind: str):
 
 
 def _llm(kind: str):
-    if kind == "fake":
-        # Smoke-test stand-in. Its output is labelled model=fake on every receipt.
-        def op(role):
-            return lambda _u: Opinion(role=role, stance="neutral", p_up_7d=0.5, confidence="low",
-                                      thesis="FAKE LLM placeholder for smoke tests; not an analysis.",
-                                      citations=[Citation(path="deep_analysis.data.technicals.rsi_14", value="?")], invalidation="n/a")
-        return FakeLLM({"macro": op("macro"), "technician": op("technician"), "narrative": op("narrative"),
-                        "judge": lambda _u: Verdict(action="no_trade", p_up_7d=0.5, rationale="FAKE LLM placeholder.")})
     if kind == "openai":
         from arena.llm import OpenAICompatLLM
 
         return OpenAICompatLLM()
-    from arena.llm import AnthropicLLM
+    if kind == "anthropic":
+        from arena.llm import AnthropicLLM
 
-    return AnthropicLLM()
+        return AnthropicLLM()
+    raise typer.BadParameter("llm must be anthropic or openai (env ARENA_LLM)")
+
+
+LLM_HELP = "anthropic | openai (env ARENA_LLM)"
 
 
 @app.command()
@@ -79,28 +80,111 @@ def health(source: str = "live"):
 def decide_cmd(
     symbol: str = typer.Argument(..., help="Token symbol, e.g. SOL"),
     source: str = typer.Option("live", help="live | recorded | fixture"),
-    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help="anthropic | openai | fake (env ARENA_LLM)"),
+    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the LLM output cache"),
     voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env ARENA_VOICES)"),
-    news: bool = typer.Option(False, help="Add news_check via news_verify (needs TAVILY_API_KEY)"),
+    news: bool = typer.Option(False, help="Add news_check via news_verify (Tavily or Venice web search)"),
+    notify: bool = typer.Option(False, help="Post the receipt to configured Telegram/Discord channels"),
+    price_check: bool = typer.Option(True, help="Add price_check: keyless CoinGecko/Coinbase/Kraken spot prices vs RYO's price"),
     as_json: bool = typer.Option(False, "--json"),
 ):
     """Gather evidence, run the council, size a practice trade, store the receipt."""
     src = _source(source)
+    receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=_extras(src, voices, news, price_check))
+    typer.echo(receipt.model_dump_json(indent=1) if as_json else render_markdown(receipt))
+    if notify:
+        for out in notify_receipt(receipt):
+            typer.echo(f"notify {out['channel']}: {out['status']}" + (f" ({out['error']})" if out.get("error") else ""))
+
+
+def _extras(src, voices: str, news: bool, price_check: bool = True):
     extras = {}
     voice_list = [v for v in (voices or os.environ.get("ARENA_VOICES", "")).split(",") if v.strip()]
     if voice_list:
-        extras["narrative_signal"] = lambda sym: narrative_convergence(voice_list, tokens=[sym], hours=24)
+        extras["narrative_signal"] = lambda sym, _pack: narrative_convergence(voice_list, tokens=[sym], hours=24)
     if news:
-        extras["news_check"] = lambda sym: news_verify(f"{sym} crypto news this week", symbol=sym, ryo=src)
-    receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=extras or None)
-    typer.echo(receipt.model_dump_json(indent=1) if as_json else render_markdown(receipt))
+        extras["news_check"] = lambda sym, _pack: news_verify(f"{sym} crypto news this week", symbol=sym, ryo=src)
+    if price_check:
+        def _check(sym, pack):
+            path, price = first_present(pack, paths.PRICE_USD)
+            return price_crosscheck(sym, reference_price=price, reference_path=path)
+        extras["price_check"] = _check
+    return extras or None
+
+
+@app.command()
+def scan(
+    top_n: int = typer.Option(5, help="Candidates to take from scan_market"),
+    chain: str = typer.Option("", help="Optional chain filter, e.g. bsc"),
+    theme: str = typer.Option("", help="Optional theme context, e.g. news"),
+    source: str = typer.Option("live", help="live | recorded | fixture"),
+    decide_top: int = typer.Option(0, help="Run the council on the first N candidates"),
+    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP),
+):
+    """RYO's research funnel: scan_market -> analyze_token on each candidate -> optional council decisions."""
+    src = _source(source)
+    args = {k: v for k, v in {"chain": chain, "theme": theme, "top_n": top_n}.items() if v}
+    env = src.call("scan_market", args)
+    typer.echo(f"scan_market: {env.status}, data_mode {env.data_mode}, as_of {env.as_of} | {env.summary.headline}")
+    for w in env.warnings:
+        typer.echo(f"  warning: {w}")
+    candidates = candidate_symbols(env.data)[:top_n]
+    if not candidates:
+        typer.echo("no candidate symbols found in scan_market data")
+        raise typer.Exit(1)
+    for sym in candidates:
+        try:
+            a = src.call("analyze_token", {"symbol": sym})
+            typer.echo(f"{sym:8} {a.status:12} {a.summary.headline}")
+        except RyoError as exc:
+            typer.echo(f"{sym:8} {'error':12} {exc.code}: {exc.message}")
+    for sym in candidates[:decide_top]:
+        r = decide(sym, src, _llm(llm), _ledger(), RiskLimits())
+        typer.echo(f"decided {sym}: {r.headline} (receipt {r.id})")
+
+
+@app.command()
+def watch(
+    symbols: str = typer.Argument(..., help="Comma list, e.g. SOL,BTC"),
+    every: int = typer.Option(3600, help="Seconds between cycles"),
+    cycles: int = typer.Option(0, help="Stop after N cycles (0 = run until interrupted)"),
+    source: str = typer.Option("live", help="live | recorded | fixture"),
+    llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP),
+    voices: str = typer.Option("", help="Telegram/X voices for narrative_signal"),
+    news: bool = typer.Option(False, help="Add news_check"),
+    notify: bool = typer.Option(False, help="Post each new receipt to Telegram/Discord"),
+    price_check: bool = typer.Option(True, help="Add price_check section"),
+):
+    """Autonomous loop: decide every symbol each cycle, score decisions whose 7-day horizon has passed, publish receipts."""
+    syms = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    n = 0
+    while True:
+        n += 1
+        src, led = _source(source), _ledger()
+        for sym in syms:
+            try:
+                r = decide(sym, src, _llm(llm), led, RiskLimits(), extras=_extras(src, voices, news, price_check))
+                typer.echo(f"[{now_iso()}] {sym}: {r.headline} (receipt {r.id}, cache hits {r.cache_hits})")
+                if notify and r.cache_hits < 4:  # a fully cached receipt is a repeat, not news
+                    for out in notify_receipt(r):
+                        typer.echo(f"  notify {out['channel']}: {out['status']}")
+            except Exception as exc:  # one symbol failing must not stop the loop
+                typer.echo(f"[{now_iso()}] {sym}: failed {type(exc).__name__}: {exc}")
+        for i in due(led):
+            try:
+                out = resolve(i, led, src)
+                typer.echo(f"[{now_iso()}] resolved {i} {out.symbol}: {out.return_pct:+.2f}% brier={out.brier}")
+            except CannotResolve as exc:
+                typer.echo(f"[{now_iso()}] {i}: cannot resolve ({exc})")
+        if cycles and n >= cycles:
+            break
+        time.sleep(every)
 
 
 
 @app.command("replay")
 def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call the model again instead of using cached outputs"),
-               llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help="anthropic | openai | fake (env ARENA_LLM)")):
+               llm: str = typer.Option(os.environ.get("ARENA_LLM", "anthropic"), help=LLM_HELP)):
     """Rebuild a receipt from stored evidence and report whether it is identical."""
     res = replay(decision_id, _ledger(), _llm(llm), RiskLimits(), fresh=fresh)
     typer.echo(f"identical: {res.identical}  (fresh={res.fresh})")
@@ -110,10 +194,11 @@ def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call th
 
 
 @app.command("resolve")
-def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Option(False, "--all"), source: str = "live"):
+def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Option(False, "--all", help="Every decision whose 7-day horizon has passed"),
+                early: bool = typer.Option(False, help="With --all: also score decisions before their horizon (final, not re-scored)"), source: str = "live"):
     """Score decisions against a fresh analyze_token price read."""
     led = _ledger()
-    ids = led.unresolved() if all_ else ([decision_id] if decision_id else [])
+    ids = (led.unresolved() if early else due(led)) if all_ else ([decision_id] if decision_id else [])
     if not ids:
         typer.echo("nothing to resolve")
         raise typer.Exit()
@@ -152,10 +237,10 @@ def list_cmd(limit: int = 20):
 
 @app.command("record")
 def record_cmd(symbol: str):
-    """Capture live RYO responses for SYMBOL into fixtures/recorded (needs RYO_MCP_KEY)."""
+    """Capture live RYO responses for SYMBOL (all six tools) into fixtures/recorded (needs RYO_MCP_KEY)."""
     client = _source("live")
-    for tool, args in [("market_overview", {}), ("monitor_market_sentiment_shift", {}),
-                       ("deep_analysis", {"symbol": symbol.upper(), "include_perp": True}), ("analyze_token", {"symbol": symbol.upper()})]:
+    calls = [(SECTIONS[key], args) for key, args in ryo_args(symbol).items()] + [("scan_market", {})]
+    for tool, args in calls:
         try:
             typer.echo(f"recorded {record(client, tool, args, RECORDED_ROOT)}")
         except RyoError as exc:
