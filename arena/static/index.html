@@ -137,7 +137,8 @@ async function open(id, push = true) {
       ${Object.entries(r.provenance).map(([k, p]) => `<tr><td>${esc(k)}</td><td>${esc(p.tool)}</td><td><span class="badge ${p.status}">${esc(p.status)}</span></td><td>${fmt(p.as_of)}</td><td>${fmt(p.data_mode)}</td><td class="muted">${fmt(p.trace_id)}</td></tr>`).join('')}
     </table>
     ${r.warnings.length ? `<h2>Warnings</h2>${r.warnings.map(w => `<div class="small">• ${esc(w)}</div>`).join('')}` : ''}
-    <p class="small muted">Replay: <code>uv run arena replay ${r.id}</code> reproduces this receipt from the stored evidence and cached model outputs.</p>`;
+    <p class="small muted">Replay: <code>uv run arena replay ${r.id}</code> reproduces this receipt from the stored evidence and cached model outputs.
+      · <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
   $('#detail').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open); });
   $('#detail').scrollTop = 0;
 }

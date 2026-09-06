@@ -124,10 +124,11 @@ def what_changed(led: Ledger, cur: Receipt, prev: Receipt | None) -> list[dict[s
 
 
 def _previous(led: Ledger, r: Receipt) -> Receipt | None:
-    for d in led.list_decisions(limit=200, symbol=r.symbol):
-        if d["created_at"] < r.created_at or (d["created_at"] == r.created_at and d["id"] < r.id):
-            return _receipt(led, d["id"])
-    return None
+    """The receipt stored right before this one for the same symbol, by the ledger's own ordering."""
+    ids = [d["id"] for d in led.list_decisions(limit=200, symbol=r.symbol)]
+    if r.id not in ids or ids.index(r.id) + 1 >= len(ids):
+        return None
+    return _receipt(led, ids[ids.index(r.id) + 1])
 
 
 @app.get("/api/decisions")

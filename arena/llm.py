@@ -90,9 +90,10 @@ class OpenAICompatLLM:
         data = r.json()
         self.last_cost_usd = (data.get("cost") or {}).get("usd")
         choice = data["choices"][0]
+        content = choice["message"]["content"] or ""
         if choice.get("finish_reason") == "length":
-            raise RuntimeError(f"model hit max_tokens={self.max_tokens}; raise ARENA_MAX_TOKENS")
-        return schema.model_validate_json(choice["message"]["content"])
+            raise RuntimeError(f"model hit max_tokens={self.max_tokens}; raise ARENA_MAX_TOKENS. Output started: {content[:300]!r}")
+        return schema.model_validate_json(content)
 
 
 class FakeLLM:

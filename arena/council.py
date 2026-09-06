@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -21,7 +22,7 @@ from arena.evidence import EvidencePack
 from arena.ledger import Ledger
 from arena.llm import LLM
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"  # v2: explicit list-index path syntax + cite-only-existing instruction
 ROLES: tuple[str, ...] = ("macro", "technician", "narrative")
 Confidence = Literal["low", "medium", "high"]
 
@@ -67,6 +68,7 @@ Rules you must follow:
 - If a section is `unavailable`, `partial` or `error`, say so and lower your confidence. Never treat a missing value as zero.
 - `p_up_7d` is your honest probability that the USD price is higher seven days after `as_of`.
 - This is research for a practice trade, not financial advice, and no trade is executed.
+- Be compact: thesis under 150 words, at most 8 citations, each `note` one short clause.
 """
 
 ROLE_SYSTEM: dict[str, str] = {
@@ -117,7 +119,8 @@ def _role_prompt(pack: EvidencePack, role: str) -> str:
         "warnings": pack.warnings(),
         "evidence": _section_view(pack, ROLE_SECTIONS[role]),
     }
-    return f"Paths are written `<section>.data.<field>`. Evidence pack:\n{json.dumps(body, indent=1, default=str)}"
+    return (f"Paths are written `<section>.data.<field>`; list items as `.0.`, e.g. `market_overview.data.top_movers.gainers.0.symbol`. "
+            f"Cite only paths that exist below with a non-null value. Evidence pack:\n{json.dumps(body, indent=1, default=str)}")
 
 
 def _judge_prompt(pack: EvidencePack, opinions: list[Opinion], weights: dict[str, float]) -> str:
@@ -133,8 +136,17 @@ def _judge_prompt(pack: EvidencePack, opinions: list[Opinion], weights: dict[str
     return f"Council output:\n{json.dumps(body, indent=1, default=str)}"
 
 
+_INDEX = re.compile(r"\[(\d+)\]")
+
+
+def normalize_path(path: str) -> str:
+    """`market_overview.data.gainers[0].pct` -> `market_overview.data.gainers.0.pct`; strips backticks/quotes/space."""
+    return _INDEX.sub(r".\1", path.strip().strip("`'\" ")).replace("..", ".")
+
+
 def validate_citations(opinion: Opinion, allowed: set[str]) -> Opinion:
-    kept = [c for c in opinion.citations if c.path in allowed]
+    normalized = [c.model_copy(update={"path": normalize_path(c.path)}) for c in opinion.citations]
+    kept = [c for c in normalized if c.path in allowed]
     dropped = len(opinion.citations) - len(kept)
     confidence = opinion.confidence
     if not kept and opinion.citations:
