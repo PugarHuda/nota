@@ -119,6 +119,15 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
   went up is right, disagreeing with it is wrong, `no_trade` calls are never scored. It is
   public and unauthenticated on purpose; the ledger keeps every stance with its timestamp.
 
+## Hosted demo
+
+A read-only copy of the dashboard runs at https://ryo-arena.vercel.app (Vercel, framework-detected
+FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (fixture-sourced
+receipts, labelled as such) with `ARENA_READONLY=1`: reads, replay verification, cards and exports
+work; backing answers 503 because a serverless filesystem cannot be written. The full system,
+including live RYO evidence, the `watch` loop, notifications and backing, runs with
+`uv run arena serve` on any machine with a writable disk.
+
 ## Failure handling
 
 - RYO client: exponential backoff with jitter on 429/503/network, honours `Retry-After`,

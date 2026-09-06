@@ -11,8 +11,9 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 | github_username | PugarHuda |
 | project_name | RYO Arena |
 | tracks | track_1, track_2, track_3 |
-| repo_url | _(private repo from organiser)_ |
+| repo_url | _(private repo from organiser; current mirror: https://github.com/PugarHuda/ryo-arena, private)_ |
 | demo_video_url | _(TBD)_ |
+| hosted demo | https://ryo-arena.vercel.app (read-only ledger snapshot) |
 | x_post_url | _(TBD)_ |
 | agree_rules / confirm_no_secrets | yes / yes (`.env` is gitignored, `.env.example` has no values) |
 
