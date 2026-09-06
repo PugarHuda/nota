@@ -404,6 +404,15 @@ def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/demo.mp4", include_in_schema=False)
+def demo_video() -> FileResponse:
+    """The submission walkthrough, served from the app itself so the demo URL needs no third party."""
+    path = STATIC / "demo.mp4"
+    if not path.exists():
+        raise HTTPException(404, "demo video not bundled in this checkout")
+    return FileResponse(path, media_type="video/mp4")
+
+
 @app.get("/r/{id}")
 def permalink(id: str, request: Request) -> HTMLResponse:
     """Same page as `/`, with Open Graph / X card tags for this receipt so a shared link previews as a card."""

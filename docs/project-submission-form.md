@@ -19,7 +19,7 @@
 | `project_name` | RYO Arena |
 | `tracks` | `track_1`, `track_2`, `track_3` |
 | `repo_url` | _pending_ — organiser's private repo not yet issued; working mirror: https://github.com/PugarHuda/ryo-arena (private) |
-| `demo_video_url` | _pending upload_ |
+| `demo_video_url` | https://ryo-arena.vercel.app/demo.mp4 (the 2-minute walkthrough, served by the project itself) |
 | `x_post_url` | _pending post_ |
 | `agree_rules` | yes |
 | `confirm_no_secrets` | yes — `.env` is gitignored, `.env.example` carries names only, `git grep` for `ryo_mcp_`, `tvly-`, `sk-or-v1-` and `VENICE_INFERENCE_KEY_` returns only placeholders and test doubles (verified 2026-09-06) |
@@ -39,10 +39,11 @@ diffs each receipt against the last, ranked by impact. Read-only; no orders.
 
 ## Evidence the judges can check without any key
 
+- Two-minute captioned walkthrough: https://ryo-arena.vercel.app/demo.mp4
 - Hosted dashboard: https://ryo-arena.vercel.app (read-only ledger snapshot, `/api/health` reports
   `ryo_key_set: false` — nothing is disguised as live).
 - `ARENA_DB=data/demo.db uv run arena serve`, `uv run arena skill run price_crosscheck '{"symbol":"SOL"}'`,
-  `uv run pytest -q` (110 tests, no network).
+  `uv run pytest -q` (111 tests, no network).
 
 ## Declarations
 

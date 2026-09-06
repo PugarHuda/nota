@@ -164,7 +164,7 @@ uv sync
 ARENA_DB=data/demo.db uv run arena serve      # dashboard, replay verification, cards, skills, backing
 ARENA_DB=data/demo.db uv run arena positions
 uv run arena skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 110 tests, no network
+uv run pytest -q                              # 111 tests, no network
 ```
 
 A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as

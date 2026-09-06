@@ -16,7 +16,7 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 | project_name | RYO Arena |
 | tracks | track_1, track_2, track_3 |
 | repo_url | _(private repo from organiser; current mirror: https://github.com/PugarHuda/ryo-arena, private)_ |
-| demo_video_url | _(TBD)_ |
+| demo_video_url | https://ryo-arena.vercel.app/demo.mp4 |
 | hosted demo | https://ryo-arena.vercel.app (read-only ledger snapshot) |
 | x_post_url | _(TBD)_ |
 | submission form | `docs/project-submission-form.md` + `.pdf` (official link broken) |
@@ -40,7 +40,7 @@ diffs each receipt against the last, ranked by impact. Read-only; no orders.
 > Built RYO Arena for the @ryodigital #RYOCHAN hackathon: an AI council over live RYO market
 > evidence where every call is a receipt you can re-run and get identical output - and it audits
 > RYO's own price and RSI against independent sources, refusing to trade when they disagree.
-> Diff-first dashboard + 4 skills. [video link]
+> Diff-first dashboard + 4 skills. https://ryo-arena.vercel.app/demo.mp4
 
 (268 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
 council itself is a commodity in 2026, the verification is not.)
@@ -92,7 +92,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 
 ## Pre-flight checklist
 
-- [x] `uv run pytest -q` green (110 passed, 2026-09-06)
+- [x] `uv run pytest -q` green (111 passed, 2026-09-07)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (2026-09-06)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`
@@ -101,5 +101,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 - [x] Hosted demo answers `/api/health`, `/api/decisions`, `/api/skills/` (2026-09-06)
 - [ ] `fixtures/recorded/` captured with `uv run arena record SOL` (real schema), `paths.py` trimmed
       - **blocked on the builder key**
-- [ ] Demo video uploaded, `demo_video_url` filled in both this file and the form
+- [x] Demo video bundled at `arena/static/demo.mp4` and served at `/demo.mp4`; `demo_video_url`
+      filled in both files - **goes live on the next `vercel deploy --prod --yes`**
+- [ ] Optional: mirror the same file on YouTube if the judges prefer a player
 - [ ] X post published (tag @ryodigital), `x_post_url` filled in both

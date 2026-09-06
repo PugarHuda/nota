@@ -97,3 +97,13 @@ def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
     b = api._leaves(pack(["a.com", "b.com"], "t2"))
     assert a == b and a["news_check.data.domains"] == ["a.com", "b.com"] and "news_check.data.since" not in a
     assert api._leaves(pack(["a.com"], "t1"))["news_check.data.domains"] == ["a.com"]
+
+
+def test_demo_video_is_served_when_bundled(tmp_path, monkeypatch):
+    from arena.api import STATIC
+    _seed(tmp_path, monkeypatch)
+    r = TestClient(api.app).get("/demo.mp4")
+    if (STATIC / "demo.mp4").exists():
+        assert r.status_code == 200 and r.headers["content-type"] == "video/mp4" and len(r.content) > 100_000
+    else:
+        assert r.status_code == 404  # a checkout without the bundled video says so instead of erroring
