@@ -199,6 +199,7 @@ async function open(id, push = true) {
     } catch (e) { $('#verify-out').textContent = e.message; }
   };
   $('#detail').scrollTop = 0;
+  loadSide().catch(e => { $('#summary-position').innerHTML = `<b>Position:</b> ${esc(e.message)}`; });  // refresh position line for this receipt
 }
 
 setInterval(async () => {  // the ledger is written by the CLI / watch loop; pick up new receipts without a reload
