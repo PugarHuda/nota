@@ -43,7 +43,7 @@ Read-only; no orders.
 - Hosted dashboard: https://ryo-arena.vercel.app (read-only ledger snapshot, `/api/health` reports
   `ryo_key_set: false` — nothing is disguised as live).
 - `ARENA_DB=data/demo.db uv run arena serve`, `uv run arena skill run price_crosscheck '{"symbol":"SOL"}'`,
-  `uv run pytest -q` (108 tests, no network).
+  `uv run pytest -q` (109 tests, no network).
 
 ## Declarations
 

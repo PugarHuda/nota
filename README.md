@@ -95,7 +95,7 @@ uv run pytest -q
 
 ## Skills (Track 3)
 
-All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
+All four return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
 served on RYO's own skill paths, so plugging them into RYO is a route registration, not a port:
 `GET /api/skills/` (SkillDefinition list), `GET /api/skills/{name}`, and
 `POST /api/skills/{name}/invoke` taking `SkillCallRequest {name, args, conversation_id}` and
