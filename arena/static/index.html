@@ -64,6 +64,13 @@
   </nav>
   <section id="detail" aria-live="polite" aria-label="decision receipt" tabindex="-1"><div class="empty">Loading…</div></section>
   <aside aria-label="positions and leaderboard">
+    <h2>Run a skill (Track 3)</h2>
+    <div class="card" id="skills">
+      <select id="skill-name" aria-label="skill"></select>
+      <div id="skill-args" style="margin-top:6px"></div>
+      <div style="margin-top:6px; display:flex; gap:8px; align-items:center"><button type="button" class="badge ok" id="skill-run">Run</button> <span id="skill-status" class="small" aria-live="polite"></span></div>
+      <div id="skill-out" class="small" style="margin-top:8px"></div>
+    </div>
     <h2>Open practice positions</h2>
     <div id="positions" class="pos"></div>
     <h2>Agent leaderboard (Brier, lower is better)</h2>
@@ -111,6 +118,12 @@ async function open(id, push = true) {
   $('#detail').innerHTML = `
     ${degraded.length ? `<div class="banner">Degraded evidence: ${degraded.map(([k, s]) => `<b>${esc(k)}</b> ${esc(s)}`).join(', ')}. Missing values stay null; the judge was told.</div>` : ''}
     <p class="headline">${esc(r.headline)}</p>
+    <div class="card" id="summary" aria-label="thirty second summary">
+      <div><b>Now:</b> ${t.kind === 'trade' ? `${t.side.toUpperCase()} practice trade, ${t.size_usd.toFixed(0)} USD at ${t.entry_price}, stop ${t.stop_price}, target ${t.target_price}` : `no trade · ${esc(t.reason)}`}</div>
+      <div><b>Biggest change:</b> ${d.changes.length ? `<code>${esc(d.changes[0].path)}</code> ${fmt(d.changes[0].before)} → ${fmt(d.changes[0].after)} · ${esc(d.changes[0].why)}` : (d.previous_id ? 'nothing changed since the previous receipt' : 'first receipt for this symbol')}</div>
+      <div id="summary-position"><b>Position:</b> <span class="muted">checking…</span></div>
+      <div><b>Next:</b> ${d.outcome ? `scored: ${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}% (${d.outcome.went_up ? 'went up' : 'went down'})` : nextStep(r)}</div>
+    </div>
     <div class="muted small">receipt <a href="/r/${r.id}">${r.id}</a> · ${esc(r.created_at)} · source <b>${esc(r.source)}</b> · model ${esc(r.model)} (${esc(r.prompt_version)}) · evidence ${r.pack_hash.slice(0, 16)}…
       ${d.previous_id ? ` · previous <a href="/r/${d.previous_id}" data-open="${d.previous_id}">${d.previous_id}</a>` : ''}</div>
 
@@ -194,6 +207,13 @@ setInterval(async () => {  // the ledger is written by the CLI / watch loop; pic
   } catch (_) { /* keep the last good list */ }
 }, 30000);
 
+function nextStep(r) {
+  const due = new Date(new Date(r.created_at).getTime() + 7 * 864e5), days = Math.ceil((due - Date.now()) / 864e5);
+  return days > 0 ? `scores against a fresh price in ${days} day${days === 1 ? '' : 's'} (<code>arena resolve --all</code>)` : 'due for scoring now (<code>arena resolve --all</code>)';
+}
+
+const POSITION_TEXT = { open: 'open', stopped: 'would be STOPPED OUT at the latest price', target: 'would have HIT TARGET at the latest price', price_unavailable: 'latest price unavailable' };
+
 function changesTable(ch) {
   const top = ch.slice(0, 8), rest = ch.slice(8), max = ch[0].impact || 1;
   const row = c => `<tr><td><code>${esc(c.path)}</code><div class="small muted">${esc(c.why)}</div></td><td class="num">${fmt(c.before)}</td><td class="num">${fmt(c.after)}</td><td style="width:90px"><div class="bar" role="img" aria-label="impact ${Math.round(c.impact / max * 100)} of 100" title="impact ${c.impact}"><i style="width:${Math.max(4, Math.min(100, c.impact / max * 100))}%"></i></div></td></tr>`;
@@ -215,8 +235,11 @@ async function loadSide() {
   $('#backers').innerHTML = bk.length ? `<table><tr><th>handle</th><th class="num">backed</th><th class="num">scored</th><th class="num">accuracy</th></tr>
       ${bk.slice(0, 15).map(b => `<tr><td>${esc(b.handle)}</td><td class="num">${b.backed}</td><td class="num">${b.scored}</td><td class="num">${b.accuracy === null ? '—' : b.accuracy}</td></tr>`).join('')}</table>`
     : '<div class="muted small">Nobody has backed a call yet.</div>';
+  const mine = current && pos.find(p => p.symbol === current.receipt.symbol);
+  const sp = $('#summary-position');
+  if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${mine.side} from ${mine.entry}, latest ${fmt(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) · <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
   $('#positions').innerHTML = pos.length ? pos.map(p => `<div class="card">
-      <b>${esc(p.symbol)}</b> <span class="badge ${p.side}">${p.side}</span> <a class="small" href="/r/${p.decision_id}" data-open="${p.decision_id}">receipt</a>
+      <b>${esc(p.symbol)}</b> <span class="badge ${p.side}">${p.side}</span> <span class="badge ${p.status === 'open' ? 'ok' : p.status === 'target' ? 'long' : p.status === 'stopped' ? 'short' : 'partial'}">${esc(POSITION_TEXT[p.status])}</span> <a class="small" href="/r/${p.decision_id}" data-open="${p.decision_id}">receipt</a>
       <div class="small">entry ${p.entry} · stop ${p.stop} · target ${p.target} · ${p.size_usd.toFixed(0)} USD</div>
       <div class="small muted">latest ${fmt(p.latest_price)} as of ${fmt(p.latest_as_of)} · move ${p.move_pct === null ? '<span class="muted">unavailable</span>' : (p.move_pct >= 0 ? '+' : '') + p.move_pct + '%'}</div>
       <div class="bar" title="−100 = at stop, +100 = one stop-distance in profit"><i class="${(p.stop_progress_pct || 0) < 0 ? 'neg' : 'pos'}" style="width:${Math.min(50, Math.abs(p.stop_progress_pct || 0) / 2)}%"></i></div></div>`).join('')
@@ -232,6 +255,40 @@ async function loadSide() {
       <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved</div>`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>arena resolve</code>). Weights are all 1.0 until then.</div>`;
 }
+
+let skillDefs = [];
+function renderSkillArgs() {
+  const d = skillDefs.find(x => x.name === $('#skill-name').value);
+  $('#skill-args').innerHTML = d ? `<div class="small muted">${esc(d.description)}</div>` + d.args.map(a => `
+    <label class="small" style="display:block; margin-top:4px">${esc(a.name)}${a.required ? ' *' : ''} <span class="muted">(${a.type}${a.items ? ' of ' + a.items.type : ''})</span>
+      <input data-arg="${esc(a.name)}" data-type="${a.type}" placeholder="${esc(a.description)}" style="margin-top:2px"></label>`).join('') : '';
+}
+async function loadSkills() {
+  try { skillDefs = await api('/api/skills/'); } catch (e) { $('#skill-status').textContent = e.message; return; }
+  $('#skill-name').innerHTML = skillDefs.map(d => `<option value="${esc(d.name)}">${esc(d.name)}</option>`).join('');
+  $('#skill-name').onchange = renderSkillArgs; renderSkillArgs();
+  $('#skill-run').onclick = async () => {
+    const args = {};
+    for (const inp of $('#skill-args').querySelectorAll('[data-arg]')) {
+      const v = inp.value.trim(); if (!v) continue;
+      args[inp.dataset.arg] = inp.dataset.type === 'array' ? v.split(',').map(s => s.trim()).filter(Boolean) : (inp.dataset.type === 'integer' || inp.dataset.type === 'number') ? Number(v) : v;
+    }
+    $('#skill-status').textContent = 'running…'; $('#skill-out').innerHTML = '';
+    try {
+      const res = await fetch(`/api/skills/${$('#skill-name').value}/invoke`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }) });
+      const body = await res.json();
+      if (!res.ok) throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
+      const env = body.result;
+      $('#skill-status').innerHTML = `<span class="badge ${env.status}">${esc(env.status)}</span> ${body.latency_ms} ms · data_mode ${esc(env.data_mode)}`;
+      $('#skill-out').innerHTML = `<b>${esc(env.summary.headline)}</b>
+        <div>${Object.entries(env.availability).map(([k, s]) => `<span class="badge ${s}">${esc(k)}: ${esc(s)}</span>`).join(' ')}</div>
+        ${env.summary.key_points.map(k => `<div>• ${esc(k)}</div>`).join('')}
+        ${env.warnings.map(w => `<div class="muted">⚠ ${esc(w)}</div>`).join('')}
+        <details><summary>envelope JSON</summary><pre style="white-space:pre-wrap; overflow:auto; max-height:320px">${esc(JSON.stringify(env, null, 1))}</pre></details>`;
+    } catch (e) { $('#skill-status').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
+  };
+}
+loadSkills();
 
 document.addEventListener('keydown', e => {
   if (e.target === $('#filter')) { if (e.key === 'Escape' || e.key === 'Enter') { e.target.blur(); if (e.key === 'Enter' && shown[0]) open(shown[0].id); } return; }

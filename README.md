@@ -82,7 +82,12 @@ uv run pytest -q
 
 ## Skills (Track 3)
 
-All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`):
+All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
+served on RYO's own skill paths, so plugging them into RYO is a route registration, not a port:
+`GET /api/skills/` (SkillDefinition list), `GET /api/skills/{name}`, and
+`POST /api/skills/{name}/invoke` taking `SkillCallRequest {name, args, conversation_id}` and
+returning `SkillCallResponse {name, status: success|error, result, latency_ms, xp, guard_decision}`.
+The dashboard's "Run a skill" panel builds its form from those definitions and shows the envelope.
 
 - `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky
   public API, `x:` via a Nitter mirror with Tavily fallback), VADER sentiment plus a crypto
@@ -100,6 +105,10 @@ All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.
 `/api/decisions/{id}/replay`, `/api/positions`, `/api/scores`, `/api/health`, exports
 `/r/{id}.json` and `/r/{id}.md`, OpenAPI at `/docs`) and a single-page dashboard:
 
+- **Thirty-second summary** at the top of every receipt: what to do now (trade or block reason),
+  the single biggest change and why it matters, whether the open practice position would be
+  stopped out or at target at the latest independent price, and what happens next (when it
+  is scored, or the score).
 - **What changed**: every receipt is diffed against the previous receipt for the same symbol
   and the rows are ranked by impact. Verdict flips, trade unlock/block, availability and model
   changes come first, then the numbers the risk engine reads (price, ATR, RSI) by % move, then

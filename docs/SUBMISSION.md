@@ -1,5 +1,9 @@
 # Submission draft (fill the blanks when the organiser sends the repo and key)
 
+Submission platform: DoraHacks BUIDL (per organiser's Discord pin, 17 Aug 2026). The X post URL must be
+added to the BUIDL before judging for the Social Media award; tag @ryodigital, show what was built,
+explain why it matters, link the demo (https://ryo-arena.vercel.app).
+
 Field values for the Project Submission Form / `HackathonSubmissionFields`.
 
 | field | value |

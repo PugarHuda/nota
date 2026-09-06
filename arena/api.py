@@ -28,6 +28,7 @@ from arena.receipt import Receipt, render_markdown
 from arena.replay import replay
 from arena.risk import PracticeTrade
 from arena.ryo_client import RyoClient
+from arena.skills import definitions as skill_definitions, invoke as skill_invoke
 
 load_dotenv()
 app = FastAPI(title="RYO Arena", description="Read-only view over decision receipts. No orders, no wallets.")
@@ -198,9 +199,18 @@ def positions() -> list[dict[str, Any]]:
         # +100 = at target distance of one stop, -100 = at stop; null when the latest price is unavailable
         move_pct = None if price is None else round(sign * (price / t.entry_price - 1) * 100, 3)
         progress = None if price is None else round(sign * (price - t.entry_price) / abs(t.entry_price - t.stop_price) * 100, 1)
+        if price is None:
+            status = "price_unavailable"
+        elif sign * (price - t.stop_price) <= 0:
+            status = "stopped"  # latest price is at or beyond the stop: this practice position would be closed at a loss
+        elif sign * (price - t.target_price) >= 0:
+            status = "target"
+        else:
+            status = "open"
         out.append({"decision_id": r.id, "symbol": r.symbol, "side": t.side, "entry": t.entry_price, "stop": t.stop_price,
                     "target": t.target_price, "size_usd": t.size_usd, "opened_at": r.created_at, "latest_price": price,
-                    "latest_as_of": as_of, "move_pct": move_pct, "stop_progress_pct": progress})
+                    "latest_as_of": as_of, "move_pct": move_pct, "stop_progress_pct": progress, "status": status,
+                    "pnl_usd": None if price is None else round(sign * (price - t.entry_price) * t.size_units, 2)})
     return out
 
 
@@ -262,6 +272,47 @@ def receipt_json(id: str) -> dict[str, Any]:
     return _receipt(_ledger(), id).model_dump(mode="json")
 
 
+# --- Track 3: skills exposed on RYO's own paths (/api/skills, SkillCallRequest/Response) -------------
+class SkillCallRequest(BaseModel):
+    name: str | None = None
+    args: dict[str, Any] = Field(default_factory=dict)
+    conversation_id: str | None = None
+
+
+@app.get("/api/skills/")
+def list_skills() -> list[dict[str, Any]]:
+    return [d.model_dump() for d in skill_definitions()]
+
+
+@app.get("/api/skills/{name}")
+def skill_def(name: str) -> dict[str, Any]:
+    for d in skill_definitions():
+        if d.name == name:
+            return d.model_dump()
+    raise HTTPException(404, f"unknown skill {name}")
+
+
+@app.post("/api/skills/{name}/invoke")
+def invoke_skill(name: str, body: SkillCallRequest, request: Request) -> dict[str, Any]:
+    """RYO's SkillCallResponse shape: name, status, result (our envelope), latency_ms, xp, guard_decision."""
+    if body.name and body.name != name:
+        raise HTTPException(422, "body.name does not match the path")
+    _throttle(f"skill:{request.client.host if request.client else 'unknown'}", limit=60)
+    deps: dict[str, Any] = {}
+    if name == "news_verify" and body.args.get("symbol") and os.environ.get("RYO_MCP_KEY"):
+        deps["ryo"] = RyoClient()
+    started = time.time()
+    try:
+        env = skill_invoke(name, body.args, **deps)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    # SkillCastStatus enum in RYO's OpenAPI: pending | running | success | error
+    return {"name": name, "status": "success" if env.status != "unavailable" else "error", "result": env.model_dump(mode="json"),
+            "latency_ms": int((time.time() - started) * 1000), "xp": 0, "guard_decision": None}
+
+
 # --- SocialFi: public backing of calls, scored against outcomes ------------------------------
 HANDLE = re.compile(r"^[A-Za-z0-9_@.\-]{3,32}$")
 
@@ -281,11 +332,11 @@ _BACKING_HITS: dict[str, list[float]] = {}
 BACKING_LIMIT, BACKING_WINDOW = 30, 3600.0  # ponytail: in-process per-IP throttle; a shared store if ever run on >1 worker
 
 
-def _throttle(ip: str, now: float | None = None) -> None:
+def _throttle(ip: str, now: float | None = None, limit: int = BACKING_LIMIT) -> None:
     now = now if now is not None else time.time()
     hits = [t for t in _BACKING_HITS.get(ip, []) if now - t < BACKING_WINDOW]
-    if len(hits) >= BACKING_LIMIT:
-        raise HTTPException(429, f"too many backings from this address; limit {BACKING_LIMIT} per hour")
+    if len(hits) >= limit:
+        raise HTTPException(429, f"too many requests from this address; limit {limit} per hour")
     hits.append(now)
     _BACKING_HITS[ip] = hits
 

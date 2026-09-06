@@ -81,6 +81,14 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     page.click("#backing button[data-stance='disagree']")
     assert "3-32" in page.locator("#back-out").inner_text()
 
+    page.wait_for_function("document.querySelector('#summary-position').textContent.includes('open')")
+    assert "Now:" in page.locator("#summary").inner_text() and "Next:" in page.locator("#summary").inner_text()
+    page.wait_for_function("document.querySelectorAll('#skill-name option').length === 3")
+    page.select_option("#skill-name", "narrative_convergence")
+    assert page.locator("#skill-args [data-arg='voices']").count() == 1 and page.locator("#skill-args [data-arg='hours']").count() == 1
+    page.click("#skill-run")  # required arg missing: the API's 422 must surface, not a silent nothing
+    page.wait_for_function("document.querySelector('#skill-status').textContent.includes('missing required args')")
+
     page.fill("#filter", "no_trade")
     page.wait_for_function("document.querySelectorAll('#list .row').length === 1")
     assert "no_trade" in page.locator("#list .row").first.get_attribute("aria-label")
@@ -89,7 +97,7 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     assert page.locator("#help").is_visible()
     page.keyboard.press("Escape")
     assert not page.locator("#help").is_visible()
-    assert errors == [], errors
+    assert [e for e in errors if "422" not in e] == [], errors  # the deliberate bad skill call above is the only allowed one
     page.close()
 
 
