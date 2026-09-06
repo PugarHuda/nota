@@ -82,6 +82,8 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     assert "3-32" in page.locator("#back-out").inner_text()
 
     page.wait_for_function("document.querySelector('#summary-position').textContent.includes('open')")
+    page.wait_for_function("!document.querySelector('#attention').hidden")
+    assert "degraded evidence" in page.locator("#attention").inner_text()  # seeded receipts run on partial fixtures
     assert "Now:" in page.locator("#summary").inner_text() and "Next:" in page.locator("#summary").inner_text()
     page.wait_for_function("document.querySelectorAll('#skill-name option').length === 3")
     page.select_option("#skill-name", "narrative_convergence")

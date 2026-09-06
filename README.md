@@ -8,6 +8,18 @@ Tracks entered: **1 Autonomous Agents** (council, receipts, `watch` loop), **2 D
 (diff-first receipt dashboard), **3 New Skills** (`narrative_convergence`, `news_verify`,
 `price_crosscheck`, all in RYO's envelope).
 
+![Dashboard: thirty-second summary, what changed ranked by impact, open positions, skills panel](docs/img/dashboard.png)
+
+<details><summary>More screenshots (replay verification, receipt card, phone layout)</summary>
+
+![Verify replay from the page](docs/img/verify-replay.png)
+![Receipt card used for link previews](docs/img/card.png)
+![Phone layout](docs/img/mobile.png)
+
+</details>
+
+Screenshots are generated from the shipped demo ledger by `scripts/screenshots.py`.
+
 ## How a decision is made
 
 ```
@@ -73,7 +85,8 @@ uv run arena replay <id> --fresh
 uv run arena resolve --all      # after 7 days: Brier scores per agent
 uv run arena scores
 uv run arena record SOL         # capture all six live tools into fixtures/recorded
-uv run arena decide SOL --source recorded   # judge-friendly run without a key
+uv run arena decide SOL --source recorded   # replay those recordings without a key (after `record`)
+uv run arena positions                      # open practice positions vs the latest independent price
 uv run arena serve                          # dashboard + read API on http://127.0.0.1:8000
 uv run arena skill spec                     # Track 3 definitions
 uv run arena skill run price_crosscheck '{"symbol":"SOL","reference_price":150}'
@@ -135,6 +148,21 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
   resolves, backers are scored against the outcome (`/api/backers`): agreeing with a long that
   went up is right, disagreeing with it is wrong, `no_trade` calls are never scored. It is
   public and unauthenticated on purpose; the ledger keeps every stance with its timestamp.
+
+## Evaluate with zero keys
+
+The repository ships a ledger snapshot with real receipts (fixture-sourced, labelled as such):
+
+```bash
+uv sync
+ARENA_DB=data/demo.db uv run arena serve      # dashboard, replay verification, cards, skills, backing
+ARENA_DB=data/demo.db uv run arena positions
+uv run arena skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
+uv run pytest -q                              # 100+ tests, no network
+```
+
+A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as
+Venice) and live RYO evidence needs the builder key; everything else runs without either.
 
 ## Hosted demo
 

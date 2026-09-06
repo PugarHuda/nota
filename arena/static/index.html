@@ -64,6 +64,7 @@
   </nav>
   <section id="detail" aria-live="polite" aria-label="decision receipt" tabindex="-1"><div class="empty">Loading…</div></section>
   <aside aria-label="positions and leaderboard">
+    <div id="attention" class="card" aria-live="polite" hidden></div>
     <h2>Run a skill (Track 3)</h2>
     <div class="card" id="skills">
       <select id="skill-name" aria-label="skill"></select>
@@ -224,17 +225,27 @@ function changesTable(ch) {
 async function loadHealth() {
   try {
     const h = await api('/api/health');
+    window.__health = h;
     const ryo = h.ryo.error ? `<span class="badge unavailable">RYO down</span>` : `<span class="badge ok">RYO ${esc(h.ryo.status)} · ${h.ryo.tools} tools</span>`;
     $('#health').innerHTML = `${h.readonly ? '<span class="badge partial" title="ledger snapshot; backing disabled">read-only demo</span> ' : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge">${esc(h.llm.kind)} · ${esc(h.llm.model || 'default')}</span> <span class="badge">${h.ledger.decisions} receipts · ${h.ledger.due} due for scoring</span>`;
   } catch (e) { $('#health').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
 }
 
 async function loadSide() {
-  loadHealth();
+  await loadHealth();
   const [pos, sc, bk] = await Promise.all([api('/api/positions'), api('/api/scores'), api('/api/backers')]);
   $('#backers').innerHTML = bk.length ? `<table><tr><th>handle</th><th class="num">backed</th><th class="num">scored</th><th class="num">accuracy</th></tr>
       ${bk.slice(0, 15).map(b => `<tr><td>${esc(b.handle)}</td><td class="num">${b.backed}</td><td class="num">${b.scored}</td><td class="num">${b.accuracy === null ? '—' : b.accuracy}</td></tr>`).join('')}</table>`
     : '<div class="muted small">Nobody has backed a call yet.</div>';
+  const stopped = pos.filter(p => p.status === 'stopped'), hit = pos.filter(p => p.status === 'target');
+  const degraded = all.filter(d => d.degraded).length, due = (window.__health && window.__health.ledger.due) || 0;
+  const items = [
+    stopped.length ? `<span class="badge short">${stopped.length} position${stopped.length > 1 ? 's' : ''} past stop</span>` : '',
+    hit.length ? `<span class="badge long">${hit.length} at target</span>` : '',
+    due ? `<span class="badge partial">${due} due for scoring</span>` : '',
+    degraded ? `<span class="badge partial">${degraded} receipt${degraded > 1 ? 's' : ''} on degraded evidence</span>` : ''].filter(Boolean);
+  $('#attention').hidden = !items.length;
+  $('#attention').innerHTML = items.length ? `<b>Needs attention:</b> ${items.join(' ')}` : '';
   const mine = current && pos.find(p => p.symbol === current.receipt.symbol);
   const sp = $('#summary-position');
   if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${mine.side} from ${mine.entry}, latest ${fmt(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) · <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;

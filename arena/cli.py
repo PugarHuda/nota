@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 import time
 
-from arena.calibration import CannotResolve, due, resolve, role_scores, role_weights
+from arena.calibration import CannotResolve, close_position, due, resolve, role_scores, role_weights
 from arena.decide import decide
 from arena import paths
 from arena.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
@@ -162,8 +162,9 @@ def watch(
     news: bool = typer.Option(False, help="Add news_check"),
     notify: bool = typer.Option(False, help="Post each new receipt to Telegram/Discord"),
     price_check: bool = typer.Option(True, help="Add price_check section"),
+    close_on_stop: bool = typer.Option(False, help="Exit practice positions whose stop or target the latest independent price has crossed"),
 ):
-    """Autonomous loop: decide every symbol each cycle, score decisions whose 7-day horizon has passed, publish receipts."""
+    """Autonomous loop: decide every symbol each cycle, exit practice positions at stop/target, score matured decisions, publish receipts."""
     fixed = [s.strip().upper() for s in symbols.split(",") if s.strip()]
     if not fixed and not scan_top:
         raise typer.BadParameter("give symbols, --scan-top N, or both")
@@ -189,6 +190,13 @@ def watch(
                         typer.echo(f"  notify {out['channel']}: {out['status']}")
             except Exception as exc:  # one symbol failing must not stop the loop
                 typer.echo(f"[{now_iso()}] {sym}: failed {type(exc).__name__}: {exc}")
+        if close_on_stop:
+            from arena.api import positions as open_positions
+
+            for p in open_positions():
+                if p["status"] in ("stopped", "target") and p["latest_price"] is not None:
+                    out = close_position(p["decision_id"], led, float(p["latest_price"]), str(p["latest_as_of"]), p["status"])
+                    typer.echo(f"[{now_iso()}] closed {p['symbol']} {p['side']} ({p['status']}) at {out.price_now:g}: {out.trade_result_usd:+.2f} USD practice result")
         for i in due(led):
             try:
                 out = resolve(i, led, src)
@@ -246,6 +254,22 @@ def show(decision_id: str, as_json: bool = typer.Option(False, "--json")):
     if raw is None:
         raise typer.BadParameter(f"no decision {decision_id}")
     typer.echo(raw if as_json else render_markdown(Receipt.model_validate_json(raw)))
+
+
+@app.command("positions")
+def positions_cmd(as_json: bool = typer.Option(False, "--json")):
+    """Open practice positions against the latest independent price: open, past stop, or at target."""
+    from arena.api import positions as open_positions
+
+    rows = open_positions()
+    if as_json:
+        typer.echo(json.dumps(rows, indent=1))
+        return
+    if not rows:
+        typer.echo("no open practice positions")
+    for p in rows:
+        typer.echo(f"{p['symbol']:6} {p['side']:5} entry {p['entry']:g} stop {p['stop']:g} target {p['target']:g} | latest {p['latest_price']} "
+                   f"({p['latest_as_of']}) | {p['status']} | {p['pnl_usd']} USD | receipt {p['decision_id']}")
 
 
 @app.command("list")

@@ -41,6 +41,7 @@ class Outcome(BaseModel):
     went_up: bool
     brier: dict[str, float]
     trade_result_usd: float | None = None
+    closed_reason: str | None = None  # 'stopped' | 'target' when a practice position was exited early
 
 
 def _price_then(receipt: Receipt, ledger: Ledger) -> float | None:
@@ -74,15 +75,11 @@ def _price_now(symbol: str, source: RyoSource) -> tuple[float | None, str | None
     return float(med), check.as_of, f"exchange_median:{check.get('sources_ok')}_sources"
 
 
-def resolve(decision_id: str, ledger: Ledger, source: RyoSource) -> Outcome:
-    raw = ledger.get_decision(decision_id)
-    if raw is None:
-        raise KeyError(f"no decision {decision_id}")
-    receipt = Receipt.model_validate_json(raw)
+def _build_outcome(receipt: Receipt, ledger: Ledger, price_now: float, as_of_now: str | None, price_source: str,
+                   closed_reason: str | None = None) -> Outcome:
     price_then = _price_then(receipt, ledger)
-    price_now, as_of_now, price_source = _price_now(receipt.symbol, source)
-    if price_then is None or price_now is None:
-        raise CannotResolve("price unavailable at decision or resolution time; refusing to score with a guess")
+    if price_then is None:
+        raise CannotResolve("price unavailable at decision time; refusing to score with a guess")
     went_up = price_now > price_then
     outcome_val = 1.0 if went_up else 0.0
     brier = {o.role: round((o.p_up_7d - outcome_val) ** 2, 4) for o in receipt.opinions}
@@ -100,12 +97,37 @@ def resolve(decision_id: str, ledger: Ledger, source: RyoSource) -> Outcome:
         sign = 1.0 if receipt.trade.side == "long" else -1.0
         trade_result = round(sign * (price_now - price_then) * receipt.trade.size_units, 2)
     out = Outcome(
-        decision_id=decision_id, symbol=receipt.symbol, resolved_at=now_iso(), decided_as_of=decided_as_of,
+        decision_id=receipt.id, symbol=receipt.symbol, resolved_at=now_iso(), decided_as_of=decided_as_of,
         horizon_reached=horizon, price_then=price_then, price_now=price_now, price_now_source=price_source, price_now_as_of=as_of_now,
         return_pct=round((price_now / price_then - 1.0) * 100.0, 4), went_up=went_up, brier=brier, trade_result_usd=trade_result,
+        closed_reason=closed_reason,
     )
-    ledger.save_outcome(decision_id, out.model_dump_json())
+    ledger.save_outcome(receipt.id, out.model_dump_json())
     return out
+
+
+def resolve(decision_id: str, ledger: Ledger, source: RyoSource) -> Outcome:
+    raw = ledger.get_decision(decision_id)
+    if raw is None:
+        raise KeyError(f"no decision {decision_id}")
+    receipt = Receipt.model_validate_json(raw)
+    price_now, as_of_now, price_source = _price_now(receipt.symbol, source)
+    if price_now is None:
+        raise CannotResolve("price unavailable at resolution time; refusing to score with a guess")
+    return _build_outcome(receipt, ledger, price_now, as_of_now, price_source)
+
+
+def close_position(decision_id: str, ledger: Ledger, price: float, price_source: str, reason: str) -> Outcome:
+    """Practice-trade exit: the latest independent price crossed the stop or the target, so the position is
+    closed now at that price and scored immediately. `closed_reason` says which level was hit; the horizon
+    flag stays honest (usually False)."""
+    raw = ledger.get_decision(decision_id)
+    if raw is None:
+        raise KeyError(f"no decision {decision_id}")
+    receipt = Receipt.model_validate_json(raw)
+    if not isinstance(receipt.trade, PracticeTrade):
+        raise CannotResolve("no practice position on this receipt")
+    return _build_outcome(receipt, ledger, price, now_iso(), price_source, closed_reason=reason)
 
 
 def due(ledger: Ledger, now: datetime | None = None) -> list[str]:
