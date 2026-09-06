@@ -35,7 +35,7 @@ def test_status_from():
 
 def test_registry_definitions_and_arg_validation():
     names = {d.name for d in definitions()}
-    assert names == {"narrative_convergence", "news_verify", "price_crosscheck"}
+    assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck"}
     assert all(not d.requires_guard and d.read_only for d in definitions())
     with pytest.raises(ValueError, match="missing required"):
         invoke("news_verify", {})

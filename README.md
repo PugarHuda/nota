@@ -6,7 +6,7 @@ track record for every agent. Built for the RYO-CHAN Hackathon 2026.
 
 Tracks entered: **1 Autonomous Agents** (council, receipts, `watch` loop), **2 Dashboards**
 (diff-first receipt dashboard), **3 New Skills** (`narrative_convergence`, `news_verify`,
-`price_crosscheck`, all in RYO's envelope).
+`price_crosscheck`, `technicals_crosscheck`, all in RYO's envelope).
 
 ![Dashboard: thirty-second summary, what changed ranked by impact, open positions, skills panel](docs/img/dashboard.png)
 
@@ -111,6 +111,10 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
 - `price_crosscheck`: keyless CoinGecko, Coinbase and Kraken spot prices, median, spread, and
   deviation of a reference price (RYO's) from the exchanges, plus the alternative.me Fear &
   Greed index against RYO's reading.
+- `technicals_crosscheck`: RSI(14), ATR(14) and 1d/7d/30d performance recomputed with Wilder's
+  method from CoinGecko public OHLC (4-hour candles aggregated to UTC days), with the deviation
+  of reference values (RYO's `technicals.rsi_14` / `atr_14`) from the independent calculation.
+  The Technician sees it as `technicals_check` on every decision.
 
 ## Dashboard (Track 2)
 

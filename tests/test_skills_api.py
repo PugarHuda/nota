@@ -11,7 +11,7 @@ def test_skill_catalog_follows_ryo_shape(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
     c = TestClient(api.app)
     defs = c.get("/api/skills/").json()
-    assert {d["name"] for d in defs} == {"narrative_convergence", "news_verify", "price_crosscheck"}
+    assert {d["name"] for d in defs} == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck"}
     assert all(set(d) >= {"name", "description", "args", "requires_guard", "xp"} and d["requires_guard"] is False for d in defs)
     one = c.get("/api/skills/price_crosscheck").json()
     assert one["args"][0] == {"name": "symbol", "type": "string", "required": True, "description": "Token symbol, e.g. SOL", "enum": None, "items": None}

@@ -77,7 +77,7 @@ ROLE_SYSTEM: dict[str, str] = {
     "and judge whether broad conditions and relative strength favour or oppose a position in this token." + COMMON_RULES,
     "technician": "[role:technician] You are the Technician. You read price, multi-window performance, RSI(14), ATR(14), "
     "confluence, derivatives and the tool's own verdict, plus `compare` (peers) and `price_check` (independent exchange prices "
-    "and how far RYO's price deviates from them; a large deviation is a data-quality risk, not a trade signal), and judge trend, "
+    "and how far RYO's price deviates from them; a large deviation is a data-quality risk, not a trade signal) and `technicals_check` (RSI/ATR recomputed independently from public OHLC; a large gap means the indicator inputs disagree), and judge trend, "
     "momentum and volatility for this token." + COMMON_RULES,
     "narrative": "[role:narrative] You are the Narrative agent. You read catalysts, risks, the token profile and intelligence "
     "narrative, plus, when present, `narrative_signal` (what selected voices say, lexicon-scored) and `news_check` "
@@ -91,7 +91,7 @@ ROLE_SYSTEM: dict[str, str] = {
 # Which sections each role sees. ponytail: everyone gets availability/warnings; slices keep prompts small.
 ROLE_SECTIONS: dict[str, tuple[str, ...]] = {
     "macro": ("market_overview", "sentiment_shift", "compare"),
-    "technician": ("deep_analysis", "analyze_token", "compare", "price_check"),
+    "technician": ("deep_analysis", "analyze_token", "compare", "price_check", "technicals_check"),
     "narrative": ("deep_analysis", "analyze_token", "narrative_signal", "news_check"),
 }
 

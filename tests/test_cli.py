@@ -60,4 +60,4 @@ def test_watch_one_cycle_survives_failures(tmp_path, monkeypatch):
 def test_skill_spec_lists_three_read_only_skills():
     res = runner.invoke(cli.app, ["skill", "spec"])
     names = {d["name"] for d in json.loads(res.output)}
-    assert names == {"narrative_convergence", "news_verify", "price_crosscheck"}
+    assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck"}

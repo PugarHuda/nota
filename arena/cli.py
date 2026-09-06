@@ -25,6 +25,7 @@ from arena.skills import definitions as skill_definitions, invoke as skill_invok
 from arena.skills.narrative import narrative_convergence
 from arena.skills.news import news_verify
 from arena.skills.price_check import price_crosscheck
+from arena.skills.technicals import technicals_crosscheck
 
 load_dotenv()
 app = typer.Typer(help="RYO Arena: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
@@ -116,6 +117,12 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
             return price_crosscheck(sym, reference_price=price, reference_path=path,
                                     reference_fear_greed=float(fg) if isinstance(fg, (int, float)) and not isinstance(fg, bool) else None)
         extras["price_check"] = _check
+
+        def _tech(sym, pack):
+            _, rsi_ref = first_present(pack, paths.RSI_14)
+            _, atr_ref = first_present(pack, paths.ATR_14)
+            return technicals_crosscheck(sym, reference_rsi_14=rsi_ref, reference_atr_14=atr_ref)
+        extras["technicals_check"] = _tech
     return extras or None
 
 

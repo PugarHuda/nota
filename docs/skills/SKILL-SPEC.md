@@ -85,6 +85,24 @@ A deviation of 2% or more becomes a warning. `availability` is per exchange. The
 Technician sees this section as `price_check`; the calibration step uses the median only when
 RYO cannot supply a price, and records that in the outcome.
 
+## `technicals_crosscheck`
+
+RYO's indicators recomputed from an independent source so a reader can audit them.
+
+| arg | type | required | notes |
+|---|---|---|---|
+| `symbol` | string | yes | e.g. SOL |
+| `reference_rsi_14` | number | no | RYO's `technicals.rsi_14` |
+| `reference_atr_14` | number | no | RYO's `technicals.atr_14` (USD) |
+| `days` | integer | no | look-back, default 30 (15..90) |
+
+`data`: `method{indicators: wilder, period: 14, candles}`, `daily_candles`, `as_of` (last candle),
+`close`, `rsi_14`, `atr_14`, `atr_pct`, `performance_pct{1d,7d,30d}`,
+`reference{rsi_14, atr_14, rsi_diff_points, atr_diff_pct}`, `thresholds` (10 RSI points, 25% ATR).
+Source: CoinGecko `/coins/{id}/ohlc` (no key; 4-hour candles for up to 30 days, aggregated to UTC
+days here). Fewer than 15 daily candles means `rsi_14`/`atr_14` are `null` with a warning.
+`availability.ohlc` is the primary section.
+
 ## Calling them
 
 ```bash
