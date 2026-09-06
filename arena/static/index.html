@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RYO Arena</title>
+<!--OG-->
 <style>
   :root { --bg:#0f1115; --panel:#161a22; --line:#262c38; --fg:#e6e8ee; --dim:#8b93a7; --ok:#3ecf8e; --warn:#f5b53f; --bad:#ff6b6b; --acc:#7aa2ff; }
   * { box-sizing:border-box }
@@ -67,6 +68,8 @@
     <div id="positions" class="pos"></div>
     <h2>Agent leaderboard (Brier, lower is better)</h2>
     <div id="scores"></div>
+    <h2>Backers (accuracy on resolved calls)</h2>
+    <div id="backers"></div>
   </aside>
 </main>
 <div id="help" hidden>
@@ -129,6 +132,19 @@ async function open(id, push = true) {
     ${d.outcome ? `<h2>Outcome</h2><div class="card">${d.outcome.price_then} → ${d.outcome.price_now} (${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}%) · ${d.outcome.horizon_reached ? '7d horizon reached' : 'before 7d horizon'}
       ${d.outcome.trade_result_usd !== null ? ` · practice P&L ${d.outcome.trade_result_usd} USD` : ''}<br><span class="small muted">brier: ${Object.entries(d.outcome.brier).map(([k, v]) => `${esc(k)} ${v}`).join(' · ')}</span></div>` : ''}
 
+    <h2>Backing</h2>
+    <div class="card" id="backing">
+      <span id="back-counts">${d.backing.agree} agree · ${d.backing.disagree} disagree</span>
+      <span class="small muted">${d.backing.handles.map(h => `${esc(h.handle)} (${h.stance})`).join(', ')}</span>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <input id="handle" placeholder="your handle" maxlength="32" style="width:180px" aria-label="your handle">
+        <button type="button" class="badge long" data-stance="agree">Back this call</button>
+        <button type="button" class="badge short" data-stance="disagree">Disagree</button>
+        <span id="back-out" class="small" aria-live="polite"></span>
+      </div>
+      <div class="small muted">Public and unauthenticated: one stance per handle per receipt, scored when the call resolves.</div>
+    </div>
+
     <h2>Council</h2>
     ${r.opinions.map(o => `<div class="card"><b>${esc(o.role)}</b> · ${esc(o.stance)} · p_up ${o.p_up_7d.toFixed(2)} · ${esc(o.confidence)} confidence
       <div>${esc(o.thesis)}</div>
@@ -145,6 +161,20 @@ async function open(id, push = true) {
       · <a href="/r/${r.id}.json">JSON</a> · <a href="/r/${r.id}.md">Markdown</a>
       · <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
   $('#detail').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open); });
+  try { $('#handle').value = localStorage.getItem('arena.handle') || ''; } catch (_) {}
+  $('#backing').querySelectorAll('[data-stance]').forEach(b => b.onclick = async () => {
+    const handle = $('#handle').value.trim();
+    if (!/^[A-Za-z0-9_@.\-]{3,32}$/.test(handle)) { $('#back-out').textContent = 'handle: 3-32 letters, digits, _ @ . -'; return; }
+    try { localStorage.setItem('arena.handle', handle); } catch (_) {}
+    try {
+      const res = await fetch(`/api/decisions/${r.id}/back`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ handle, stance: b.dataset.stance }) });
+      if (!res.ok) throw new Error((await res.json()).detail || res.status);
+      const c = await res.json();
+      $('#back-counts').textContent = `${c.agree} agree · ${c.disagree} disagree`;
+      $('#back-out').textContent = `recorded: ${handle} ${b.dataset.stance}s`;
+      loadSide();
+    } catch (e) { $('#back-out').textContent = e.message; }
+  });
   $('#verify').onclick = async () => {
     $('#verify-out').textContent = 'replaying from stored evidence and cached outputs…';
     try {
@@ -181,7 +211,10 @@ async function loadHealth() {
 
 async function loadSide() {
   loadHealth();
-  const [pos, sc] = await Promise.all([api('/api/positions'), api('/api/scores')]);
+  const [pos, sc, bk] = await Promise.all([api('/api/positions'), api('/api/scores'), api('/api/backers')]);
+  $('#backers').innerHTML = bk.length ? `<table><tr><th>handle</th><th class="num">backed</th><th class="num">scored</th><th class="num">accuracy</th></tr>
+      ${bk.slice(0, 15).map(b => `<tr><td>${esc(b.handle)}</td><td class="num">${b.backed}</td><td class="num">${b.scored}</td><td class="num">${b.accuracy === null ? '—' : b.accuracy}</td></tr>`).join('')}</table>`
+    : '<div class="muted small">Nobody has backed a call yet.</div>';
   $('#positions').innerHTML = pos.length ? pos.map(p => `<div class="card">
       <b>${esc(p.symbol)}</b> <span class="badge ${p.side}">${p.side}</span> <a class="small" href="/r/${p.decision_id}" data-open="${p.decision_id}">receipt</a>
       <div class="small">entry ${p.entry} · stop ${p.stop} · target ${p.target} · ${p.size_usd.toFixed(0)} USD</div>
@@ -198,6 +231,7 @@ async function loadSide() {
 
 document.addEventListener('keydown', e => {
   if (e.target === $('#filter')) { if (e.key === 'Escape' || e.key === 'Enter') { e.target.blur(); if (e.key === 'Enter' && shown[0]) open(shown[0].id); } return; }
+  if (e.target.matches?.('input, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }  // typing a handle must not navigate
   if (e.key === 'Enter' && e.target.closest?.('button, a')) return;  // native activation handles it
   if (e.key === 'j') { sel = Math.min(shown.length - 1, sel + 1); renderList(); $('#list .sel')?.focus(); }
   else if (e.key === 'k') { sel = Math.max(0, sel - 1); renderList(); $('#list .sel')?.focus(); }

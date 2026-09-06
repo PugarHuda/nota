@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS decisions (
 CREATE TABLE IF NOT EXISTS outcomes (
   decision_id TEXT PRIMARY KEY, resolved_at TEXT NOT NULL, outcome_json TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS decisions_symbol ON decisions(symbol, created_at);
+CREATE TABLE IF NOT EXISTS backings (
+  decision_id TEXT NOT NULL, handle TEXT NOT NULL, stance TEXT NOT NULL, created_at TEXT NOT NULL,
+  PRIMARY KEY (decision_id, handle));
 """
 
 
@@ -87,6 +90,18 @@ class Ledger:
 
     def list_outcomes(self) -> list[str]:
         return [r["outcome_json"] for r in self.conn.execute("SELECT outcome_json FROM outcomes").fetchall()]
+
+    # backings (SocialFi) ------------------------------------------------------------
+    def add_backing(self, decision_id: str, handle: str, stance: str) -> None:
+        """One stance per handle per decision; backing again replaces the earlier stance."""
+        self.conn.execute("INSERT OR REPLACE INTO backings VALUES (?,?,?,?)", (decision_id, handle, stance, now_iso()))
+
+    def backings(self, decision_id: str) -> list[dict[str, Any]]:
+        rows = self.conn.execute("SELECT handle, stance, created_at FROM backings WHERE decision_id=? ORDER BY created_at", (decision_id,))
+        return [dict(r) for r in rows.fetchall()]
+
+    def all_backings(self) -> list[dict[str, Any]]:
+        return [dict(r) for r in self.conn.execute("SELECT decision_id, handle, stance, created_at FROM backings").fetchall()]
 
     def unresolved(self) -> list[str]:
         rows = self.conn.execute(

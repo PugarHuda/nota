@@ -6,18 +6,21 @@ stored, so the dashboard can never show a number that has no receipt behind it.
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
+from pydantic import BaseModel, Field
 
 from arena import paths
 from arena.calibration import due, role_scores, role_weights
+from arena.card import render_card
 from arena.evidence import EvidencePack, first_present
 from arena.ledger import Ledger
 from arena.receipt import Receipt, render_markdown
@@ -158,7 +161,8 @@ def get_decision(id: str) -> dict[str, Any]:
     prev = _previous(led, r)
     out = led.get_outcome(id)
     return {"receipt": r.model_dump(mode="json"), "previous_id": prev.id if prev else None,
-            "changes": what_changed(led, r, prev), "outcome": json.loads(out) if out else None, "degraded": _degraded(r)}
+            "changes": what_changed(led, r, prev), "outcome": json.loads(out) if out else None, "degraded": _degraded(r),
+            "backing": _backing_counts(led, id)}
 
 
 @app.get("/api/positions")
@@ -246,12 +250,99 @@ def receipt_json(id: str) -> dict[str, Any]:
     return _receipt(_ledger(), id).model_dump(mode="json")
 
 
+# --- SocialFi: public backing of calls, scored against outcomes ------------------------------
+HANDLE = re.compile(r"^[A-Za-z0-9_@.\-]{3,32}$")
+
+
+class BackingIn(BaseModel):
+    handle: str = Field(description="X / Discord / Telegram handle, 3-32 chars")
+    stance: Literal["agree", "disagree"]
+
+
+def _backing_counts(led: Ledger, id: str) -> dict[str, Any]:
+    rows = led.backings(id)
+    return {"agree": sum(r["stance"] == "agree" for r in rows), "disagree": sum(r["stance"] == "disagree" for r in rows),
+            "handles": [{"handle": r["handle"], "stance": r["stance"]} for r in rows[-20:]]}
+
+
+@app.post("/api/decisions/{id}/back")
+def back_decision(id: str, body: BackingIn) -> dict[str, Any]:
+    """Unauthenticated by design for the hackathon: one stance per handle per receipt, latest wins."""
+    if not HANDLE.match(body.handle):
+        raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ @ . -")
+    led = _ledger()
+    _receipt(led, id)
+    led.add_backing(id, body.handle, body.stance)
+    return _backing_counts(led, id)
+
+
+def backer_correct(stance: str, action: str, went_up: bool) -> bool | None:
+    """A backer is right when their stance matched how the call turned out; no_trade calls are not scored."""
+    if action not in ("long", "short"):
+        return None
+    call_right = (action == "long") == went_up
+    return call_right if stance == "agree" else not call_right
+
+
+@app.get("/api/backers")
+def backers() -> list[dict[str, Any]]:
+    led = _ledger()
+    outcomes = {o["decision_id"]: o for o in (json.loads(raw) for raw in led.list_outcomes())}
+    actions: dict[str, str] = {}
+    table: dict[str, dict[str, Any]] = {}
+    for b in led.all_backings():
+        row = table.setdefault(b["handle"], {"handle": b["handle"], "backed": 0, "scored": 0, "correct": 0})
+        row["backed"] += 1
+        o = outcomes.get(b["decision_id"])
+        if o is None:
+            continue
+        if b["decision_id"] not in actions:
+            actions[b["decision_id"]] = _receipt(led, b["decision_id"]).verdict.action
+        verdict = backer_correct(b["stance"], actions[b["decision_id"]], bool(o["went_up"]))
+        if verdict is None:
+            continue
+        row["scored"] += 1
+        row["correct"] += int(verdict)
+    out = list(table.values())
+    for row in out:
+        row["accuracy"] = round(row["correct"] / row["scored"], 3) if row["scored"] else None
+    out.sort(key=lambda r: (-(r["accuracy"] if r["accuracy"] is not None else -1), -r["scored"], -r["backed"]))
+    return out
+
+
+@app.get("/r/{id}.png")
+def receipt_card(id: str) -> Response:
+    return Response(render_card(_receipt(_ledger(), id)), media_type="image/png", headers={"Cache-Control": "public, max-age=300"})
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon() -> Response:
     return Response(status_code=204)
 
 
 @app.get("/")
-@app.get("/r/{id}")
-def index(id: str | None = None) -> FileResponse:
+def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/r/{id}")
+def permalink(id: str, request: Request) -> HTMLResponse:
+    """Same page as `/`, with Open Graph / X card tags for this receipt so a shared link previews as a card."""
+    page = (STATIC / "index.html").read_text(encoding="utf-8")
+    raw = _ledger().get_decision(id)
+    if raw is None:
+        return HTMLResponse(page)
+    r = Receipt.model_validate_json(raw)
+    base = os.environ.get("ARENA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    desc = html.escape(f"{r.verdict.action} (p_up_7d {r.verdict.p_up_7d:.2f}). {r.verdict.rationale}"[:200])
+    tags = "\n".join([
+        f'<meta property="og:title" content="{html.escape(r.headline)}">',
+        f'<meta property="og:description" content="{desc}">',
+        f'<meta property="og:image" content="{base}/r/{r.id}.png">',
+        f'<meta property="og:url" content="{base}/r/{r.id}">',
+        '<meta property="og:type" content="article">',
+        '<meta name="twitter:card" content="summary_large_image">',
+        f'<meta name="twitter:title" content="{html.escape(r.headline)}">',
+        f'<meta name="twitter:image" content="{base}/r/{r.id}.png">',
+    ])
+    return HTMLResponse(page.replace("<!--OG-->", tags, 1))

@@ -108,6 +108,17 @@ All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.
 
 The dashboard reads receipts only. It cannot show a number that has no receipt behind it.
 
+## SocialFi layer
+
+- **Receipt cards**: `/r/<id>.png` renders a 1200×630 card from the receipt (Pillow, bundled
+  font); `/r/<id>` carries Open Graph and X card tags pointing at it, so a shared permalink
+  previews as the receipt. Discord notifications embed the same image.
+- **Backing**: anyone can back or disagree with a call under a handle (`POST
+  /api/decisions/<id>/back`, one stance per handle per receipt, latest wins). When the call
+  resolves, backers are scored against the outcome (`/api/backers`): agreeing with a long that
+  went up is right, disagreeing with it is wrong, `no_trade` calls are never scored. It is
+  public and unauthenticated on purpose; the ledger keeps every stance with its timestamp.
+
 ## Failure handling
 
 - RYO client: exponential backoff with jitter on 429/503/network, honours `Retry-After`,

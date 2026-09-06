@@ -7,6 +7,7 @@ dependencies = [
     "defusedxml>=0.7.1",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
+    "pillow>=12.3.0",
     "pydantic>=2",
     "python-dotenv>=1.2.3",
     "typer>=0.27.2",

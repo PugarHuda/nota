@@ -69,6 +69,7 @@ def discord(r: Receipt, http: httpx.Client | None = None) -> dict[str, Any]:
     link = _permalink(r)
     if link:
         embed["url"] = link
+        embed["image"] = {"url": f"{link}.png"}  # receipt card rendered by `arena serve`
     http = http or httpx.Client(timeout=20.0)
     resp = http.post(url, params={"wait": "true"}, json={"embeds": [embed]})
     ok = resp.status_code in (200, 204)
