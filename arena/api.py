@@ -210,7 +210,7 @@ def scores() -> dict[str, Any]:
 def health() -> dict[str, Any]:
     """What this deployment can and cannot do right now. No secrets, only whether they are set."""
     led = _ledger()
-    client = RyoClient()
+    client = RyoClient(timeout=5.0, max_retries=0)  # a health probe must not hold the page hostage
     try:
         ryo: dict[str, Any] = client.health()
     except Exception as exc:  # the dashboard must load even when RYO is down
