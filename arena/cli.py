@@ -157,6 +157,14 @@ def record_cmd(symbol: str):
             typer.echo(f"{tool}: {exc}")
 
 
+@app.command()
+def serve(host: str = "127.0.0.1", port: int = 8000):
+    """Serve the read-only API and the diff-first dashboard (Track 2)."""
+    import uvicorn
+
+    uvicorn.run("arena.api:app", host=host, port=port)
+
+
 skill_app = typer.Typer(help="Track 3 skills: RYO-shaped research tools RYO does not have yet.", no_args_is_help=True)
 app.add_typer(skill_app, name="skill")
 

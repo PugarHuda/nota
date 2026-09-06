@@ -54,8 +54,27 @@ uv run arena resolve --all      # after some days: Brier scores per agent
 uv run arena scores
 uv run arena record SOL         # capture live responses into fixtures/recorded
 uv run arena decide SOL --source recorded   # judge-friendly run without a key
+uv run arena serve                          # dashboard + read API on http://127.0.0.1:8000
 uv run pytest -q
 ```
+
+## Dashboard (Track 2)
+
+`arena serve` exposes a read-only API over the ledger (`/api/decisions`, `/api/decisions/{id}`,
+`/api/positions`, `/api/scores`, OpenAPI at `/docs`) and a single-page dashboard:
+
+- **What changed**: every receipt is diffed against the previous receipt for the same symbol
+  and the rows are ranked by impact. Verdict flips, trade unlock/block and availability changes
+  come first, then the numbers the risk engine reads (price, ATR, RSI) by % move, then every
+  other evidence leaf. A value that became `null` is shown as `null`, never as 0.
+- **Degraded mode**: a banner names each evidence section that is not `ok`; provenance shows
+  `as_of`, `data_mode` and trace id per section.
+- **Open practice positions** against the latest evidence price, with distance-to-stop.
+- **Agent leaderboard** by Brier score with the judge weights currently in force.
+- **Permalinks** `/r/<receipt id>`; keyboard: `j`/`k` move, `Enter` open, `p` previous receipt,
+  `/` filter, `?` help.
+
+The dashboard reads receipts only. It cannot show a number that has no receipt behind it.
 
 Smoke test with no credentials at all (clearly labelled placeholder output):
 
@@ -91,10 +110,11 @@ tests/            pytest, no network (respx + FakeLLM)
 
 ## Disclosed third-party libraries
 
-httpx, pydantic, anthropic, typer, python-dotenv; dev: pytest, respx. All application code
-was written during the hackathon.
+httpx, pydantic, anthropic, typer, python-dotenv, fastapi, uvicorn; dev: pytest, respx.
+All application code was written during the hackathon.
 
 ## Status
 
-Phase 1 (this) complete. Phase 2: `narrative_convergence` and `news_verify` skills in the
-RYO envelope. Phase 3: FastAPI read API and the diff-first dashboard. Phase 4: SocialFi layer.
+Phase 1 (council, receipts, replay, calibration), Phase 2 (`narrative_convergence` and
+`news_verify` skills, see `docs/skills/SKILL-SPEC.md`) and Phase 3 (read API + dashboard)
+complete. Phase 4: SocialFi layer.
