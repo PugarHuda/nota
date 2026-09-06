@@ -25,21 +25,32 @@ class LLM(Protocol):
 
 
 class AnthropicLLM:
-    def __init__(self, model: str | None = None, max_tokens: int = 16000):
+    def __init__(self, model: str | None = None, max_tokens: int | None = None):
         import anthropic  # local import keeps tests free of the SDK
 
         self.client = anthropic.Anthropic()
         self.model = model or os.environ.get("ARENA_MODEL", DEFAULT_MODEL)
-        self.max_tokens = max_tokens
+        # ARENA_MAX_TOKENS lets a small prepaid balance (e.g. OpenRouter) fit; outputs are short JSON
+        self.max_tokens = max_tokens or int(os.environ.get("ARENA_MAX_TOKENS", "16000"))
 
     def complete_json(self, system: str, user: str, schema: type[T]) -> T:
-        response = self.client.messages.parse(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            output_format=schema,
-        )
+        from pydantic import ValidationError
+
+        try:
+            response = self.client.messages.parse(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+                output_format=schema,
+            )
+        except ValidationError as exc:  # the SDK parses the text; a cut-off JSON lands here
+            raise RuntimeError(
+                f"model output was not valid {schema.__name__} JSON, most likely truncated at max_tokens={self.max_tokens}; "
+                "raise ARENA_MAX_TOKENS (needs ~2500 per council call)"
+            ) from exc
+        if response.stop_reason == "max_tokens":
+            raise RuntimeError(f"model hit max_tokens={self.max_tokens}; raise ARENA_MAX_TOKENS")
         if response.stop_reason == "refusal":
             raise RuntimeError(f"model refused: {getattr(response.stop_details, 'explanation', '')}")
         parsed = response.parsed_output
