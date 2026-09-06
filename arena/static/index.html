@@ -225,7 +225,11 @@ async function loadSide() {
   const roles = Object.entries(sc.scores).sort((a, b) => a[1].brier_mean - b[1].brier_mean);
   $('#scores').innerHTML = roles.length ? `<table><tr><th>role</th><th class="num">n</th><th class="num">brier</th><th class="num">weight</th></tr>
       ${roles.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td><td class="num">${sc.weights[r] ?? '—'}</td></tr>`).join('')}</table>
-      <div class="small muted">${sc.resolved} resolved · ${sc.unresolved} awaiting <code>arena resolve</code></div>`
+      <div class="small muted">${sc.resolved} resolved · ${sc.unresolved} awaiting <code>arena resolve</code></div>
+      <h2>Judge calibration (stated p_up vs hit rate)</h2>
+      <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
+      ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
+      <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved</div>`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>arena resolve</code>). Weights are all 1.0 until then.</div>`;
 }
 

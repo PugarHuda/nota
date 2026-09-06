@@ -19,14 +19,14 @@ from arena.envelope import Envelope
 from arena.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-from arena.skills.sources import Message, NitterPublic, Tavily, TelegramPublic
+from arena.skills.sources import BlueskyPublic, Message, NitterPublic, Tavily, TelegramPublic
 
 DEFINITION = SkillDefinition(
     name="narrative_convergence",
     description="Monitor up to 20 user-selected voices (Telegram public channels, X handles) and report which tokens "
     "they mention, lexicon-scored sentiment, conviction and urgency, and whether several voices converge on one narrative.",
     args=[
-        SkillArg(name="voices", type="array", description="Up to 20 ids like tg:WatcherGuru or x:handle", items={"type": "string"}),
+        SkillArg(name="voices", type="array", description="Up to 20 ids like tg:WatcherGuru, bs:handle.bsky.social or x:handle", items={"type": "string"}),
         SkillArg(name="tokens", type="array", required=False, description="Symbols to track; default = every cashtag found", items={"type": "string"}),
         SkillArg(name="hours", type="integer", required=False, description="Look-back window in hours (default 24)"),
     ],
@@ -97,6 +97,7 @@ def _within(msg: Message, since: datetime) -> bool:
 def narrative_convergence(
     voices: list[str], tokens: list[str] | None = None, hours: int = 24,
     telegram: TelegramPublic | None = None, tavily: Tavily | None = None, nitter: NitterPublic | None = None,
+    bluesky: BlueskyPublic | None = None,
 ) -> Envelope:
     voices = [v.strip() for v in voices if v.strip()][:20]
     tracked = {t.upper() for t in tokens} if tokens else None
@@ -105,6 +106,7 @@ def narrative_convergence(
     telegram = telegram or TelegramPublic()
     tavily = tavily or Tavily()
     nitter = nitter or NitterPublic()
+    bluesky = bluesky or BlueskyPublic()
 
     availability: dict[str, str] = {}
     warnings: list[str] = []
@@ -116,6 +118,8 @@ def narrative_convergence(
         try:
             if kind == "tg":
                 msgs = telegram.fetch(ident)
+            elif kind == "bs":
+                msgs = bluesky.fetch(ident)
             elif kind == "x":
                 try:
                     msgs = nitter.fetch(ident)
@@ -130,7 +134,7 @@ def narrative_convergence(
                 if msgs and all(m.at is None for m in msgs):
                     warnings.append(f"{voice}: publication times unavailable; window filter not applied")
             else:
-                raise SourceUnavailable(f"{voice}: unknown voice kind {kind!r} (use tg: or x:)")
+                raise SourceUnavailable(f"{voice}: unknown voice kind {kind!r} (use tg:, bs: or x:)")
         except SourceUnavailable as exc:
             availability[voice] = "unavailable"
             warnings.append(str(exc))

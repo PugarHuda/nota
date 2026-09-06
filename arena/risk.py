@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from arena import paths
 from arena.council import Verdict
-from arena.evidence import EvidencePack, first_present
+from arena.evidence import PRIMARY, EvidencePack, first_present
 
 
 class RiskLimits(BaseModel):
@@ -48,6 +48,9 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
     limits = limits or RiskLimits()
     if not pack.primary_ok:
         return Blocked(reason="primary evidence (deep_analysis) unavailable; no trade without it")
+    primary = pack.sections[PRIMARY].envelope
+    if primary is not None and primary.data_mode == "simulated":
+        return Blocked(reason="primary evidence is simulated data (data_mode=simulated); no practice trade on simulated prices")
     if verdict.action == "no_trade":
         return Blocked(reason="judge decided no_trade")
     edge = verdict.p_up_7d if verdict.action == "long" else 1.0 - verdict.p_up_7d

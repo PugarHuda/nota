@@ -38,7 +38,13 @@ gather ──────────► council ──► judge ──► risk 
   passed (Brier per agent) against a fresh RYO price read, falling back to the exchange median
   from `price_crosscheck` when RYO cannot give a price; the outcome records which source was used.
 - **Autonomy**: `arena watch SOL,BTC --every 3600 --notify` decides on a schedule, resolves
-  matured decisions, and posts each new receipt to Telegram / Discord.
+  matured decisions, and posts each new receipt to Telegram / Discord. `--scan-top 3` lets the
+  loop pick its own candidates from `scan_market` every cycle.
+- **Simulated data never trades**: when RYO marks the primary evidence `data_mode: simulated`,
+  sizing is blocked and the receipt says so.
+- **Transport**: REST (`/tools/{tool}/call`) by default, or MCP JSON-RPC (`tools/list`,
+  `tools/call` on the same base URL) with `RYO_TRANSPORT=mcp`; `arena health` lists the live
+  tool catalog over MCP when a key is set.
 
 ## Honesty rules this code enforces
 
@@ -78,14 +84,15 @@ uv run pytest -q
 
 All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`):
 
-- `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `x:` via a Nitter
-  mirror with Tavily fallback), VADER sentiment plus a crypto lexicon, conviction, urgency,
-  and convergence detection. Silence is `null`, not 0.
+- `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky
+  public API, `x:` via a Nitter mirror with Tavily fallback), VADER sentiment plus a crypto
+  lexicon, conviction, urgency, and convergence detection. Silence is `null`, not 0.
 - `news_verify`: dated headlines from CoinDesk, Cointelegraph, The Block and Decrypt RSS,
   plus Tavily or Venice web search for breadth; counts independent domains and attaches RYO
   `analyze_token` context.
 - `price_crosscheck`: keyless CoinGecko, Coinbase and Kraken spot prices, median, spread, and
-  deviation of a reference price (RYO's) from the exchanges.
+  deviation of a reference price (RYO's) from the exchanges, plus the alternative.me Fear &
+  Greed index against RYO's reading.
 
 ## Dashboard (Track 2)
 
@@ -100,7 +107,8 @@ All three return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.
 - **Degraded mode**: a banner names each evidence section that is not `ok`; provenance shows
   `as_of`, `data_mode` and trace id per section.
 - **Open practice positions** against the latest evidence price, with distance-to-stop.
-- **Agent leaderboard** by Brier score with the judge weights currently in force.
+- **Agent leaderboard** by Brier score with the judge weights currently in force, and a judge
+  calibration table (stated `p_up_7d` bucket vs realised hit rate) once decisions resolve.
 - **Verify replay** from the page (cached outputs only, never spends), share to X, exports.
 - **Works for everyone**: skip link, real buttons, visible focus, `aria-live` updates,
   keyboard `j`/`k` move, `Enter` open, `p` previous receipt, `/` filter, `?` help.
@@ -162,6 +170,8 @@ tests/            pytest, no network (respx + FakeLLM test double)
 ## Disclosed third-party libraries
 
 httpx, pydantic, anthropic, typer, python-dotenv, fastapi, uvicorn, vaderSentiment (MIT),
-defusedxml; dev: pytest, respx. Data sources: RYO MCP, t.me/s previews, Nitter mirrors via
-twiiit, CoinDesk / Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken public
+defusedxml, pillow; dev: pytest, respx, playwright (browser end-to-end tests in
+`tests/test_dashboard_e2e.py`, run after `uv run playwright install chromium`). Data sources:
+RYO MCP, t.me/s previews, Bluesky public AppView, Nitter mirrors via twiiit, CoinDesk /
+Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken and alternative.me public
 APIs, Tavily or Venice web search. All application code was written during the hackathon.

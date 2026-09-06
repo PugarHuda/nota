@@ -53,6 +53,7 @@ def test_resolve_refuses_when_price_missing():
         respx.get(url__regex=r"https://api\.coingecko\.com/.*").mock(return_value=Response(500))
         respx.get(url__regex=r"https://api\.coinbase\.com/.*").mock(return_value=Response(500))
         respx.get(url__regex=r"https://api\.kraken\.com/.*").mock(return_value=Response(500))
+        respx.get(url__regex=r"https://api\.alternative\.me/.*").mock(return_value=Response(500))
         with pytest.raises(CannotResolve):
             resolve(r.id, led, PriceSource(None))
 

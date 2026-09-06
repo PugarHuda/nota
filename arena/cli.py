@@ -69,11 +69,16 @@ def health(source: str = "live"):
     """Check RYO MCP health (no key needed) and, when a key is set, whoami/quota."""
     client = RyoClient()
     typer.echo(json.dumps(client.health(), indent=1))
+    typer.echo(f"transport: {client.transport} (env RYO_TRANSPORT)")
     if client.key:
         try:
             typer.echo(json.dumps(client.whoami(), indent=1))
+            tools = client.tools_mcp()
+            typer.echo("MCP tools/list: " + ", ".join(t.get("name", "?") for t in tools))
+            if client.last_rate_limit:
+                typer.echo(f"rate limit headers: {client.last_rate_limit}")
         except RyoError as exc:
-            typer.echo(f"whoami failed: {exc}")
+            typer.echo(f"authenticated probe failed: {exc}")
 
 
 @app.command("decide")
@@ -107,7 +112,9 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
     if price_check:
         def _check(sym, pack):
             path, price = first_present(pack, paths.PRICE_USD)
-            return price_crosscheck(sym, reference_price=price, reference_path=path)
+            fg = pack.get("market_overview.data.fear_greed.value")
+            return price_crosscheck(sym, reference_price=price, reference_path=path,
+                                    reference_fear_greed=float(fg) if isinstance(fg, (int, float)) and not isinstance(fg, bool) else None)
         extras["price_check"] = _check
     return extras or None
 
@@ -145,7 +152,8 @@ def scan(
 
 @app.command()
 def watch(
-    symbols: str = typer.Argument(..., help="Comma list, e.g. SOL,BTC"),
+    symbols: str = typer.Argument("", help="Comma list, e.g. SOL,BTC (may be empty with --scan-top)"),
+    scan_top: int = typer.Option(0, help="Each cycle, also take the top N candidates from scan_market"),
     every: int = typer.Option(3600, help="Seconds between cycles"),
     cycles: int = typer.Option(0, help="Stop after N cycles (0 = run until interrupted)"),
     source: str = typer.Option("live", help="live | recorded | fixture"),
@@ -156,11 +164,22 @@ def watch(
     price_check: bool = typer.Option(True, help="Add price_check section"),
 ):
     """Autonomous loop: decide every symbol each cycle, score decisions whose 7-day horizon has passed, publish receipts."""
-    syms = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    fixed = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not fixed and not scan_top:
+        raise typer.BadParameter("give symbols, --scan-top N, or both")
     n = 0
     while True:
         n += 1
         src, led = _source(source), _ledger()
+        syms = list(fixed)
+        if scan_top:
+            try:
+                env = src.call("scan_market", {"top_n": scan_top})
+                picked = [s for s in candidate_symbols(env.data)[:scan_top] if s not in syms]
+                typer.echo(f"[{now_iso()}] scan_market {env.status}: {', '.join(picked) or 'no new candidates'}")
+                syms += picked
+            except RyoError as exc:
+                typer.echo(f"[{now_iso()}] scan_market failed {exc.code}: {exc.message}; using fixed symbols only")
         for sym in syms:
             try:
                 r = decide(sym, src, _llm(llm), led, RiskLimits(), extras=_extras(src, voices, news, price_check))

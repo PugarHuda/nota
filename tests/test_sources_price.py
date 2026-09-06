@@ -100,6 +100,7 @@ def test_vader_handles_negation_and_null():
 
 
 def _prices(cg=150.0, cb=151.0, kr=None):
+    respx.get("https://api.alternative.me/fng/").mock(return_value=Response(200, json={"data": [{"value": "73", "value_classification": "Greed", "timestamp": "1788652800"}]}))
     respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(200, json={"solana": {"usd": cg, "last_updated_at": 1788678000}}))
     respx.get("https://api.coinbase.com/v2/prices/SOL-USD/spot").mock(return_value=Response(200, json={"data": {"amount": str(cb), "base": "SOL", "currency": "USD"}}))
     respx.get("https://api.kraken.com/0/public/Ticker").mock(return_value=Response(200, json={"error": ["EQuery:Unknown asset pair"]} if kr is None else {"error": [], "result": {"SOLUSD": {"c": [str(kr), "1"]}}}))

@@ -26,7 +26,7 @@ Monitor up to 20 user-selected voices and detect when several converge on one to
 
 | arg | type | required | notes |
 |---|---|---|---|
-| `voices` | array[string] | yes | `tg:<channel>` (Telegram public preview, free) or `x:<handle>` (via Tavily, best effort) |
+| `voices` | array[string] | yes | `tg:<channel>` (Telegram public preview), `bs:<handle>` (Bluesky public API), `x:<handle>` (Nitter mirror, Tavily fallback; best effort) |
 | `tokens` | array[string] | no | restrict to these symbols; default every cashtag / known name found |
 | `hours` | integer | no | look-back window, default 24, max 336 |
 
@@ -78,7 +78,9 @@ Independent spot prices next to RYO's read, never instead of it.
 | `reference_path` | string | no | where the reference came from |
 
 `data`: `sources[]{name,price_usd,as_of,status,error}` (CoinGecko, Coinbase, Kraken; no keys),
-`median_usd`, `spread_pct`, `sources_ok`, `reference{price_usd,path,deviation_pct}`, `thresholds`.
+`median_usd`, `spread_pct`, `sources_ok`, `reference{price_usd,path,deviation_pct}`,
+`fear_greed{value,classification,as_of,source,reference_value,delta}` (alternative.me, optional
+`reference_fear_greed` arg; a 10-point gap becomes a warning), `thresholds`.
 A deviation of 2% or more becomes a warning. `availability` is per exchange. The council's
 Technician sees this section as `price_check`; the calibration step uses the median only when
 RYO cannot supply a price, and records that in the outcome.

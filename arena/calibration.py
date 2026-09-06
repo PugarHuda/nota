@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -128,6 +129,26 @@ def role_scores(ledger: Ledger) -> dict[str, dict[str, float]]:
         for role, b in json.loads(raw)["brier"].items():
             sums.setdefault(role, []).append(b)
     return {r: {"n": float(len(v)), "brier_mean": round(sum(v) / len(v), 4)} for r, v in sums.items()}
+
+
+def reliability(ledger: Ledger, bins: int = 5) -> dict[str, Any]:
+    """Reliability (calibration) table for the judge: outcomes bucketed by stated p_up_7d.
+    A well-calibrated judge has hit_rate close to mean_p in every bucket. Empty buckets stay empty."""
+    rows: list[tuple[float, float]] = []
+    for raw in ledger.list_outcomes():
+        o = json.loads(raw)
+        rec = ledger.get_decision(o["decision_id"])
+        if rec:
+            rows.append((Receipt.model_validate_json(rec).verdict.p_up_7d, 1.0 if o["went_up"] else 0.0))
+    table = []
+    for i in range(bins):
+        lo, hi = i / bins, (i + 1) / bins
+        hits = [(p, y) for p, y in rows if lo <= p < hi or (i == bins - 1 and p == 1.0)]
+        table.append({"bin": f"{lo:.1f}-{hi:.1f}", "n": len(hits),
+                      "mean_p": round(sum(p for p, _ in hits) / len(hits), 3) if hits else None,
+                      "hit_rate": round(sum(y for _, y in hits) / len(hits), 3) if hits else None})
+    brier = round(sum((p - y) ** 2 for p, y in rows) / len(rows), 4) if rows else None
+    return {"n": len(rows), "judge_brier": brier, "bins": table}
 
 
 def role_weights(scores: dict[str, dict[str, float]]) -> dict[str, float]:

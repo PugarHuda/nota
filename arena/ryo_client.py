@@ -18,7 +18,7 @@ from typing import Any, Callable, Protocol
 
 import httpx
 
-from arena.envelope import Envelope, parse_rest
+from arena.envelope import Envelope, parse_rest, parse_mcp, RyoToolError
 
 DEFAULT_URL = "https://app-ryochan.com/api/mcp"
 RETRYABLE = {429, 503}
@@ -65,8 +65,13 @@ class RyoClient:
         max_retries: int = 4,
         sleep: Callable[[float], None] = time.sleep,
         timeout: float = 60.0,
+        transport: str | None = None,
     ):
         self.base_url = (base_url or os.environ.get("RYO_MCP_URL", DEFAULT_URL)).rstrip("/")
+        self.transport = (transport or os.environ.get("RYO_TRANSPORT", "rest")).lower()  # rest | mcp
+        if self.transport not in ("rest", "mcp"):
+            raise ValueError("RYO_TRANSPORT must be rest or mcp")
+        self._rpc_id = 0
         self.key = key or os.environ.get("RYO_MCP_KEY", "")
         self.http = http or httpx.Client(timeout=timeout)
         self.max_retries = max_retries
@@ -86,8 +91,34 @@ class RyoClient:
 
     # -- tool calls ------------------------------------------------------------------
     def call(self, tool: str, args: dict[str, Any] | None = None) -> Envelope:
+        if self.transport == "mcp":
+            return self.call_mcp(tool, args)
         resp = self._request("POST", f"/tools/{tool}/call", json=args or {})
         return parse_rest(resp.json(), trace_id=resp.headers.get("x-trace-id"))
+
+    # -- MCP JSON-RPC (2024-11-05) on the same base URL ---------------------------------
+    def rpc(self, method: str, params: dict[str, Any] | None = None) -> tuple[dict[str, Any], httpx.Response]:
+        self._rpc_id += 1
+        body = {"jsonrpc": "2.0", "id": self._rpc_id, "method": method, "params": params or {}}
+        resp = self._request("POST", "", json=body)
+        data = resp.json()
+        if "error" in data:
+            err = data["error"] or {}
+            raise RyoError(resp.status_code, f"JSONRPC_{err.get('code')}", str(err.get("message")), resp.headers.get("x-trace-id"))
+        return data, resp
+
+    def initialize(self) -> dict[str, Any]:
+        return self.rpc("initialize")[0].get("result", {})
+
+    def tools_mcp(self) -> list[dict[str, Any]]:
+        return self.rpc("tools/list")[0].get("result", {}).get("tools", [])
+
+    def call_mcp(self, tool: str, args: dict[str, Any] | None = None) -> Envelope:
+        data, resp = self.rpc("tools/call", {"name": tool, "arguments": args or {}})
+        try:
+            return parse_mcp(data, trace_id=resp.headers.get("x-trace-id"))
+        except RyoToolError as exc:
+            raise RyoError(resp.status_code, "TOOL_ERROR", str(exc), resp.headers.get("x-trace-id")) from exc
 
     # -- internals -------------------------------------------------------------------
     def _headers(self, auth: bool) -> dict[str, str]:

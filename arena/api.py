@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Res
 from pydantic import BaseModel, Field
 
 from arena import paths
-from arena.calibration import due, role_scores, role_weights
+from arena.calibration import due, reliability, role_scores, role_weights
 from arena.card import render_card
 from arena.evidence import EvidencePack, first_present
 from arena.ledger import Ledger
@@ -182,8 +182,13 @@ def positions() -> list[dict[str, Any]]:
         r = _receipt(led, d["id"])
         if r.symbol not in latest:  # newest receipt per symbol carries the freshest evidence
             pack_json = led.get_pack(r.pack_hash)
-            price = first_present(EvidencePack.model_validate_json(pack_json), paths.PRICE_USD)[1] if pack_json else None
-            latest[r.symbol] = (price, r.provenance.get("deep_analysis", {}).get("as_of"))
+            pack = EvidencePack.model_validate_json(pack_json) if pack_json else None
+            med = pack.get("price_check.data.median_usd") if pack else None
+            if isinstance(med, (int, float)) and not isinstance(med, bool):  # independent exchange read beats an older RYO read
+                latest[r.symbol] = (float(med), f"{pack.get('price_check.data.fetched_at')} (exchange median)")
+            else:
+                price = first_present(pack, paths.PRICE_USD)[1] if pack else None
+                latest[r.symbol] = (price, r.provenance.get("deep_analysis", {}).get("as_of"))
         if r.symbol in seen or not isinstance(r.trade, PracticeTrade) or led.get_outcome(r.id):
             continue
         seen.add(r.symbol)
@@ -203,7 +208,8 @@ def positions() -> list[dict[str, Any]]:
 def scores() -> dict[str, Any]:
     led = _ledger()
     s = role_scores(led)
-    return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved())}
+    return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()),
+            "reliability": reliability(led)}
 
 
 @app.get("/api/health")

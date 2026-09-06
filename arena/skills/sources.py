@@ -134,6 +134,40 @@ class NitterPublic:
         return parse_nitter_timeline(resp.text, voice, base)
 
 
+# --- Bluesky (public AppView API, no key) ----------------------------------------------------
+class BlueskyPublic:
+    """`bs:<handle>` voices via app.bsky.feed.getAuthorFeed on the public AppView. Dated, official, keyless."""
+
+    def __init__(self, http: httpx.Client | None = None):
+        self.http = http or httpx.Client(timeout=20.0, headers={"User-Agent": UA})
+
+    def fetch(self, handle: str, limit: int = 30) -> list[Message]:
+        voice = f"bs:{handle}"
+        try:
+            resp = self.http.get("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed",
+                                 params={"actor": handle.lstrip("@"), "limit": limit, "filter": "posts_no_replies"})
+        except httpx.HTTPError as exc:
+            raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
+        if resp.status_code != 200:
+            detail = ""
+            try:
+                detail = resp.json().get("message", "")
+            except ValueError:
+                pass
+            raise SourceUnavailable(f"{voice}: HTTP {resp.status_code} {detail}".rstrip())
+        out: list[Message] = []
+        for item in resp.json().get("feed", []):
+            post = item.get("post") or {}
+            rec = post.get("record") or {}
+            uri = post.get("uri", "")
+            rkey = uri.rsplit("/", 1)[-1]
+            author = (post.get("author") or {}).get("handle", handle)
+            out.append(Message(voice=voice, id=uri, url=f"https://bsky.app/profile/{author}/post/{rkey}",
+                               at=rec.get("createdAt"), text=str(rec.get("text", "")),
+                               views=str(post.get("likeCount")) if post.get("likeCount") is not None else None))
+        return out
+
+
 # --- RSS news feeds (dated, free, no key) ---------------------------------------------------
 RSS_FEEDS = {
     "coindesk.com": "https://www.coindesk.com/arc/outboundfeeds/rss/",
