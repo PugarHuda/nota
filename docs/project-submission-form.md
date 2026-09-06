@@ -26,24 +26,23 @@
 
 ## `project_description`
 
-RYO Arena is a council of AI agents (macro, technician, narrative) that debates live RYO evidence
-from all six builder tools, weights each agent by its Brier score, sizes a practice trade with ATR
-math, and stores every decision as a replayable receipt. Every number carries its RYO path, as_of,
-data_mode and trace id; null is never turned into 0; citations pointing at missing evidence are
-dropped in code; an independent exchange price check flags stale prices. `arena watch` runs
-autonomously and publishes receipts to Telegram/Discord. Track 2: a keyboard-first, accessible
-dashboard that diffs each receipt against the previous one, ranks changes by impact, shows degraded
-evidence, verifies replay in-page, shares receipts as Open Graph cards, and lets anyone back a call,
-scored when it resolves. Track 3: four RYO-shaped skills (narrative_convergence, news_verify with
-dated RSS corroboration, price_crosscheck, technicals_crosscheck), all returning the RYO envelope.
-Read-only; no orders.
+RYO Arena makes an AI trading opinion auditable. Every decision is a receipt you can re-run:
+`arena replay <id>` rebuilds it from the stored evidence and cached model output and prints
+identical: true, so nothing can be rewritten after the fact. Each cited number carries its dotted RYO
+path and is read back out of the evidence, never retyped by the model; citations pointing at absent
+evidence are dropped in code; null is never turned into 0. Independent sources audit RYO itself -
+exchange medians check its price, Wilder RSI/ATR recomputed from public OHLC check its indicators -
+and the judge refuses to size a trade when they disagree. Three specialists (macro, technician,
+narrative) debate all six builder tools, weighted by their own Brier score once calls resolve.
+Track 3: four skills on RYO's own /api/skills paths, in RYO's envelope. Track 2: a dashboard that
+diffs each receipt against the last, ranked by impact. Read-only; no orders.
 
 ## Evidence the judges can check without any key
 
 - Hosted dashboard: https://ryo-arena.vercel.app (read-only ledger snapshot, `/api/health` reports
   `ryo_key_set: false` — nothing is disguised as live).
 - `ARENA_DB=data/demo.db uv run arena serve`, `uv run arena skill run price_crosscheck '{"symbol":"SOL"}'`,
-  `uv run pytest -q` (109 tests, no network).
+  `uv run pytest -q` (110 tests, no network).
 
 ## Declarations
 

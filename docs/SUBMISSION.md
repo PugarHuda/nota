@@ -24,23 +24,26 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 
 ## project_description (≤ 1000 chars, paste as is)
 
-RYO Arena is a council of AI agents (macro, technician, narrative) that debates live RYO evidence
-from all six builder tools, weights each agent by its Brier score, sizes a practice trade with ATR
-math, and stores every decision as a replayable receipt. Every number carries its RYO path, as_of,
-data_mode and trace id; null is never turned into 0; citations pointing at missing evidence are
-dropped in code; an independent exchange price check flags stale prices. `arena watch` runs
-autonomously and publishes receipts to Telegram/Discord. Track 2: a keyboard-first, accessible
-dashboard that diffs each receipt against the previous one, ranks changes by impact, shows degraded
-evidence, verifies replay in-page, shares receipts as Open Graph cards, and lets anyone back a call,
-scored when it resolves. Track 3: four RYO-shaped skills (narrative_convergence, news_verify with
-dated RSS corroboration, price_crosscheck, technicals_crosscheck), all returning the RYO envelope.
-Read-only; no orders.
+RYO Arena makes an AI trading opinion auditable. Every decision is a receipt you can re-run:
+`arena replay <id>` rebuilds it from the stored evidence and cached model output and prints
+identical: true, so nothing can be rewritten after the fact. Each cited number carries its dotted RYO
+path and is read back out of the evidence, never retyped by the model; citations pointing at absent
+evidence are dropped in code; null is never turned into 0. Independent sources audit RYO itself -
+exchange medians check its price, Wilder RSI/ATR recomputed from public OHLC check its indicators -
+and the judge refuses to size a trade when they disagree. Three specialists (macro, technician,
+narrative) debate all six builder tools, weighted by their own Brier score once calls resolve.
+Track 3: four skills on RYO's own /api/skills paths, in RYO's envelope. Track 2: a dashboard that
+diffs each receipt against the last, ranked by impact. Read-only; no orders.
 
 ## X post (draft)
 
-> Built RYO Arena for the @ryodigital #RYOCHAN hackathon: a council of AI agents that argues over
-> live RYO market evidence, sizes a practice trade with pure ATR math, and stores every decision as
-> a replayable receipt you can audit line by line. Diff-first dashboard + 4 new skills. [video link]
+> Built RYO Arena for the @ryodigital #RYOCHAN hackathon: an AI council over live RYO market
+> evidence where every call is a receipt you can re-run and get identical output - and it audits
+> RYO's own price and RSI against independent sources, refusing to trade when they disagree.
+> Diff-first dashboard + 4 skills. [video link]
+
+(268 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
+council itself is a commodity in 2026, the verification is not.)
 
 ## Demo video script (≈ 3 min)
 
@@ -89,7 +92,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 
 ## Pre-flight checklist
 
-- [x] `uv run pytest -q` green (109 passed, 2026-09-06)
+- [x] `uv run pytest -q` green (110 passed, 2026-09-06)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (2026-09-06)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`

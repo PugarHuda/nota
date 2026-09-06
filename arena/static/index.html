@@ -6,7 +6,13 @@
 <title>RYO Arena</title>
 <!--OG-->
 <style>
-  :root { --bg:#0f1115; --panel:#161a22; --line:#262c38; --fg:#e6e8ee; --dim:#8b93a7; --ok:#3ecf8e; --warn:#f5b53f; --bad:#ff6b6b; --acc:#7aa2ff; }
+  /* One palette for both themes: light-dark() reads the root's color-scheme, so the toggle only flips that. */
+  :root { color-scheme: light dark;
+    --bg:light-dark(#f6f7f9,#0f1115); --panel:light-dark(#ffffff,#161a22); --line:light-dark(#d7dbe3,#262c38);
+    --fg:light-dark(#1a1d24,#e6e8ee); --dim:light-dark(#5b6478,#8b93a7); --ok:light-dark(#0f8f5e,#3ecf8e);
+    --warn:light-dark(#9a6300,#f5b53f); --bad:light-dark(#c92a2a,#ff6b6b); --acc:light-dark(#2a5fd6,#7aa2ff);
+    --sel:light-dark(#e6ecfb,#1f2634); --warn-bg:light-dark(#fff6e0,#2b2412); }
+  :root[data-theme="light"] { color-scheme: light } :root[data-theme="dark"] { color-scheme: dark }
   * { box-sizing:border-box }
   body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   a { color:var(--acc); text-decoration:none }
@@ -20,17 +26,17 @@
   nav { border-right:1px solid var(--line) } aside { border-left:1px solid var(--line) }
   input { width:100%; background:var(--panel); color:var(--fg); border:1px solid var(--line); padding:6px 8px; font:inherit; border-radius:4px }
   :focus-visible { outline:2px solid var(--acc); outline-offset:2px }
-  .skip { position:absolute; left:-999px; top:8px; background:var(--acc); color:#000; padding:6px 10px; border-radius:4px; z-index:9 }
+  .skip { position:absolute; left:-999px; top:8px; background:var(--acc); color:var(--bg); padding:6px 10px; border-radius:4px; z-index:9 }
   .skip:focus { left:8px }
   .row { padding:6px 8px; border-radius:4px; cursor:pointer; display:grid; grid-template-columns: 1fr auto; gap:2px 8px;
          width:100%; text-align:left; font:inherit; color:inherit; background:none; border:0; }
-  .row:hover { background:var(--panel) } .row.sel { background:#1f2634; outline:1px solid var(--acc) }
+  .row:hover { background:var(--panel) } .row.sel { background:var(--sel); outline:1px solid var(--acc) }
   .row .t { color:var(--dim); font-size:11px; grid-column:1/3 }
   .badge { font-size:11px; padding:1px 6px; border-radius:3px; border:1px solid var(--line); color:var(--dim) }
   .badge.long { color:var(--ok); border-color:var(--ok) } .badge.short { color:var(--bad); border-color:var(--bad) }
   .badge.ok { color:var(--ok) } .badge.partial { color:var(--warn) } .badge.unavailable, .badge.error { color:var(--bad) }
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-right:4px }
-  .banner { background:#2b2412; border:1px solid var(--warn); color:var(--warn); padding:8px 10px; border-radius:4px; margin-bottom:12px }
+  .banner { background:var(--warn-bg); border:1px solid var(--warn); color:var(--warn); padding:8px 10px; border-radius:4px; margin-bottom:12px }
   h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin:18px 0 8px }
   h2:first-child { margin-top:0 }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:8px }
@@ -55,10 +61,21 @@
   <h1>RYO Arena</h1>
   <span class="dim">council decisions on read-only RYO evidence · practice trades only · not financial advice</span>
   <span class="dim" id="health" aria-live="polite"></span>
-  <span class="dim keys"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help</span>
+  <span class="dim keys"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help
+    <button type="button" class="badge" id="theme" title="theme: system / light / dark">theme: system</button></span>
 </header>
 <main>
   <nav aria-label="decisions">
+    <details class="card small" id="orient">
+      <summary>New here? How to read this page</summary>
+      <p style="margin:6px 0 0">Each row on the left is one <b>decision receipt</b>: what the council decided about a token,
+      which RYO evidence it read, and what changed since the previous receipt for that symbol.</p>
+      <p style="margin:6px 0 0">Open one with <kbd>Enter</kbd>. The receipt starts with a thirty-second summary, then
+      <b>what changed</b> ranked by impact, then <b>Verify replay</b> - press it and the decision is re-run from the stored
+      evidence and cached model output; <code>identical: true</code> means nothing was rewritten afterwards.</p>
+      <p style="margin:6px 0 0">Each cited number shows its dotted RYO path, and the value is read back out of the evidence
+      rather than retyped by the model. Missing evidence stays <code>null</code> and is listed under provenance.</p>
+    </details>
     <input id="filter" placeholder="filter symbol / action…" aria-label="filter decisions">
     <div id="list"></div>
   </nav>
@@ -88,6 +105,19 @@
 </div>
 <script>
 const $ = s => document.querySelector(s);
+
+// Theme: system (no attribute) -> light -> dark. light-dark() in the CSS does the rest.
+const THEMES = ['system', 'light', 'dark'];
+function setTheme(name) {
+  if (name === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', name);
+  $('#theme').textContent = `theme: ${name}`;
+  try { localStorage.setItem('arena.theme', name); } catch {}
+}
+let theme = 'system';
+try { theme = localStorage.getItem('arena.theme') || 'system'; } catch {}
+setTheme(THEMES.includes(theme) ? theme : 'system');
+$('#theme').onclick = () => setTheme(THEMES[(THEMES.indexOf(document.documentElement.dataset.theme || 'system') + 1) % 3]);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = v => v === null || v === undefined ? '<span class="muted">null</span>' : typeof v === 'number' ? (Math.abs(v) >= 1000 ? v.toLocaleString() : +v.toFixed(4)) : esc(String(v));
 const api = async p => { const r = await fetch(p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };

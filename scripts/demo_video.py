@@ -70,7 +70,8 @@ def main() -> None:
         page.goto(base + "/")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")
-        say(page, "RYO Arena - a council of agents argues over RYO evidence and leaves a receipt you can audit.", 4000)
+        say(page, "RYO Arena: an AI trading opinion you can audit. Every decision is a receipt you can re-run "
+                  "and get identical output, with every number traced back to the RYO path it came from.", 5500)
         say(page, "Header, left to right: read-only snapshot, RYO MCP up with 6 tools, NO builder key. "
                   "So these receipts are fixture-sourced, and the page says so rather than pretending.", 6500)
         say(page, "The 30-second summary answers: what now, what changed most, where the practice position stands, what happens next.", 5500)
@@ -117,6 +118,9 @@ def main() -> None:
                   "It is marked against an independent exchange price, and it is past its stop here - shown, not hidden.", 6500)
         say(page, "Agents are weighted by their own Brier score once calls resolve at the 7-day horizon. "
                   "Nothing has resolved yet, so every weight is 1.0 and the table says so.", 6000)
+        page.click("#theme")
+        say(page, "Light, dark or system - and every control is reachable by keyboard, with focus rings and a skip link.", 4000)
+        page.click("#theme"); page.click("#theme"); pause(page, 500)
         page.keyboard.press("?"); pause(page, 2000)
         say(page, "Read-only research on RYO evidence. No order is ever placed. Not financial advice.", 4500)
         page.keyboard.press("Escape"); pause(page, 800)

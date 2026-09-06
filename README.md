@@ -1,8 +1,10 @@
 # RYO Arena
 
-A council of specialised AI agents debates live RYO market evidence, records the practice
-trade it would make as a **replayable decision receipt**, and builds a public calibration
-track record for every agent. Built for the RYO-CHAN Hackathon 2026.
+An AI trading opinion you can audit. A council of specialised agents debates live RYO market
+evidence and records the practice trade it would make as a **replayable decision receipt**:
+`arena replay <id>` rebuilds it from the stored evidence and prints `identical: true`, every cited
+number is read back out of the evidence rather than retyped by the model, and independent sources
+audit RYO's own price and indicators before anything is sized. Built for the RYO-CHAN Hackathon 2026.
 
 Tracks entered: **1 Autonomous Agents** (council, receipts, `watch` loop), **2 Dashboards**
 (diff-first receipt dashboard), **3 New Skills** (`narrative_convergence`, `news_verify`,
@@ -162,7 +164,7 @@ uv sync
 ARENA_DB=data/demo.db uv run arena serve      # dashboard, replay verification, cards, skills, backing
 ARENA_DB=data/demo.db uv run arena positions
 uv run arena skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 100+ tests, no network
+uv run pytest -q                              # 110 tests, no network
 ```
 
 A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as

@@ -118,3 +118,22 @@ def test_permalink_404_exports_and_mobile_layout(server, browser):
     head = page.evaluate("document.querySelector('meta[property=\"og:image\"]').content")
     assert head.endswith(f"/r/{second.id}.png")
     page.close()
+
+
+def test_theme_toggle_cycles_and_persists(server, browser):
+    base, _first, _second = server
+    page = browser.new_page(viewport={"width": 1000, "height": 700})
+    page.goto(base + "/")
+    page.wait_for_selector("#theme")
+    assert page.locator("#theme").inner_text() == "theme: system"
+    assert page.evaluate("document.documentElement.dataset.theme") in (None, "")  # system sets no attribute
+    page.click("#theme")
+    assert page.evaluate("document.documentElement.dataset.theme") == "light"
+    page.click("#theme")
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    page.reload()  # remembered per browser
+    page.wait_for_selector("#theme")
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    page.click("#theme")  # back round to system
+    assert page.evaluate("document.documentElement.dataset.theme") in (None, "")
+    page.close()
