@@ -1,0 +1,19 @@
+{
+  "name": "nota-video",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Remotion composition: the Playwright recording of Nota, with its narration placed at the real per-beat offsets.",
+  "scripts": {
+    "render": "remotion render Walkthrough ../nota/static/demo.mp4",
+    "studio": "remotion studio"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.410",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.410"
+  },
+  "allowScripts": {
+    "esbuild@0.25.0": true
+  }
+}

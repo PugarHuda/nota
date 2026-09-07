@@ -68,8 +68,18 @@ def page_with_log(browser, **kw):
     problems: list[str] = []
     page.on("console", lambda m: problems.append(f"console.{m.type}: {m.text}") if m.type == "error" else None)
     page.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
-    page.on("requestfailed", lambda r: problems.append(f"requestfailed: {r.url} {r.failure}"))
+    page.on("requestfailed", lambda r: None if _media_abort(r) else
+            problems.append(f"requestfailed: {r.url} {r.failure}"))
     return page, problems
+
+
+def _media_abort(request) -> bool:
+    """A <video> aborting its own range request on a seek or a page close is browser behaviour.
+
+    Chromium reports it as a failed request, but nothing is broken: the media element cancels the
+    open range fetch and opens another at the new offset. Only that case is forgiven; a 404 on the
+    file, or any other request failing, still fails the test."""
+    return request.resource_type == "media" and "ERR_ABORTED" in (request.failure or "")
 
 
 def test_landing_renders_draws_its_mark_and_verifies_a_receipt_for_real(server, browser):
@@ -107,7 +117,7 @@ def test_every_landing_link_and_image_resolves(server, browser):
     assert page.evaluate("""() => [...document.images].every(i => i.alt && i.alt.length > 12)"""), "every image needs real alt text"
 
     hrefs = page.eval_on_selector_all("a[href^='/']", "els => [...new Set(els.map(e => e.getAttribute('href')))]")
-    assert "/app" in hrefs and "/demo.mp4" in hrefs
+    assert "/app" in hrefs and "/demo" in hrefs
     for href in hrefs:
         r = page.request.get(server + href)
         assert r.status == 200, f"{href} -> {r.status}"
@@ -115,10 +125,42 @@ def test_every_landing_link_and_image_resolves(server, browser):
     page.close()
 
 
+def test_demo_page_plays_the_shipped_video_and_lists_its_real_chapters(server, browser):
+    """The transcript is written by the recorder, so a chapter must not point past the video."""
+    page, problems = page_with_log(browser, viewport={"width": 1440, "height": 900})
+    page.goto(server + "/demo", wait_until="networkidle")
+
+    page.wait_for_selector("#script button")
+    chapters = page.eval_on_selector_all("#script button .t", "els => els.map(e => e.textContent)")
+    assert len(chapters) >= 10, f"only {len(chapters)} chapters rendered"
+
+    length = page.evaluate("""() => new Promise(done => {
+        const v = document.getElementById('v');
+        if (v.readyState >= 1) return done(v.duration);
+        v.addEventListener('loadedmetadata', () => done(v.duration), {once: true});
+    })""")
+    assert length > 60, f"the shipped demo.mp4 is only {length}s long"
+
+    last = page.evaluate("""async () => {
+        const r = await fetch('/demo.json');
+        const d = await r.json();
+        return Math.max(...d.chapters.map(c => c.start));
+    }""")
+    assert last < length, f"a chapter starts at {last}s but the video ends at {length}s"
+
+    # clicking a chapter seeks the video: the transcript is a control, not a caption
+    page.locator("#script button").nth(3).click()
+    page.wait_for_timeout(250)
+    assert page.evaluate("() => document.getElementById('v').currentTime") > 1
+
+    assert problems == [], problems
+    page.close()
+
+
 @pytest.mark.parametrize("width,height", [(390, 844), (768, 1024), (1440, 900)])
 def test_no_horizontal_overflow_on_either_page_at_any_width(server, browser, width, height):
     page, problems = page_with_log(browser, viewport={"width": width, "height": height})
-    for path in ("/", "/app"):
+    for path in ("/", "/app", "/demo"):
         page.goto(server + path, wait_until="networkidle")
         page.wait_for_timeout(400)
         overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")

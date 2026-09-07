@@ -16,7 +16,7 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 | project_name | Nota |
 | tracks | track_1, track_2, track_3 |
 | repo_url | https://github.com/RYO-Digital/ryochan-hackathon_repository-235 |
-| demo_video_url | https://nota-ryo.vercel.app/demo.mp4 |
+| demo_video_url | https://nota-ryo.vercel.app/demo (page with transcript) - bare file: /demo.mp4 |
 | hosted demo | https://nota-ryo.vercel.app (read-only ledger snapshot) |
 | x_post_url | _(TBD)_ |
 | submission form | `docs/project-submission-form.md` + `.pdf` (official link broken) |
@@ -41,9 +41,9 @@ by impact. Read-only; no orders.
 > Built Nota for the @ryodigital #RYOCHAN hackathon: an AI council over live RYO market
 > evidence where every call is a receipt you can re-run and get identical output - and it audits
 > RYO's own price and RSI against independent sources, refusing to trade when they disagree.
-> Diff-first dashboard + 4 skills. https://nota-ryo.vercel.app/demo.mp4
+> Diff-first dashboard + 4 skills. https://nota-ryo.vercel.app/demo
 
-(268 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
+(264 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
 council itself is a commodity in 2026, the verification is not.)
 
 ## Demo video script (≈ 3 min)
@@ -66,7 +66,21 @@ re-record the moment the key lands; nothing else in the script changes.
    exchanges, real Telegram, RYO envelope shape, per-voice availability, method named.
 7. (2:55) Close: read-only, practice trades only, not financial advice.
 
-`uv run python scripts/demo_video.py` records the whole walkthrough with on-screen captions (~2 min, `docs/demo/dashboard-<ts>.webm`/`.mp4`, gitignored): summary, no-trade guard, keyboard nav, ranked diff, verify-replay, council citations, provenance, a live `narrative_convergence` run, positions and the leaderboard. Nothing is staged - it drives the real page against the shipped ledger snapshot. The terminal steps (1-4 above) are still screen-recorded by hand if you want them; the captioned dashboard video stands alone as the submission video otherwise.
+The submitted video is built by three commands, and each hands the next its timing:
+
+```bash
+uv run --with edge-tts python scripts/narration.py   # 12 narrated beats, ffprobe measures each
+uv run python scripts/demo_video.py                  # Playwright records, holding each beat for its own audio
+cd video && npx remotion render                      # Remotion places every line at its recorded offset
+```
+
+`scripts/narration.py` pairs each spoken sentence with the selector it describes; the recorder moves
+a visible cursor to that element, frames it, dims the rest, and captions the line, so a viewer always
+knows which part is being explained. It writes down the second each beat actually began - a page load
+costs time the narration does not - and both the composition and `/demo`'s clickable transcript read
+that same file, so they cannot drift from the video. Result: 1:47, 1280x720, h264 + AAC, 5.8 MB,
+bundled at `nota/static/demo.mp4`. Nothing is staged: the verify button is pressed on camera and the
+"identical: true" it shows is whatever the API returned.
 
 ## Help Desk message (paste into https://discord.gg/qkWPjxzxtC)
 
@@ -110,8 +124,9 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       Overview, Tech Stack, Repository / Demo, Testing Information) and
       `scripts/submission_pdf.py` renders it to `docs/project-submission-form.pdf`.
 - [ ] Demo video uploaded to a cloud service with an accessible link (and its password, if any).
-      The project already serves it at `/demo.mp4` with no password, which satisfies "any similar
-      service"; a Drive or Dropbox copy is the safer reading of their wording.
+      The project already serves it at `/demo` (page, transcript) and `/demo.mp4` (bare file) with
+      no password, which satisfies "any similar service"; a Drive or Dropbox copy is the safer
+      reading of their wording.
 - [ ] Submitted with `/apply` in #submit-your-buidl, entering the repository name
 
 ## Pre-flight checklist
@@ -121,12 +136,15 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       bundled walkthrough. `.env` is absent, only `.env.example`. Remote `organiser`; re-push with
       `git push organiser main`.
 
-- [x] `uv run pytest -q` green (175 passed, 2026-09-07)
+- [x] `uv run pytest -q` green (176 passed, 2026-09-08), including a browser check that the
+      shipped `demo.mp4` really plays and that no transcript chapter starts past its end
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (re-checked 2026-09-07)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`
       (`uv run python scripts/submission_pdf.py` regenerates it) - official link still broken
-- [x] README "Disclosed third-party libraries" matches `pyproject.toml` (2026-09-06)
+- [x] README "Disclosed third-party libraries" matches `pyproject.toml` (2026-09-08), and the
+      walkthrough toolchain is disclosed with its licence: edge-tts (GPL-3.0) and Remotion
+      (Remotion License, free at this team size) build the video and ship no code into the app
 - [x] Hosted demo live and public at https://nota-ryo.vercel.app (2026-09-07): `/api/health`,
       `/api/decisions`, `/api/skills/`, `/demo.mp4` (4.2 MB video/mp4) and the receipt card PNG all
       answer 200 with no SSO redirect, the page title is `Nota`, and `price_crosscheck` invoked
@@ -139,7 +157,8 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       percentage and in dollars - see the commit for why that distinction matters on BTC.
 - [x] Four live receipts (SOL / BTC / ETH, 2026-09-07) replace the fixture snapshot in
       `data/demo.db`; all four replay `identical: True`.
-- [x] Demo video bundled at `nota/static/demo.mp4` and served at `/demo.mp4`; `demo_video_url`
-      filled in both files and live
+- [x] Narrated demo video (1:47, AI voice, on-screen cursor and highlight box) bundled at
+      `nota/static/demo.mp4`, served at `/demo.mp4` and at `/demo` with a clickable transcript
+      generated from the recorder's own offsets; `demo_video_url` filled in both files and live
 - [ ] Optional: mirror the same file on YouTube if the judges prefer a player
 - [ ] X post published (tag @ryodigital), `x_post_url` filled in both

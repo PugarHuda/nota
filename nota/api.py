@@ -542,6 +542,12 @@ def landing_image(name: str) -> FileResponse:
     return FileResponse(path, media_type="image/png")
 
 
+@app.get("/demo")
+def demo_page() -> FileResponse:
+    """The walkthrough with its transcript, so the video is watchable and readable at one URL."""
+    return FileResponse(STATIC / "demo.html")
+
+
 @app.get("/demo.mp4", include_in_schema=False)
 def demo_video() -> FileResponse:
     """The submission walkthrough, served from the app itself so the demo URL needs no third party."""
@@ -549,6 +555,15 @@ def demo_video() -> FileResponse:
     if not path.exists():
         raise HTTPException(404, "demo video not bundled in this checkout")
     return FileResponse(path, media_type="video/mp4")
+
+
+@app.get("/demo.json", include_in_schema=False)
+def demo_chapters() -> FileResponse:
+    """Chapters and transcript, written by the recorder from the seconds each line was really spoken."""
+    path = STATIC / "demo.json"
+    if not path.exists():
+        raise HTTPException(404, "demo chapters not bundled in this checkout")
+    return FileResponse(path, media_type="application/json")
 
 
 @app.get("/r/{id}")

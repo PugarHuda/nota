@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nota — the walkthrough</title>
+<meta name="description" content="A narrated hundred-second walkthrough of Nota, recorded against the running app: a receipt is re-run live, RYO's own RSI and ATR are recomputed, and the council's citations are read back out of the evidence.">
+<meta property="og:title" content="Nota: the walkthrough">
+<meta property="og:description" content="Recorded against the running app. Nothing staged: the verify button is pressed and its answer is whatever the API returns.">
+<meta property="og:type" content="video.other">
+<meta property="og:video" content="/demo.mp4">
+<meta property="og:video:type" content="video/mp4">
+<style>
+  /* Same tokens as the landing and the dashboard: one palette, two families, a 2px corner. */
+  :root { color-scheme: light dark;
+    --paper:light-dark(#f5f4f0,#121316); --panel:light-dark(#ffffff,#191a1e);
+    --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
+    --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
+    --accent:light-dark(#1b4b8f,#82a9e6);
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --pad:clamp(20px,5vw,64px);
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.6 var(--serif);
+         -webkit-font-smoothing:antialiased }
+  a { color:var(--accent); text-underline-offset:3px }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:3px }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 var(--pad) }
+
+  nav { height:62px; display:flex; align-items:center; border-bottom:1px solid var(--rule);
+        background:var(--panel); position:sticky; top:0; z-index:10 }
+  nav .wrap { display:flex; align-items:center; gap:26px; width:100% }
+  nav b { font-size:19px; letter-spacing:-.01em }
+  nav a { font:13px/1 var(--mono); color:var(--ink-2); text-decoration:none }
+  nav a:hover { color:var(--ink) }
+  nav .right { margin-left:auto; display:flex; align-items:center; gap:20px }
+  nav .cta { color:var(--accent) }
+  @media (max-width:640px) { nav .right a:not(.cta) { display:none } }
+
+  header { padding:clamp(28px,5vh,44px) 0 8px }
+  h1 { font-size:clamp(30px,4.4vw,44px); line-height:1.1; letter-spacing:-.02em; margin:0 0 12px }
+  .lede { color:var(--ink-2); max-width:62ch; margin:0 }
+
+  main { padding:22px 0 clamp(48px,8vh,88px) }
+  .split { display:grid; grid-template-columns:minmax(0,1.85fr) minmax(0,1fr);
+           gap:clamp(20px,3vw,38px); align-items:start }
+  @media (max-width:900px) { .split { grid-template-columns:1fr } }
+
+  video { width:100%; display:block; background:#0b0d11; border:1px solid var(--rule-2);
+          border-radius:3px }
+  .under { display:flex; flex-wrap:wrap; gap:14px 22px; align-items:baseline; margin-top:12px;
+           font:12px/1.5 var(--mono); color:var(--ink-2) }
+  .under a { color:var(--ink-2) }
+
+  /* The transcript is the chapter list: each line is a seek, and the one playing is marked. */
+  .script { border:1px solid var(--rule); border-radius:3px; background:var(--panel);
+            max-height:min(70vh,620px); overflow:auto }
+  .script h2 { font:600 13px/1 var(--mono); color:var(--ink-2); margin:0;
+               padding:14px 18px; border-bottom:1px solid var(--rule);
+               position:sticky; top:0; background:var(--panel) }
+  .script button { display:grid; grid-template-columns:52px 1fr; gap:12px; width:100%;
+    text-align:left; background:none; border:0; border-bottom:1px solid var(--rule);
+    padding:13px 18px; color:var(--ink); font:15px/1.55 var(--serif); cursor:pointer }
+  .script button:last-child { border-bottom:0 }
+  .script button:hover { background:light-dark(#faf9f6,#1f2126) }
+  .script button[aria-current="true"] { background:light-dark(#eef3fb,#1c2431);
+    box-shadow:inset 3px 0 0 var(--accent) }
+  .script .t { font:12px/1.7 var(--mono); color:var(--ink-2); font-variant-numeric:tabular-nums }
+
+  footer { border-top:1px solid var(--rule); padding:26px 0 44px;
+           font:12px/1.7 var(--mono); color:var(--ink-2) }
+  .noscript { padding:14px 18px; color:var(--ink-2) }
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <b>Nota</b>
+  <div class="right">
+    <a href="/">Home</a>
+    <a href="/r/dbd7727f5a25">A receipt</a>
+    <a href="https://github.com/PugarHuda/nota">Source</a>
+    <a class="cta" href="/app">Open the dashboard</a>
+  </div>
+</div></nav>
+
+<header class="wrap">
+  <h1>The walkthrough</h1>
+  <p class="lede">Recorded against the running app, not a mock-up. The verify button is pressed on
+  camera and its answer is whatever the API returns; every figure spoken is one this deployment
+  produces on demand.</p>
+</header>
+
+<main class="wrap split">
+  <div>
+    <video id="v" controls preload="metadata" playsinline poster="/img/demo-poster.png">
+      <source src="/demo.mp4" type="video/mp4">
+      Your browser cannot play this file. <a href="/demo.mp4">Download it instead.</a>
+    </video>
+    <div class="under">
+      <span id="len">MP4 · 1280×720 · narrated</span>
+      <a href="/demo.mp4" download>Download the MP4</a>
+      <a href="https://github.com/PugarHuda/nota/blob/main/scripts/demo_video.py">How it was recorded</a>
+    </div>
+  </div>
+
+  <div class="script" id="script">
+    <h2>Transcript</h2>
+    <p class="noscript" id="fallback">Loading the transcript…</p>
+  </div>
+</main>
+
+<footer class="wrap">
+  Read-only research on RYO evidence. No order is ever placed. Not financial advice.
+</footer>
+
+<script>
+// The chapters come from the recorder itself: it wrote the second at which each line was actually
+// spoken while it was driving the browser. So the transcript cannot drift from the video.
+const video = document.getElementById('v');
+const panel = document.getElementById('script');
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+fetch('/demo.json').then((r) => {
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}).then((data) => {
+  document.getElementById('fallback').remove();
+  document.getElementById('len').textContent =
+    `MP4 · 1280×720 · ${clock(data.seconds)} narrated`;
+
+  const buttons = data.chapters.map((chapter) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.innerHTML = `<span class="t"></span><span class="s"></span>`;
+    button.querySelector('.t').textContent = clock(chapter.start);
+    button.querySelector('.s').textContent = chapter.text;
+    button.addEventListener('click', () => {
+      video.currentTime = chapter.start;
+      video.play();
+    });
+    panel.appendChild(button);
+    return {button, start: chapter.start};
+  });
+
+  video.addEventListener('timeupdate', () => {
+    let live = -1;
+    buttons.forEach((b, i) => { if (video.currentTime >= b.start - 0.15) live = i; });
+    buttons.forEach((b, i) => b.button.setAttribute('aria-current', String(i === live)));
+  });
+}).catch(() => {
+  document.getElementById('fallback').textContent =
+    'The transcript could not be loaded. The video above still plays.';
+});
+</script>
+</body>
+</html>
