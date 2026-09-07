@@ -27,15 +27,16 @@
 ## `project_description`
 
 Nota makes an AI trading opinion auditable. Every decision is a receipt you can re-run:
-`nota replay <id>` rebuilds it from the stored evidence and cached model output and prints
-identical: true, so nothing can be rewritten after the fact. Each cited number carries its dotted RYO
-path and is read back out of the evidence, never retyped by the model; citations pointing at absent
-evidence are dropped in code; null is never turned into 0. Independent sources audit RYO itself -
-exchange medians check its price, Wilder RSI/ATR recomputed from public OHLC check its indicators -
-and the judge refuses to size a trade when they disagree. Three specialists (macro, technician,
-narrative) debate all six builder tools, weighted by their own Brier score once calls resolve.
-Track 3: four skills on RYO's own /api/skills paths, in RYO's envelope. Track 2: a dashboard that
-diffs each receipt against the last, ranked by impact. Read-only; no orders.
+`nota replay <id>` rebuilds it from the stored evidence and the model outputs cached beside it,
+keyed by the model that produced them, and prints identical: true - no API key, no network, no
+drift. Each cited number carries its dotted RYO path and is read back out of the evidence, never
+retyped by the model; citations pointing at absent evidence are dropped in code; null is never
+turned into 0. Independent sources audit RYO itself - exchange medians check its price, Wilder
+RSI/ATR recomputed from public OHLC check its indicators - and the judge refuses to size a trade
+when they disagree. Three specialists (macro, technician, narrative) debate the five tools a
+decision reads; the sixth, scan_market, drives the `nota scan` funnel. Track 3: four skills on
+RYO's own /api/skills paths. Track 2: a dashboard that diffs each receipt against the last, ranked
+by impact. Read-only; no orders.
 
 ## Evidence the judges can check without any key
 

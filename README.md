@@ -44,7 +44,9 @@ gather ──────────► council ──► judge ──► risk 
 - **Judge**: weighs opinions by each agent's historical Brier score and decides
   long / short / no_trade.
 - **Risk**: a pure function. Stop = 2×ATR(14), target = 3×ATR, size from 1% account risk,
-  capped at 20% of the account. No price or no ATR means **Blocked**, never a guessed number.
+  capped at 20% of the account. No price or no ATR means **Blocked**, never a guessed number,
+  and so does an ATR big enough to put the stop or target at or below zero: on an instrument that
+  volatile the fixed-multiple rule does not apply, and a receipt must not print a negative price.
 - **Replay**: LLM outputs are cached by `(evidence hash, role, prompt version, model)`.
   `nota replay <id>` reproduces the receipt exactly; `--fresh` re-asks the model and prints
   the drift honestly. The dashboard's "Verify replay" button does the cached check only.
