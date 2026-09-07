@@ -41,10 +41,38 @@
   nav .cta { color:var(--accent) }
   @media (max-width:640px) { nav .right a:not(.cta) { display:none } }
 
-  /* hero: headline, subtext, two actions. Nothing else. */
-  header { padding:clamp(40px,7vh,72px) 0 clamp(40px,7vh,64px) }
-  header .wrap { display:grid; grid-template-columns:1.02fr .98fr; gap:clamp(28px,5vw,64px); align-items:center }
-  @media (max-width:960px) { header .wrap { grid-template-columns:1fr } }
+  /* hero: headline, subtext, two actions on the left; the working product on the right, tilted and
+     running past the edge so it reads as a window into something real rather than a picture of one.
+     The substrate is a ledger rule, not a gradient: nota means the slip a transaction leaves. */
+  header { padding:clamp(40px,7vh,68px) 0 clamp(40px,7vh,60px); overflow:hidden; position:relative }
+  header::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(to bottom, transparent 0 31px,
+      light-dark(rgba(23,23,27,.05), rgba(232,231,226,.05)) 31px 32px);
+    mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 62%, transparent) }
+  header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);
+                 gap:clamp(24px,4vw,52px); align-items:center; position:relative }
+  .stage { position:relative; margin-right:calc(-1 * var(--pad) - 8px); perspective:1900px }
+  .stage .frame { border:1px solid var(--rule-2); border-radius:3px; overflow:hidden; aspect-ratio:16/10.6;
+    transform:rotateY(-9deg) rotateX(2deg) translateZ(0); transform-origin:left center;
+    box-shadow:0 30px 60px -28px light-dark(rgba(23,23,27,.34), rgba(0,0,0,.72)),
+               0 2px 8px light-dark(rgba(23,23,27,.06), rgba(0,0,0,.4)) }
+  /* zoom into the receipt column: a legible detail beats a whole page shrunk to a smudge */
+  .stage .frame img { width:196%; height:auto; display:block; margin:-1.5% 0 0 -25% }
+  @media (max-width:960px) { .stage .frame img { width:150%; margin:0 0 0 -14% } }
+  @media (max-width:960px) {
+    header .wrap { grid-template-columns:1fr }
+    .stage { margin-right:0; perspective:none }
+    .stage .frame { transform:none }
+  }
+
+  /* the hero's own proof, run against the deployed API on click */
+  .verify { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:26px;
+            font:13px/1.6 var(--mono); color:var(--ink-2) }
+  .verify button { font:13px/1 var(--mono); padding:10px 14px; border:1px solid var(--rule-2);
+                   border-radius:2px; background:var(--panel); color:var(--ink); cursor:pointer }
+  .verify button:hover { border-color:var(--accent); color:var(--accent) }
+  .verify output { font-variant-numeric:tabular-nums }
+  .verify .yes { color:var(--long) } .verify .no { color:var(--short) }
   h1 { font:600 clamp(34px,3.7vw,45px)/1.1 var(--serif); letter-spacing:-.028em; margin:0; max-width:19ch; hyphens:none }
   .sub { font-size:clamp(17px,1.6vw,20px); color:var(--ink-2); margin:18px 0 0; max-width:46ch }
   .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px }
@@ -137,15 +165,17 @@
       <a class="btn" href="/app">Open the dashboard</a>
       <a class="btn ghost" href="/demo.mp4">Watch the demo</a>
     </div>
+    <p class="verify">
+      <button type="button" id="verify">Verify a receipt now</button>
+      <output id="verify-out" aria-live="polite">Calls this site's API and re-runs receipt dbd7727f5a25.</output>
+    </p>
     </div>
-    <figure>
-      <pre class="proof"><span class="c">$</span> NOTA_DB=data/demo.db nota replay dbd7727f5a25
-<span class="ok">identical: True</span>  (fresh=False)
-
-<span class="c">$</span> curl -s https://nota-ryo.vercel.app/api/decisions/dbd7727f5a25/replay
-{<span class="p">"identical"</span>: true, <span class="p">"diff"</span>: [], <span class="p">"error"</span>: null}</pre>
-      <figcaption>Real output. Replay reads the ledger only, so it needs no key and no network.</figcaption>
-    </figure>
+    <div class="stage">
+      <div class="frame">
+        <img src="/img/dashboard.png" width="1400" height="900" fetchpriority="high"
+             alt="The Nota dashboard: a long call on ETH with its evidence provenance and the ranked diff against the previous receipt.">
+      </div>
+    </div>
   </div>
 </header>
 
@@ -272,5 +302,24 @@
       Practice trades only, and not financial advice.</p>
   </div>
 </footer>
+<script>
+  // The headline claims a receipt re-runs. The button lets the reader check that claim against the
+  // deployed API before reading another word, and reports a failure as a failure.
+  const out = document.getElementById('verify-out'), btn = document.getElementById('verify');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; out.textContent = 'running…';
+    const t0 = performance.now();
+    try {
+      const r = await fetch('/api/decisions/dbd7727f5a25/replay');
+      const d = await r.json();
+      const ms = Math.round(performance.now() - t0);
+      out.innerHTML = d.identical
+        ? `<span class="yes">identical: true</span> rebuilt from the stored evidence in ${ms} ms`
+        : `<span class="no">identical: false</span> ${d.diff.length} field(s) differ`;
+    } catch (e) {
+      out.innerHTML = `<span class="no">could not reach the API</span> ${e.message}`;
+    } finally { btn.disabled = false; }
+  });
+</script>
 </body>
 </html>

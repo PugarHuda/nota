@@ -49,7 +49,8 @@ def main() -> None:
         mobile.wait_for_selector("#detail .headline")
         mobile.screenshot(path=str(OUT / "mobile.png"))
         first = page.evaluate("document.querySelector('#list .row').getAttribute('aria-label')")
-        rid = page.evaluate("location.pathname.split('/').pop() || document.querySelector('[data-open]')?.dataset.open")
+        # the id comes from the receipt the page is actually showing, not from the URL: /app has no id in it
+        rid = page.evaluate("document.querySelector('#detail a[href^=\"/r/\"]').getAttribute('href').split('/').pop()")
         card = b.new_page()
         card.goto(f"{base}/r/{rid}.png")
         card.screenshot(path=str(OUT / "card.png"))
