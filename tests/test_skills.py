@@ -141,3 +141,13 @@ def test_news_verify_without_key_and_without_ryo():
     env = news_verify("x", symbol="SOL", tavily=Tavily(api_key=""), ryo=None, rss=False)
     assert env.status == "unavailable"
     assert any("TAVILY_API_KEY" in w for w in env.warnings) and any("no RYO source" in w for w in env.warnings)
+
+
+def test_an_unavailable_envelope_does_not_claim_its_data_is_live():
+    """With every source down there is no data to describe; `live` would be a claim about nothing."""
+    from nota.skills.contract import make_envelope
+
+    env = make_envelope("t", {}, {}, {"a": "unavailable", "b": "unavailable"}, ["a: down", "b: down"], "h")
+    assert env.status == "unavailable" and env.data_mode == "unknown"
+    ok = make_envelope("t", {}, {"x": 1}, {"a": "ok"}, [], "h")
+    assert ok.status == "ok" and ok.data_mode == "live"

@@ -416,7 +416,8 @@ def permalink(id: str, request: Request) -> HTMLResponse:
     if raw is None:
         return HTMLResponse(page)
     r = Receipt.model_validate_json(raw)
-    base = os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    # the fallback comes from the Host header, so it is escaped like any other untrusted input
+    base = html.escape(os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/"))
     desc = html.escape(f"{r.verdict.action} (p_up_7d {r.verdict.p_up_7d:.2f}). {r.verdict.rationale}"[:200])
     tags = "\n".join([
         f'<meta property="og:title" content="{html.escape(r.headline)}">',

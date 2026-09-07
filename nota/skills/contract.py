@@ -65,11 +65,14 @@ def make_envelope(
     data_mode: DataMode = "live",
     primary: list[str] | None = None,
 ) -> Envelope:
+    status = status_from(availability, primary)
     return Envelope(
         schema_version=SCHEMA_VERSION,
         tool=tool,
-        status=status_from(availability, primary),
-        data_mode=data_mode,
+        status=status,
+        # Nothing was observed, so claiming the data is "live" would describe data that does not
+        # exist. RYO's own contract has `unknown` for exactly this.
+        data_mode="unknown" if status == "unavailable" else data_mode,
         as_of=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         request=request,
         data=data,
