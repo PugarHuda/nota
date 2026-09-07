@@ -43,8 +43,34 @@ by impact. Read-only; no orders.
 > RYO's own price and RSI against independent sources, refusing to trade when they disagree.
 > Diff-first dashboard + 4 skills. https://nota-ryo.vercel.app/demo
 
+
 (264 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
 council itself is a commodity in 2026, the verification is not.)
+
+
+### The version actually posted (premium account, no 280-character limit)
+
+The video is attached to the post as an upload, not linked, so it autoplays in the timeline; the
+link then points at `/demo`, where the same file sits beside its transcript.
+
+> Most AI trading tools ask you to trust the answer. I spent @ryodigital's #RYOCHAN hackathon building the part that lets you stop.
+>
+> Nota runs a council of agents over live RYO market evidence and stores every call as a receipt you can re-run. `nota replay <id>` rebuilds the decision from the stored evidence and prints identical: true — no key, no network call to any model. The verify button in this video is pressed live; that answer is the API's, not a caption.
+>
+> Two things I care about more than the council:
+>
+> → Every cited number is read back out of the evidence, never retyped by the model. A citation pointing at something absent is dropped in code, and the opinion is downgraded for it.
+>
+> → It audits RYO itself. RSI(14) and ATR(14) recomputed from public candles with Wilder's method: 4.347 against RYO's 4.3762, 0.67% apart. Price checked against three exchanges. When sources disagree, the judge refuses to size anything. A value that couldn't be fetched stays null — it never quietly becomes zero.
+>
+> It's also an MCP server, so Claude Desktop or Cursor can call all four research skills directly.
+>
+> Read-only research on RYO evidence. No order is ever placed. Not financial advice.
+>
+> https://nota-ryo.vercel.app/demo
+
+(1224 characters. Every figure in it is on the landing page and comes from the live receipt
+of 7 September 2026: ATR 4.347 against RYO's 4.3762, and the price checked against three exchanges.)
 
 ## Demo video script (≈ 3 min)
 
