@@ -144,3 +144,29 @@ def test_llms_txt_describes_this_deployment_from_its_own_routes(tmp_path, monkey
     assert "/mcp" in body and "nota://receipt/" in body and "tools/call" in body
     assert f"/r/{second.id}.md" in body and f"/r/{first.id}.md" in body   # generated from the ledger
     assert "no order is ever placed" in body
+
+
+def test_the_landing_page_never_states_a_number_the_ledger_does_not_hold():
+    """The landing hardcodes the shipped receipts so it can draw them without a request. That makes
+    it possible to write a hash by hand, and a hand-written hash is fabricated data on a page whose
+    entire argument is that nothing here is fabricated. This binds the two."""
+    import json as _json
+    import re
+    from pathlib import Path
+
+    from nota.ledger import Ledger
+
+    root = Path(__file__).resolve().parents[1]
+    page = (root / "nota" / "static" / "landing.html").read_text(encoding="utf-8")
+    led = Ledger(str(root / "data" / "demo.db"), readonly=True)
+
+    receipts = [_json.loads(led.get_decision(d["id"])) for d in led.list_decisions(limit=50)]
+    assert receipts, "the shipped ledger is empty"
+    for r in receipts:
+        assert r["id"] in page, f"{r['id']} is missing from the landing page"
+        assert r["pack_hash"] in page, f"the evidence hash of {r['id']} is not the one on the page"
+        assert f"{r['verdict']['p_up_7d']:.2f}" in page
+
+    known = {r["pack_hash"] for r in receipts}
+    on_page = set(re.findall(r"\b[0-9a-f]{64}\b", page))
+    assert on_page <= known, f"hex strings on the page that no receipt holds: {sorted(on_page - known)}"

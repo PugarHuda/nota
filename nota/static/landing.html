@@ -54,13 +54,13 @@
   .seal { display:flex; flex-direction:column; align-items:center; gap:16px }
   .seal svg { width:min(420px,86%); height:auto; overflow:visible }
   .seal figcaption { max-width:40ch; text-align:center; margin:0; line-height:1.75 }
-  .seal .tick { stroke:var(--ink); stroke-width:1.4; opacity:.5 }
-  .seal .ring { fill:none; stroke:var(--rule-2) }
-  .seal .arc { fill:none; stroke:var(--accent); stroke-width:9; stroke-linecap:butt }
-  .seal .arc-track { fill:none; stroke:var(--rule); stroke-width:9 }
+  .seal .tick, .ledger .tick { stroke:var(--ink); stroke-width:1.4; opacity:.5 }
+  .seal .ring, .ledger .ring { fill:none; stroke:var(--rule-2) }
+  .seal .arc, .ledger .arc { fill:none; stroke:var(--accent); stroke-width:9; stroke-linecap:butt }
+  .seal .arc-track, .ledger .arc-track { fill:none; stroke:var(--rule); stroke-width:9 }
   .seal .petal { fill:none; stroke:var(--ink); stroke-width:1; opacity:.32 }
-  .seal .core { fill:var(--panel); stroke:var(--rule-2) }
-  .seal .p { font:600 46px/1 var(--serif); fill:var(--ink); text-anchor:middle }
+  .seal .core, .ledger .core { fill:var(--panel); stroke:var(--rule-2) }
+  .seal .p, .ledger .p { font:600 46px/1 var(--serif); fill:var(--ink); text-anchor:middle }
   .seal .plabel { font:11px/1 var(--mono); fill:var(--ink-2); text-anchor:middle }
   @media (prefers-reduced-motion: no-preference) {
     .seal .tick, .seal .petal { animation:ink .7s both } .seal .arc { animation:sweep .9s .15s both }
@@ -134,7 +134,17 @@
   dl.rules dd { margin:0; padding:16px 0; border-bottom:1px solid var(--rule); color:var(--ink-2) }
   @media (max-width:760px) { dl.rules { grid-template-columns:1fr } dl.rules dt { border:0; padding-bottom:2px } }
 
-  .social { display:grid; grid-template-columns:1fr 1.15fr; gap:44px; align-items:center }
+  .ledger { display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(14px,3vw,34px) }
+  .ledger figure { text-align:center }
+  .ledger svg { width:100%; height:auto; overflow:visible }
+  .ledger figcaption { font-size:12px; line-height:1.7; color:var(--ink-2); margin-top:10px }
+  .ledger b { font-family:var(--mono); font-size:13px; color:var(--ink) }
+  .ledger a { text-decoration:none }
+  @media (max-width:760px) { .ledger { grid-template-columns:repeat(2,1fr) } }
+
+  .social { display:grid; grid-template-columns:1fr minmax(0,1.15fr); gap:44px; align-items:center }
+  .social > *, .social figure { min-width:0 }   /* a grid item defaults to min-width:auto, which lets a
+                                                   pre with long lines widen the page instead of scrolling */
   .social p { margin:0 0 14px; color:var(--ink-2); max-width:52ch }
   .social img { border:1px solid var(--rule-2); border-radius:2px }
   @media (max-width:900px) { .social { grid-template-columns:1fr; gap:24px } }
@@ -231,17 +241,17 @@
 </section>
 
 <section>
-  <div class="wrap shot">
-    <img src="/img/dashboard.png" width="1400" height="900"
-         alt="The Nota dashboard showing a long call on ETH, its evidence provenance and the ranked diff against the previous receipt.">
-    <div>
-      <h2>Built to be read, not admired</h2>
-      <p class="lede">The dashboard opens on a thirty second summary: what was decided, what changed most since the
-        previous receipt, where the practice position stands, and what happens next.</p>
-      <p class="lede">Every receipt is diffed against the one before it and ranked by impact, degraded evidence is
-        announced at the top rather than buried, and the whole page is reachable from the keyboard.</p>
-      <p><a href="/app">Open the dashboard</a></p>
-    </div>
+  <div class="wrap">
+    <h2>Four receipts, and each one draws itself</h2>
+    <p class="lede">These are the decisions in the shipped ledger. Every mark is generated from that
+      receipt's own evidence hash, and its arc is the probability the judge stated, so two receipts
+      can never draw the same figure and the same receipt can never draw a different one.</p>
+    <div class="ledger" id="ledger"></div>
+    <p style="margin-top:26px">The dashboard opens on a thirty second summary: what was decided, what
+      changed most since the previous receipt for that symbol, where the practice position stands,
+      and what happens next. Every receipt is diffed against the one before it and ranked by impact,
+      degraded evidence is announced at the top rather than buried, and the whole page is reachable
+      from the keyboard. <a href="/app">Open the dashboard</a>.</p>
   </div>
 </section>
 
@@ -264,8 +274,8 @@
     <h2>Public reasoning, publicly scored</h2>
     <div class="social">
       <div>
-        <p>A call only its author can see costs nothing to make. Every receipt has a permanent link and renders as
-          this card when the link is shared, so the argument travels with the number.</p>
+        <p>A call only its author can see costs nothing to make. Every receipt has a permanent link and renders as a
+          card when the link is shared, so the argument travels with the number.</p>
         <p>Anyone can back a receipt or disagree with it under a handle, one stance each, before the outcome is
           known. At the seven day horizon the call is scored against a fresh price and every backer's accuracy moves
           with it. A no trade is never scored.</p>
@@ -273,9 +283,13 @@
           decides how much the judge listens next time.</p>
       </div>
       <figure>
-        <img src="/img/card.png" width="1200" height="630"
-             alt="The Open Graph card generated for a Nota receipt, showing the symbol, the verdict and the evidence hash.">
-        <figcaption>Generated per receipt at /r/&lt;id&gt;.png</figcaption>
+        <pre class="proof"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
+<span class="p">og:title</span>       ETH: LONG practice trade, 1377 USD, stop 2312.57
+<span class="p">og:description</span> long (p_up_7d 0.68). All three council members are
+               bullish with medium to high confidence...
+<span class="p">og:image</span>       /r/dbd7727f5a25.png
+<span class="p">twitter:card</span>   summary_large_image</pre>
+        <figcaption>Served per receipt. The card image itself is drawn at <code>/r/&lt;id&gt;.png</code>.</figcaption>
       </figure>
     </div>
   </div>
@@ -323,8 +337,20 @@
 <script>
   // The mark is drawn from the receipt itself, not decoration: every tick is a nibble of the
   // evidence hash and the arc is the probability the judge stated. Same receipt, same mark.
+  // the four receipts this deployment ships, with the values their own ledger holds
+  const LEDGER = [
+    {id: 'dbd7727f5a25', symbol: 'ETH', p: 0.68, action: 'long',     source: 'live',
+     hash: 'd298483bba6c278de5d7c1e1ee096d6a5eaf7e7e5bf9823edc0c4aabc008071a'},
+    {id: '3de8cad7af1f', symbol: 'BTC', p: 0.58, action: 'no trade', source: 'live',
+     hash: 'a80a7859288587f55dd8b2a11146f4d59c1a9779e0aa7981d97ffa5cb429fef6'},
+    {id: '20ae8d1547b9', symbol: 'SOL', p: 0.62, action: 'long',     source: 'recorded',
+     hash: '729c5ed62aa06a3b18d46268c38bc058baa992f13e174327470ab6b328affe25'},
+    {id: 'b80b42835b01', symbol: 'SOL', p: 0.63, action: 'no trade', source: 'live',
+     hash: '7b247252244761f57825e7845beef4630de2c3f8b4b910ecfae52bbc290c559f'},
+  ];
+
   (() => {
-    const HASH = 'd298483bba6c278de5d7c1e1ee096d6a5eaf7e7e5bf9823edc0c4aabc008071a', P_UP = 0.68;
+    const HASH = LEDGER[0].hash, P_UP = LEDGER[0].p;
     const svg = document.getElementById('mark'), NS = 'http://www.w3.org/2000/svg';
     const cx = 210, cy = 210, add = (tag, attrs, cls) => {
       const el = document.createElementNS(NS, tag);
@@ -366,6 +392,48 @@
 
   // The headline claims a receipt re-runs. The button lets the reader check that claim against the
   // deployed API before reading another word, and reports a failure as a failure.
+  // the same drawing, small, once per receipt in the ledger
+  (() => {
+    const NS = 'http://www.w3.org/2000/svg', host = document.getElementById('ledger');
+    if (!host) return;
+    for (const r of LEDGER) {
+      const fig = document.createElement('figure');
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 200 200');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label',
+        `Mark for receipt ${r.id}: ${r.symbol} ${r.action}, stated probability ${r.p.toFixed(2)}.`);
+      const cx = 100, cy = 100;
+      const pt = (rad, deg) => [cx + rad * Math.cos((deg - 90) * Math.PI / 180),
+                                cy + rad * Math.sin((deg - 90) * Math.PI / 180)];
+      const add = (tag, attrs, cls) => {
+        const el = document.createElementNS(NS, tag);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        if (cls) el.setAttribute('class', cls);
+        svg.appendChild(el); return el;
+      };
+      add('circle', {cx, cy, r: 94, 'stroke-width': 1}, 'ring');
+      [...r.hash].forEach((ch, i) => {
+        const v = parseInt(ch, 16), a = i * (360 / r.hash.length);
+        const [x1, y1] = pt(72, a), [x2, y2] = pt(75 + v * 1.15, a);
+        add('line', {x1, y1, x2, y2}, 'tick');
+      });
+      const R = 84, sweep = r.p * 360, [sx, sy] = pt(R, 0), [ex, ey] = pt(R, sweep);
+      add('circle', {cx, cy, r: R, 'stroke-width': 5}, 'arc-track');
+      add('path', {d: `M${sx} ${sy} A ${R} ${R} 0 ${sweep > 180 ? 1 : 0} 1 ${ex} ${ey}`,
+                   'stroke-width': 5}, 'arc');
+      add('circle', {cx, cy, r: 46, 'stroke-width': 1}, 'core');
+      const p = add('text', {x: cx, y: cy + 5}, 'p');
+      p.setAttribute('style', 'font-size:24px'); p.textContent = r.p.toFixed(2);
+      fig.appendChild(svg);
+      const cap = document.createElement('figcaption');
+      cap.innerHTML = `<b>${r.symbol}</b> ${r.action}<br>` +
+        `<a href="/r/${r.id}">${r.id}</a><br>source ${r.source}`;
+      fig.appendChild(cap);
+      host.appendChild(fig);
+    }
+  })();
+
   const out = document.getElementById('verify-out'), btn = document.getElementById('verify');
   btn.addEventListener('click', async () => {
     btn.disabled = true; out.textContent = 'running…';
