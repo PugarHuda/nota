@@ -289,3 +289,72 @@ def test_mcp_and_llms_txt_answer_over_the_wire_not_just_through_the_test_client(
     assert "/mcp" in body and "nota://receipt/" in body and RECEIPT in body
     assert problems == [], problems
     page.close()
+
+
+def _contrast(hex_fg: str, hex_bg: str) -> float:
+    """WCAG relative-luminance contrast ratio, computed rather than eyeballed."""
+    def lum(c):
+        rgb = [int(c[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        rgb = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
+        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+    a, b = lum(hex_fg.lstrip("#")), lum(hex_bg.lstrip("#"))
+    hi, lo = max(a, b), min(a, b)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_body_and_muted_text_meet_wcag_aa_in_both_themes(server, browser, theme):
+    """Track 2 is scored on working for everyone, so the contrast is measured, not assumed."""
+    page, problems = page_with_log(browser, viewport={"width": 1440, "height": 900})
+    page.goto(server + "/app", wait_until="networkidle")
+    page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
+    while page.evaluate("document.documentElement.dataset.theme || 'system'") != theme:
+        page.click("#theme")
+    page.wait_for_timeout(250)
+
+    read = page.evaluate(r"""() => {
+      const hex = c => {
+        const m = c.match(/\d+/g);
+        return '#' + m.slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('');
+      };
+      const body = getComputedStyle(document.body);
+      const muted = document.querySelector('.muted, .meta, h2');
+      return {bg: hex(body.backgroundColor), fg: hex(body.color),
+              dim: hex(getComputedStyle(muted).color)};
+    }""")
+    body_ratio = _contrast(read["fg"], read["bg"])
+    dim_ratio = _contrast(read["dim"], read["bg"])
+    assert body_ratio >= 4.5, f"{theme}: body text {read['fg']} on {read['bg']} is {body_ratio:.2f}:1"
+    assert dim_ratio >= 4.5, f"{theme}: secondary text {read['dim']} on {read['bg']} is {dim_ratio:.2f}:1"
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_mcp_server_serves_all_four_primitives_over_the_wire(server, browser):
+    page, problems = page_with_log(browser)
+    ctx = page.request
+    caps = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                                           "params": {"protocolVersion": "2026-07-28", "capabilities": {}}}
+                    ).json()["result"]["capabilities"]
+    assert set(caps) == {"tools", "resources", "prompts", "completions"}
+
+    prompts = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 2, "method": "prompts/list"}).json()
+    assert len(prompts["result"]["prompts"]) == 2
+    got = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 3, "method": "prompts/get",
+                                          "params": {"name": "read_a_receipt",
+                                                     "arguments": {"id": RECEIPT}}}).json()
+    assert RECEIPT in got["result"]["messages"][0]["content"]["text"]
+
+    tpl = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 4,
+                                          "method": "resources/templates/list"}).json()
+    assert tpl["result"]["resourceTemplates"][0]["uriTemplate"] == "nota://receipt/{id}"
+
+    comp = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 5, "method": "completion/complete",
+                                           "params": {"ref": {"type": "ref/prompt", "name": "read_a_receipt"},
+                                                      "argument": {"name": "id", "value": ""}}}).json()
+    assert RECEIPT in comp["result"]["completion"]["values"]
+
+    reg = ctx.get(server + "/.well-known/mcp/server.json").json()
+    assert reg["remotes"][0]["url"].endswith("/mcp")
+    assert problems == [], problems
+    page.close()

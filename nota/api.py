@@ -315,6 +315,17 @@ def mcp_no_stream() -> Response:
     return Response(status_code=405, headers={"Allow": "POST"})
 
 
+@app.get("/.well-known/mcp/server.json", include_in_schema=False)
+@app.get("/server.json", include_in_schema=False)
+def mcp_server_json() -> FileResponse:
+    """The official MCP registry's server.json, served from the deployment it describes so a client
+    or a sub-registry can discover this server without going through GitHub."""
+    path = Path(__file__).resolve().parents[1] / "server.json"
+    if not path.exists():
+        raise HTTPException(404, "server.json is not bundled in this checkout")
+    return FileResponse(path, media_type="application/json")
+
+
 @app.get("/llms.txt", include_in_schema=False)
 def llms_txt(request: Request) -> PlainTextResponse:
     """The llms.txt convention: one page that tells an agent what is here and how to call it,
@@ -371,6 +382,7 @@ result is identical.
 - [Dashboard]({base}/app): every receipt, diffed against the one before it
 - [Health]({base}/api/health): what this deployment can and cannot do right now
 - [OpenAPI]({base}/docs)
+- [server.json]({base}/.well-known/mcp/server.json): this server's entry for the official MCP registry
 """, media_type="text/plain; charset=utf-8")
 
 

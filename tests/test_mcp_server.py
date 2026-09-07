@@ -143,3 +143,56 @@ def test_an_oversized_batch_is_refused_rather_than_executed():
     huge = [{"jsonrpc": "2.0", "id": i, "method": "ping"} for i in range(200)]
     r = rpc(huge)
     assert r.status_code == 400 and "exceeds the limit" in r.json()["error"]["message"]
+
+
+def test_prompts_are_offered_rendered_and_argument_checked():
+    listed = rpc({"jsonrpc": "2.0", "id": 20, "method": "prompts/list"}).json()["result"]["prompts"]
+    assert [p["name"] for p in listed] == ["audit_a_token", "read_a_receipt"]
+    assert all(p["description"] and p["arguments"] for p in listed)
+
+    got = rpc({"jsonrpc": "2.0", "id": 21, "method": "prompts/get",
+               "params": {"name": "audit_a_token", "arguments": {"symbol": "SOL"}}}).json()["result"]
+    text = got["messages"][0]["content"]["text"]
+    assert got["messages"][0]["role"] == "user" and "SOL" in text
+    assert "{symbol}" not in text                       # rendered, not handed over as a template
+    assert "price_crosscheck" in text and "technicals_crosscheck" in text
+    assert "never write zero" in text                   # the honesty rule travels with the prompt
+
+    missing = rpc({"jsonrpc": "2.0", "id": 22, "method": "prompts/get",
+                   "params": {"name": "audit_a_token", "arguments": {}}}).json()
+    assert missing["error"]["code"] == -32602 and "symbol" in missing["error"]["message"]
+    unknown = rpc({"jsonrpc": "2.0", "id": 23, "method": "prompts/get",
+                   "params": {"name": "nope"}}).json()
+    assert unknown["error"]["code"] == -32602
+
+
+def test_a_resource_template_is_published_for_the_receipt_uris():
+    tpl = rpc({"jsonrpc": "2.0", "id": 24, "method": "resources/templates/list"}).json()["result"]["resourceTemplates"]
+    assert tpl[0]["uriTemplate"] == "nota://receipt/{id}"
+    assert tpl[0]["mimeType"] == "text/markdown" and tpl[0]["description"]
+
+
+def test_completion_offers_only_what_this_deployment_actually_holds(tmp_path, monkeypatch):
+    from tests.test_api import _seed
+
+    first, second = _seed(tmp_path, monkeypatch)
+    ids = rpc({"jsonrpc": "2.0", "id": 25, "method": "completion/complete",
+               "params": {"ref": {"type": "ref/prompt", "name": "read_a_receipt"},
+                          "argument": {"name": "id", "value": ""}}}).json()["result"]["completion"]
+    assert set(ids["values"]) == {first.id, second.id} and ids["hasMore"] is False
+
+    prefixed = rpc({"jsonrpc": "2.0", "id": 26, "method": "completion/complete",
+                    "params": {"ref": {"type": "ref/prompt", "name": "read_a_receipt"},
+                               "argument": {"name": "id", "value": second.id[:3]}}}).json()["result"]["completion"]
+    assert prefixed["values"] == [second.id]
+
+    symbols = rpc({"jsonrpc": "2.0", "id": 27, "method": "completion/complete",
+                   "params": {"ref": {"type": "ref/prompt", "name": "audit_a_token"},
+                              "argument": {"name": "symbol", "value": ""}}}).json()["result"]["completion"]
+    assert symbols["values"] == ["SOL"]                 # what the seeded ledger holds, nothing invented
+
+
+def test_initialize_advertises_all_four_primitives():
+    caps = rpc({"jsonrpc": "2.0", "id": 28, "method": "initialize",
+                "params": {"protocolVersion": "2026-07-28", "capabilities": {}}}).json()["result"]["capabilities"]
+    assert set(caps) == {"tools", "resources", "prompts", "completions"}

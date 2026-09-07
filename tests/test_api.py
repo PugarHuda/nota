@@ -187,3 +187,25 @@ def test_documented_local_paths_all_exist(tmp_path, monkeypatch):
     assert paths, "no local URL is documented at all"
     for path in sorted(paths):
         assert c.get(path).status_code == 200, f"the docs send a judge to {path}, which does not answer"
+
+
+def test_server_json_matches_the_registry_schema_and_this_deployment():
+    """The official MCP registry reads server.json. It is served from the deployment it describes, so
+    the two cannot drift: if the endpoint moves, this fails."""
+    import json as _json
+    from pathlib import Path
+
+    c = TestClient(api.app)
+    for path in ("/server.json", "/.well-known/mcp/server.json"):
+        r = c.get(path)
+        assert r.status_code == 200 and r.headers["content-type"].startswith("application/json")
+
+    doc = _json.loads((Path(__file__).resolve().parents[1] / "server.json").read_text(encoding="utf-8"))
+    assert doc["$schema"].endswith("server.schema.json")
+    assert doc["name"] == "io.github.PugarHuda/nota" and "/" in doc["name"]   # namespaced, as required
+    assert doc["version"] and doc["title"] and len(doc["description"]) > 80
+    remote = doc["remotes"][0]
+    assert remote["type"] == "streamable-http" and remote["url"].endswith("/mcp")
+    assert remote["url"].startswith("https://")                              # the registry requires reachable
+    # the declared endpoint is the one this app really serves
+    assert c.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 200

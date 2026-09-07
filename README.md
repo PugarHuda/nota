@@ -168,10 +168,22 @@ curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d
 curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"technicals_crosscheck","arguments":{"symbol":"SOL"}}}'
 ```
 
-It serves both MCP primitives that apply here: `tools/list` and `tools/call` for the four skills,
-and `resources/list` and `resources/read` for every receipt in the ledger, addressed as
-`nota://receipt/<id>` and returned as markdown plus the receipt's own JSON. A client that never
-touches this project's HTTP API can still list its decisions and read one.
+It serves all four MCP primitives, not just the easy one:
+
+- **tools**: `tools/list` and `tools/call` for the four skills, each `inputSchema` generated from the
+  same definition the REST route and the dashboard form use.
+- **resources**: `resources/list`, `resources/templates/list` (`nota://receipt/{id}`) and
+  `resources/read`, which returns a receipt as markdown plus its own JSON. A client that never
+  touches this project's HTTP API can still list its decisions and read one.
+- **prompts**: `prompts/list` and `prompts/get`. `audit_a_token` tells the caller's model to
+  cross-check RYO against the independent sources and carries the honesty rules with it, including
+  that a null stays null. `read_a_receipt` walks a stored decision.
+- **completions**: `completion/complete` offers the receipt ids and symbols this deployment actually
+  holds, so a client never has to guess one.
+
+`server.json` at the repository root is this server's entry for the official MCP registry, and the
+deployment serves it at `/.well-known/mcp/server.json` and `/server.json`, so the description and the
+endpoint it names cannot drift apart.
 
 `GET /llms.txt` follows the llms.txt convention: one generated page telling an agent what is here,
 how to call the MCP endpoint, which skills exist and which receipts the ledger holds. It is built
@@ -234,7 +246,7 @@ NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verif
 NOTA_DB=data/demo.db uv run nota serve      # then open http://127.0.0.1:8000/app for the dashboard
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 167 tests
+uv run pytest -q                              # 175 tests
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's

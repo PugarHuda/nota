@@ -52,6 +52,7 @@ def tool_list() -> list[dict[str, Any]]:
 
 
 RESOURCE_SCHEME = "nota://receipt/"
+RESOURCE_TEMPLATE = "nota://receipt/{id}"
 RESOURCE_NOT_FOUND = -32002          # the spec's own code for an unknown resource
 
 
@@ -85,6 +86,72 @@ def resource_read(uri: str) -> list[dict[str, Any]]:
             {"uri": f"{uri}.json", "mimeType": "application/json", "text": raw}]
 
 
+PROMPTS: dict[str, dict[str, Any]] = {
+    "audit_a_token": {
+        "description": "Cross-check what RYO says about one token against independent sources, and say "
+                       "plainly where they disagree.",
+        "arguments": [{"name": "symbol", "description": "Token symbol, for example SOL", "required": True}],
+        "template": (
+            "Audit {symbol} using the nota tools, and do not accept a single source.\n"
+            "\n"
+            "1. Call price_crosscheck for {symbol}. Note the exchange median, how many sources answered, "
+            "and any deviation it reports against a reference price.\n"
+            "2. Call technicals_crosscheck for {symbol}. It recomputes RSI(14) and ATR(14) with Wilder's "
+            "method from public candles.\n"
+            "3. Put the two results side by side, in the units each one uses.\n"
+            "\n"
+            "Rules for your answer: every figure you give must come from a tool result you actually "
+            "received, and you must name which one. A field that came back null stays null, and you never "
+            "write zero in its place. If a source reported unavailable, say so and say what that removes "
+            "from the conclusion. Finish with one sentence a reader can act on, or say the evidence does "
+            "not support one."),
+    },
+    "read_a_receipt": {
+        "description": "Explain a stored Nota decision receipt: what was decided, from what evidence, and "
+                       "whether it still reproduces.",
+        "arguments": [{"name": "id", "description": "Receipt id, for example dbd7727f5a25", "required": True}],
+        "template": (
+            "Read the resource nota://receipt/{id} and explain it to someone who has not seen it.\n"
+            "\n"
+            "Cover, in this order: what the council decided and the probability the judge stated; which of "
+            "the three agents disagreed and on what; which evidence sections were degraded and what that "
+            "cost; whether a practice trade was sized or blocked, and from which ATR path; and how the "
+            "receipt's own levels compare with RYO's published trade plan when it carries that comparison.\n"
+            "\n"
+            "Quote the dotted RYO paths the way the receipt does. Do not introduce a number that is not "
+            "in it."),
+    },
+}
+
+
+def prompt_list() -> list[dict[str, Any]]:
+    return [{"name": name, "description": p["description"], "arguments": p["arguments"]}
+            for name, p in PROMPTS.items()]
+
+
+def prompt_get(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    prompt = PROMPTS[name]
+    missing = [a["name"] for a in prompt["arguments"] if a.get("required") and not arguments.get(a["name"])]
+    if missing:
+        raise ValueError(f"{name}: missing required arguments {missing}")
+    text = prompt["template"].format(**{a["name"]: arguments.get(a["name"], "") for a in prompt["arguments"]})
+    return {"description": prompt["description"],
+            "messages": [{"role": "user", "content": {"type": "text", "text": text}}]}
+
+
+def complete(ref: dict[str, Any], argument: dict[str, Any]) -> dict[str, Any]:
+    """Argument completion, so a client can offer the ids and symbols this deployment actually has
+    rather than making the user guess them."""
+    name, value = argument.get("name", ""), str(argument.get("value", "")).lower()
+    values: list[str] = []
+    if name == "id":
+        values = [d["id"] for d in _ledger().list_decisions(limit=100)]
+    elif name == "symbol":
+        values = sorted({d["symbol"] for d in _ledger().list_decisions(limit=100)})
+    values = [v for v in values if v.lower().startswith(value)][:100]
+    return {"completion": {"values": values, "total": len(values), "hasMore": False}}
+
+
 def _error(id_: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
     err: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
@@ -104,7 +171,10 @@ def handle(message: dict[str, Any], deps: dict[str, Any] | None = None) -> dict[
         version = asked if asked in SUPPORTED_PROTOCOLS else DEFAULT_PROTOCOL
         return {"jsonrpc": "2.0", "id": id_, "result": {
             "protocolVersion": version,
-            "capabilities": {"tools": {"listChanged": False}, "resources": {"listChanged": False}},
+            "capabilities": {"tools": {"listChanged": False},
+                             "resources": {"listChanged": False, "subscribe": False},
+                             "prompts": {"listChanged": False},
+                             "completions": {}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             "instructions": "Four read-only research skills, plus every decision receipt in the "
                             "ledger as a resource under nota://receipt/. Every skill result is RYO's "
@@ -117,6 +187,26 @@ def handle(message: dict[str, Any], deps: dict[str, Any] | None = None) -> dict[
         return {"jsonrpc": "2.0", "id": id_, "result": {}}
     if method == "tools/list":
         return {"jsonrpc": "2.0", "id": id_, "result": {"tools": tool_list()}}
+    if method == "resources/templates/list":
+        return {"jsonrpc": "2.0", "id": id_, "result": {"resourceTemplates": [{
+            "uriTemplate": RESOURCE_TEMPLATE,
+            "name": "Decision receipt",
+            "description": "One stored decision, as markdown plus the receipt's own JSON. Ids come from "
+                           "resources/list, or from completion on the id argument.",
+            "mimeType": "text/markdown"}]}}
+    if method == "prompts/list":
+        return {"jsonrpc": "2.0", "id": id_, "result": {"prompts": prompt_list()}}
+    if method == "prompts/get":
+        name = params.get("name")
+        if name not in PROMPTS:
+            return _error(id_, INVALID_PARAMS, f"unknown prompt {name!r}", {"prompts": sorted(PROMPTS)})
+        try:
+            return {"jsonrpc": "2.0", "id": id_, "result": prompt_get(name, params.get("arguments") or {})}
+        except ValueError as exc:
+            return _error(id_, INVALID_PARAMS, str(exc))
+    if method == "completion/complete":
+        return {"jsonrpc": "2.0", "id": id_,
+                "result": complete(params.get("ref") or {}, params.get("argument") or {})}
     if method == "resources/list":
         return {"jsonrpc": "2.0", "id": id_, "result": {"resources": resource_list()}}
     if method == "resources/read":
