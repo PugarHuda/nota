@@ -21,7 +21,7 @@ def _seed(tmp_path, monkeypatch):
     raw = json.loads(led.get_pack(first.pack_hash))
     da = raw["sections"]["deep_analysis"]["envelope"]["data"]
     da["market"]["price_usd"] = round(da["market"]["price_usd"] * 1.10, 4)
-    da["technicals"]["rsi_14"] = None
+    da["technical_analysis"]["rsi_14"] = None
     from nota.council import run_council
     from nota.evidence import EvidencePack
     from nota.receipt import build_receipt
@@ -47,7 +47,7 @@ def test_list_detail_diff_positions_scores(tmp_path, monkeypatch):
     paths = [ch["path"] for ch in d["changes"]]
     # verdict flip and trade unlock outrank everything; price (feeds sizing) outranks a plain leaf; null is reported, not 0
     assert paths[:2] == ["verdict.action", "trade.kind"]
-    assert paths.index("deep_analysis.data.market.price_usd") < paths.index("deep_analysis.data.technicals.rsi_14")
+    assert paths.index("deep_analysis.data.market.price_usd") < paths.index("deep_analysis.data.technical_analysis.rsi_14")
     rsi = next(ch for ch in d["changes"] if ch["path"].endswith("rsi_14"))
     assert rsi["after"] is None and rsi["why"] == "value became unavailable"
     assert c.get(f"/api/decisions/{first.id}").json()["changes"] == []

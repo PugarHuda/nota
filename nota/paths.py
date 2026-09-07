@@ -1,30 +1,29 @@
-"""Candidate dotted paths into RYO envelopes for the few numbers the risk engine needs.
+"""Dotted paths into RYO envelopes for the few numbers the risk engine needs.
 
-ponytail: the live `data` schema is only visible with a builder key, so we look through a
-short list of plausible paths and use the first one that exists. When the real catalog is
-recorded, trim each list to the one true path. Missing on every candidate means None,
-never 0.
+Recorded live on 2026-09-07 with a builder key (`nota record SOL`, fixtures/recorded), so these
+are RYO's real field names, not guesses. Each list is still a list because a field can be absent
+from one section and present in another; missing on every candidate means None, never 0.
+
+RYO reports volatility two ways: `technical_analysis.atr_14_pct` (percent of price) and
+`trade_plan.atr_14_usd` (absolute). Sizing needs the absolute one - see `nota.risk.atr_usd`.
 """
 
 PRICE_USD = [
     "deep_analysis.data.market.price_usd",
-    "deep_analysis.data.market_context.price_usd",
-    "deep_analysis.data.price_usd",
     "analyze_token.data.market.price_usd",
-    "analyze_token.data.price_usd",
 ]
 
 ATR_14 = [
-    "deep_analysis.data.technicals.atr_14",
-    "deep_analysis.data.technicals.atr14",
-    "deep_analysis.data.technicals.atr.value",
-    "analyze_token.data.technicals.atr_14",
-    "analyze_token.data.technicals.atr14",
+    "deep_analysis.data.trade_plan.atr_14_usd",
+]
+
+# Percent of price. Only usable after multiplying by the price; never as a price itself.
+ATR_14_PCT = [
+    "deep_analysis.data.technical_analysis.atr_14_pct",
+    "analyze_token.data.technical_analysis.atr_14_pct",
 ]
 
 RSI_14 = [
-    "deep_analysis.data.technicals.rsi_14",
-    "deep_analysis.data.technicals.rsi14",
-    "analyze_token.data.technicals.rsi_14",
-    "analyze_token.data.technicals.rsi14",
+    "deep_analysis.data.technical_analysis.rsi_14",
+    "analyze_token.data.technical_analysis.rsi_14",
 ]

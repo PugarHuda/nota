@@ -14,7 +14,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def make_llm(action="long", p=0.65):
     op = lambda role: (lambda _u: Opinion(role=role, stance="bullish", p_up_7d=0.6, confidence="medium", thesis="t",
-                                          citations=[Citation(path="deep_analysis.data.technicals.rsi_14", value="61.3")], invalidation="i"))
+                                          citations=[Citation(path="deep_analysis.data.technical_analysis.rsi_14", value="61.3")], invalidation="i"))
     return FakeLLM({"macro": op("macro"), "technician": op("technician"), "narrative": op("narrative"),
                     "judge": lambda _u: Verdict(action=action, p_up_7d=p, rationale="r")})
 

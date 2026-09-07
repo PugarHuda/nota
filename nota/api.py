@@ -33,7 +33,7 @@ from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 load_dotenv()
 app = FastAPI(title="Nota", description="Read-only view over decision receipts. No orders, no wallets.")
 STATIC = Path(__file__).parent / "static"
-KEY_PATHS = set(paths.PRICE_USD + paths.ATR_14 + paths.RSI_14)
+KEY_PATHS = set(paths.PRICE_USD + paths.ATR_14 + paths.ATR_14_PCT + paths.RSI_14)
 
 
 def _ledger() -> Ledger:

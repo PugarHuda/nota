@@ -35,8 +35,9 @@ def test_low_edge_is_blocked():
 
 def test_missing_atr_is_blocked_not_zeroed():
     p = pack()
-    p.sections["deep_analysis"].envelope.data["technicals"]["atr_14"] = None
-    p.sections["analyze_token"].envelope.data["technicals"]["atr_14"] = None
+    p.sections["deep_analysis"].envelope.data["trade_plan"]["atr_14_usd"] = None
+    p.sections["deep_analysis"].envelope.data["technical_analysis"]["atr_14_pct"] = None
+    p.sections["analyze_token"].envelope.data["technical_analysis"]["atr_14_pct"] = None
     out = size_trade(v(), p)
     assert isinstance(out, Blocked) and "ATR" in out.reason
 
@@ -47,7 +48,7 @@ def test_long_sizing_math():
     assert isinstance(t, PracticeTrade)
     assert t.side == "long" and t.entry_price == 150.0 and t.stop_price == 138.0 and t.target_price == 168.0
     assert t.risk_usd == 100.0 and t.size_units == pytest.approx(8.3333, abs=1e-3) and t.size_usd == 1250.0
-    assert t.edge == 0.65 and t.source_paths["atr"] == "deep_analysis.data.technicals.atr_14"
+    assert t.edge == 0.65 and t.source_paths["atr"] == "deep_analysis.data.trade_plan.atr_14_usd"
 
 
 def test_short_sizing_and_position_cap():
@@ -63,7 +64,7 @@ def _priced(price, atr):
     pk = pack()
     d = pk.sections["deep_analysis"].envelope.data
     d["market"]["price_usd"] = price
-    d["technicals"]["atr_14"] = atr
+    d["trade_plan"]["atr_14_usd"] = atr
     return pk
 
 

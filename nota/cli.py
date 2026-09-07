@@ -19,7 +19,7 @@ from nota.ledger import Ledger, now_iso
 from nota.notify import notify_receipt
 from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
-from nota.risk import RiskLimits
+from nota.risk import RiskLimits, atr_usd as risk_atr_usd
 from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 from nota.skills.narrative import narrative_convergence
@@ -135,8 +135,9 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
         extras["price_check"] = _check
 
         def _tech(sym, pack):
+            _, ref_price = first_present(pack, paths.PRICE_USD)
             _, rsi_ref = first_present(pack, paths.RSI_14)
-            _, atr_ref = first_present(pack, paths.ATR_14)
+            _, atr_ref = risk_atr_usd(pack, ref_price) if ref_price else (None, None)
             return technicals_crosscheck(sym, reference_rsi_14=rsi_ref, reference_atr_14=atr_ref)
         extras["technicals_check"] = _tech
     return extras or None

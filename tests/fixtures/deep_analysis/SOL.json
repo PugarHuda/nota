@@ -19,11 +19,6 @@
    "7d_pct": 11.4,
    "30d_pct": -3.2
   },
-  "technicals": {
-   "rsi_14": 61.3,
-   "atr_14": 6.0,
-   "ema_cross": "bullish"
-  },
   "confluence": {
    "score": 0.7,
    "signals": [
@@ -46,10 +41,23 @@
   "risks": [
    "30d trend still negative"
   ],
-  "preview_plan": {
+  "technical_analysis": {
+   "trend": "up",
+   "rsi_14": 61.3,
+   "atr_14_pct": 4.0,
+   "ema_cross": "bullish"
+  },
+  "trade_plan": {
    "entry": 150.0,
    "stop": 138.0,
-   "target": 168.0
+   "targets": [
+    168.0
+   ],
+   "atr_14_usd": 6.0,
+   "atr_14_pct": 4.0,
+   "atr_multiplier": 1.5,
+   "method": "wilder_atr_14_from_daily_ohlcv",
+   "preview_only": true
   }
  },
  "summary": {
@@ -57,10 +65,11 @@
   "key_points": []
  },
  "availability": {
-  "market": "ok",
-  "technicals": "ok",
+  "market_data": "available",
+  "technical_analysis": "available",
   "token_profile": "unavailable",
-  "derivatives": "ok"
+  "derivatives": "available",
+  "trade_plan": "available"
  },
  "warnings": [
   "token profile unavailable"

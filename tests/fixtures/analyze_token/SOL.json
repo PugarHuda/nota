@@ -14,10 +14,6 @@
   "performance": {
    "24h_pct": 6.1
   },
-  "technicals": {
-   "rsi_14": 61.0,
-   "atr_14": 6.1
-  },
   "intelligence": {
    "narrative": "L1 rotation",
    "catalysts": [
@@ -27,6 +23,11 @@
   },
   "verdict": {
    "bias": "bullish"
+  },
+  "technical_analysis": {
+   "trend": "up",
+   "rsi_14": 61.0,
+   "atr_14_pct": 4.0
   }
  },
  "summary": {
@@ -35,7 +36,7 @@
  },
  "availability": {
   "market": "ok",
-  "technicals": "ok"
+  "technical_analysis": "ok"
  },
  "warnings": [],
  "trace_id": "fixture"

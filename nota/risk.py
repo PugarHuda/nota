@@ -44,6 +44,20 @@ class Blocked(BaseModel):
     reason: str
 
 
+def atr_usd(pack: EvidencePack, price: float) -> tuple[str | None, float | None]:
+    """ATR in price units. RYO publishes it absolutely (`trade_plan.atr_14_usd`) and as a percentage
+    of price (`technical_analysis.atr_14_pct`); prefer the absolute figure, and when only the
+    percentage is there, convert it and say so in the path. Using 4.17 as if it were dollars is
+    right by luck near $100 and hundreds of times wrong on BTC."""
+    path, atr = first_present(pack, paths.ATR_14)
+    if atr is not None:
+        return path, atr
+    pct_path, pct = first_present(pack, paths.ATR_14_PCT)
+    if pct is None:
+        return None, None
+    return f"{pct_path} x price / 100", price * pct / 100.0
+
+
 def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None = None) -> PracticeTrade | Blocked:
     limits = limits or RiskLimits()
     if not pack.primary_ok:
@@ -57,7 +71,7 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
     if edge < limits.min_edge:
         return Blocked(reason=f"edge {edge:.2f} below minimum {limits.min_edge:.2f}")
     price_path, price = first_present(pack, paths.PRICE_USD)
-    atr_path, atr = first_present(pack, paths.ATR_14)
+    atr_path, atr = atr_usd(pack, price) if price is not None else (None, None)
     if price is None or atr is None or price <= 0 or atr <= 0:
         return Blocked(reason="price or ATR(14) unavailable in evidence; refusing to assume a value")
 

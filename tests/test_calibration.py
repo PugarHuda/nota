@@ -27,7 +27,7 @@ class PriceSource:
 
 def llm():
     op = lambda role, p: (lambda _u: Opinion(role=role, stance="bullish", p_up_7d=p, confidence="medium", thesis="t",
-                                             citations=[Citation(path="deep_analysis.data.technicals.rsi_14")], invalidation="i"))
+                                             citations=[Citation(path="deep_analysis.data.technical_analysis.rsi_14")], invalidation="i"))
     return FakeLLM({"macro": op("macro", 0.9), "technician": op("technician", 0.6), "narrative": op("narrative", 0.3),
                     "judge": lambda _u: Verdict(action="long", p_up_7d=0.7, rationale="r")})
 

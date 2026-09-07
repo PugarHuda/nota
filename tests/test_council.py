@@ -12,7 +12,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def opinion(role, stance="bullish", p=0.62, cites=None):
     return lambda _user: Opinion(
         role=role, stance=stance, p_up_7d=p, confidence="medium", thesis="t",
-        citations=cites if cites is not None else [Citation(path="deep_analysis.data.technicals.rsi_14", value="61.3")],
+        citations=cites if cites is not None else [Citation(path="deep_analysis.data.technical_analysis.rsi_14", value="61.3")],
         invalidation="RSI < 45",
     )
 
@@ -25,7 +25,7 @@ def fake(action="long"):
     return FakeLLM({
         "macro": opinion("macro"),
         "technician": opinion("technician", cites=[
-            Citation(path="deep_analysis.data.technicals.atr_14", value="6.0"),
+            Citation(path="deep_analysis.data.trade_plan.atr_14_usd", value="6.0"),
             Citation(path="deep_analysis.data.made.up", value="1"),
             Citation(path="deep_analysis.data.token_profile", value="null"),
         ]),
@@ -44,7 +44,7 @@ def test_council_runs_three_roles_and_judge_with_citation_validation():
     assert [o.role for o in res.opinions] == ["macro", "technician", "narrative"]
     assert llm.calls == ["macro", "technician", "narrative", "judge"]
     tech = res.opinions[1]
-    assert [c.path for c in tech.citations] == ["deep_analysis.data.technicals.atr_14"]
+    assert [c.path for c in tech.citations] == ["deep_analysis.data.trade_plan.atr_14_usd"]
     assert tech.dropped_citations == 2 and tech.confidence == "medium"
     narr = res.opinions[2]
     assert narr.citations == [] and narr.dropped_citations == 1 and narr.confidence == "low"

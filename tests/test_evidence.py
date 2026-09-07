@@ -39,13 +39,13 @@ def test_hash_ignores_created_at_and_trace_id():
 
 def test_get_and_available_paths_never_zero_fill():
     pack = gather(source(), "SOL")
-    assert pack.get("deep_analysis.data.technicals.atr_14") == 6.0
+    assert pack.get("deep_analysis.data.trade_plan.atr_14_usd") == 6.0
     assert pack.get("deep_analysis.data.token_profile") is None
     assert pack.get("sentiment_shift.data.derivatives") is None
     assert pack.get("deep_analysis.status") == "partial"
     assert pack.get("nope.data.x") is None
     paths_ = pack.available_paths()
-    assert "deep_analysis.data.technicals.atr_14" in paths_
+    assert "deep_analysis.data.trade_plan.atr_14_usd" in paths_
     assert "deep_analysis.data.token_profile" not in paths_
     assert "market_overview.data.top_movers.gainers.0.symbol" in paths_
 

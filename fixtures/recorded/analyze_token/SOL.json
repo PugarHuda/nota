@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "tool": "analyze_token",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-07T09:18:40Z",
+  "request": {
+    "symbol": "SOL"
+  },
+  "data": {
+    "asset": {
+      "symbol": "SOL",
+      "name": "Solana",
+      "chain": null,
+      "contract": null,
+      "rank": 7
+    },
+    "market": {
+      "price_usd": 105.0119283311104,
+      "market_cap_usd": 61554445114.10783,
+      "fully_diluted_value_usd": 66540125765.19,
+      "volume_24h_usd": 3669257157.704742
+    },
+    "performance": {
+      "change_1h_pct": 0.45426714,
+      "change_24h_pct": -0.66830145,
+      "change_7d_pct": 1.86166168,
+      "change_30d_pct": 40.37192816
+    },
+    "technical_analysis": {
+      "trend": "up",
+      "rsi_14": 68.7,
+      "momentum_30d_pct": 40.37192816,
+      "atr_14_pct": 4.17
+    },
+    "intelligence": {
+      "narrative": "Solana ranks #7 by market cap (coin) — pos, platform, solana-ecosystem",
+      "catalysts": [
+        "Top-7 asset — deep liquidity",
+        "EMA trend is up"
+      ],
+      "risks": []
+    },
+    "verdict": "accumulate"
+  },
+  "summary": {
+    "headline": "SOL analysis: accumulate.",
+    "key_points": [
+      "Price: $105.01.",
+      "24h change: -0.67%."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "market_intelligence": "available"
+  },
+  "warnings": [],
+  "trace_id": "403d257435aa4fdda28e2f8f415c0f57"
+}
