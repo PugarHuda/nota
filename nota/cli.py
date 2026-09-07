@@ -50,12 +50,24 @@ def _source(kind: str):
     raise typer.BadParameter("source must be live, recorded or fixture")
 
 
+KEYLESS = ("Without one you can still run `nota health`, the four skills (`nota skill run ...`), "
+           "`nota serve`, `nota positions`, and `nota replay <id>` - a cached replay reads the "
+           "ledger only, so verifying a receipt needs no key at all.")
+
+
 def _llm(kind: str):
+    """Build the configured LLM, saying which key is missing instead of letting the SDK raise."""
     if kind == "openai":
+        if not os.environ.get("OPENAI_API_KEY"):
+            raise typer.BadParameter(f"OPENAI_API_KEY is not set, so the council cannot run. {KEYLESS}")
         from nota.llm import OpenAICompatLLM
 
         return OpenAICompatLLM()
     if kind == "anthropic":
+        if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+            raise typer.BadParameter(
+                f"ANTHROPIC_API_KEY is not set, so the council cannot run. Set it, or point "
+                f"NOTA_LLM=openai at any OpenAI-compatible provider. {KEYLESS}")
         from nota.llm import AnthropicLLM
 
         return AnthropicLLM()
@@ -224,9 +236,9 @@ def watch(
 def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call the model again instead of using cached outputs"),
                llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP)):
     """Rebuild a receipt from stored evidence and report whether it is identical."""
-    try:
-        res = replay(decision_id, _ledger(), _llm(llm), RiskLimits(), fresh=fresh)
-    except ValueError as exc:
+    try:  # a cached replay reads the ledger only, so it needs no key and no LLM at all
+        res = replay(decision_id, _ledger(), _llm(llm) if fresh else None, RiskLimits(), fresh=fresh)
+    except (RuntimeError, ValueError) as exc:
         typer.echo(str(exc))
         raise typer.Exit(1)
     typer.echo(f"identical: {res.identical}  (fresh={res.fresh})")
@@ -289,6 +301,7 @@ def positions_cmd(as_json: bool = typer.Option(False, "--json")):
 
 @app.command("list")
 def list_cmd(limit: int = 20):
+    """Newest receipts in the ledger: id, timestamp, symbol, model."""
     for d in _ledger().list_decisions(limit):
         typer.echo(f"{d['id']}  {d['created_at']}  {d['symbol']:6}  {d['model']}")
 

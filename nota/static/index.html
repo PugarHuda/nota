@@ -259,7 +259,7 @@ async function loadHealth() {
     const h = await api('/api/health');
     window.__health = h;
     const ryo = h.ryo.error ? `<span class="badge unavailable">RYO down</span>` : `<span class="badge ok">RYO ${esc(h.ryo.status)} · ${h.ryo.tools} tools</span>`;
-    $('#health').innerHTML = `${h.readonly ? '<span class="badge partial" title="ledger snapshot; backing disabled">read-only demo</span> ' : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge">${esc(h.llm.kind)} · ${esc(h.llm.model || 'default')}</span> <span class="badge">${h.ledger.decisions} receipts · ${h.ledger.due} due for scoring</span>`;
+    $('#health').innerHTML = `${h.readonly ? '<span class="badge partial" title="ledger snapshot; backing disabled">read-only demo</span> ' : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} · ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${h.ledger.decisions} receipts · ${h.ledger.due} due for scoring</span>`;
   } catch (e) { $('#health').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
 }
 

@@ -63,17 +63,31 @@ def test_replay_is_identical_from_cache_and_fresh_reports_drift():
 
 
 
-def test_cached_replay_refuses_a_different_model():
-    """A receipt made under one model cannot be verified against another: the cache is keyed by
-    model, so the comparison would call the new model and mislabel its answer as drift."""
+
+def test_cached_replay_needs_no_llm_and_uses_the_receipt_s_own_model():
+    """The verification a judge runs must work on a clone with no keys: it reads the ledger only,
+    keyed by the model that produced the receipt, never by whatever is configured today."""
     import pytest
 
     led = Ledger(":memory:")
     r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    assert replay(r.id, led).identical                     # no LLM passed at all
+
     other = make_llm(action="no_trade", p=0.5)
     other.model = "some-other-model"
-    with pytest.raises(ValueError, match="cached replay needs the receipt's own model"):
-        replay(r.id, led, other)
-    assert other.calls == []                                  # and no tokens were spent proving nothing
-    assert replay(r.id, led, make_llm()).identical             # the receipt's own model still verifies
-    assert replay(r.id, led, other, fresh=True).identical is False  # --fresh is the escape hatch
+    assert replay(r.id, led, other).identical               # a different model cannot leak in
+    assert other.calls == []                                # and is never called
+    assert replay(r.id, led, other, fresh=True).identical is False   # --fresh is the escape hatch
+
+    with pytest.raises(ValueError, match="needs a configured LLM"):
+        replay(r.id, led, None, fresh=True)
+
+
+def test_cached_replay_reports_a_cache_miss_instead_of_calling_a_model():
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    led.conn.execute("DELETE FROM llm_cache")
+    led.conn.commit()
+    import pytest
+    with pytest.raises(RuntimeError, match="cache miss"):
+        replay(r.id, led)

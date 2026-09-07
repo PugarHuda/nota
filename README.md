@@ -161,14 +161,22 @@ The repository ships a ledger snapshot with real receipts (fixture-sourced, labe
 
 ```bash
 uv sync
+NOTA_DB=data/demo.db uv run nota replay 2acd47917d13   # identical: True - verified with no key at all
 NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 112 tests, no network
+uv run pytest -q                              # 115 tests, no network
 ```
 
+The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
+own evidence and the model outputs stored beside it, keyed by the model that produced them, so it
+touches no API and cannot drift. Every one of the five shipped receipts verifies this way, including
+the one made under a different provider. `--fresh` is the opposite: it calls today's model on the
+same evidence and prints the differences as drift.
+
 A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as
-Venice) and live RYO evidence needs the builder key; everything else runs without either.
+Venice) and live RYO evidence needs the builder key; everything else, verification included, runs
+without either.
 
 ## Hosted demo
 

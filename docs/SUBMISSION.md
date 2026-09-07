@@ -92,7 +92,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 
 ## Pre-flight checklist
 
-- [x] `uv run pytest -q` green (112 passed, 2026-09-07)
+- [x] `uv run pytest -q` green (115 passed, 2026-09-07)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (2026-09-06)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`

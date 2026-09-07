@@ -107,3 +107,14 @@ def test_demo_video_is_served_when_bundled(tmp_path, monkeypatch):
         assert r.status_code == 200 and r.headers["content-type"] == "video/mp4" and len(r.content) > 100_000
     else:
         assert r.status_code == 404  # a checkout without the bundled video says so instead of erroring
+
+
+def test_health_admits_when_no_llm_key_is_configured(tmp_path, monkeypatch):
+    """The hosted demo has no model reachable; reporting a provider name there would imply one."""
+    _seed(tmp_path, monkeypatch)
+    monkeypatch.setenv("NOTA_LLM", "anthropic")
+    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    assert TestClient(api.app).get("/api/health").json()["llm"]["key_set"] is False
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    assert TestClient(api.app).get("/api/health").json()["llm"]["key_set"] is True

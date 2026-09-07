@@ -61,3 +61,12 @@ def test_skill_spec_lists_three_read_only_skills():
     res = runner.invoke(cli.app, ["skill", "spec"])
     names = {d["name"] for d in json.loads(res.output)}
     assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck"}
+
+
+def test_decide_without_an_llm_key_says_so_instead_of_raising_from_the_sdk(monkeypatch):
+    """A judge's first command must not be a stack trace: name the missing key and what still works."""
+    for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    res = runner.invoke(cli.app, ["decide", "SOL", "--source", "fixture", "--llm", "anthropic"])
+    assert res.exit_code != 0
+    assert "ANTHROPIC_API_KEY is not set" in res.output and "no key at all" in res.output

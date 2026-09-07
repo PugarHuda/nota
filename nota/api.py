@@ -231,9 +231,14 @@ def health() -> dict[str, Any]:
         ryo: dict[str, Any] = client.health()
     except Exception as exc:  # the dashboard must load even when RYO is down
         ryo = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+    kind = os.environ.get("NOTA_LLM", "anthropic")
     return {
         "ryo": ryo, "ryo_key_set": bool(client.key), "readonly": led.readonly,
-        "llm": {"kind": os.environ.get("NOTA_LLM", "anthropic"), "model": os.environ.get("NOTA_MODEL")},
+        # `key_set` matters more than the name: the hosted demo has no LLM at all, and saying
+        # "anthropic" there would imply a model that is not reachable.
+        "llm": {"kind": kind, "model": os.environ.get("NOTA_MODEL"),
+                "key_set": bool(os.environ.get("OPENAI_API_KEY") if kind == "openai"
+                                else os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))},
         "ledger": {"decisions": led.conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0],
                    "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()), "due": len(due(led))},
         "notify": {"telegram": bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")),
@@ -241,22 +246,12 @@ def health() -> dict[str, Any]:
     }
 
 
-class _CacheOnlyLLM:
-    """Replay from the dashboard must never spend money or drift: it only reads the ledger's cached outputs."""
-
-    def __init__(self, model: str):
-        self.model = model
-
-    def complete_json(self, system: str, user: str, schema: Any) -> Any:
-        raise RuntimeError("cache miss: this receipt's model outputs are not in the ledger; run `nota replay <id>` from the CLI")
-
-
 @app.get("/api/decisions/{id}/replay")
 def replay_check(id: str) -> dict[str, Any]:
     led = _ledger()
     r = _receipt(led, id)
     try:
-        res = replay(id, led, _CacheOnlyLLM(r.model))
+        res = replay(id, led, None)
     except RuntimeError as exc:
         return {"identical": None, "diff": [], "error": str(exc)}
     return {"identical": res.identical, "diff": res.diff, "error": None}
