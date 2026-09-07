@@ -98,15 +98,15 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`
       (`uv run python scripts/submission_pdf.py` regenerates it) - official link still broken
 - [x] README "Disclosed third-party libraries" matches `pyproject.toml` (2026-09-06)
-- [ ] Hosted demo on the NEW hostname answers publicly: `curl -s -o /dev/null -w '%{http_code}' https://nota-ryo.vercel.app/api/health` must print 200, not 302.
-      Two things stand in the way, both outside the repo:
-      (a) the project's SSO protection is `all_except_custom_domains`, so a manually added *.vercel.app alias is gated -
-          `vercel project protection disable nota --sso` clears it (the demo is read-only, nothing to protect);
-      (b) the account hit Vercel's free-tier cap (`api-deployments-free-per-day`, >100 today), so the renamed build
-          cannot be deployed for up to 24 h. `https://ryo-arena.vercel.app` still serves the pre-rename build in the meantime.
+- [x] Hosted demo live and public at https://nota-ryo.vercel.app (2026-09-07): `/api/health`,
+      `/api/decisions`, `/api/skills/`, `/demo.mp4` (4.2 MB video/mp4) and the receipt card PNG all
+      answer 200 with no SSO redirect, the page title is `Nota`, and `price_crosscheck` invoked
+      through the hosted skill endpoint returned three exchanges (median $105.44) - Vercel reaches
+      Coinbase and Kraken, which this developer's ISP blocks. https://ryo-arena.vercel.app serves
+      the same build as a fallback.
 - [ ] `fixtures/recorded/` captured with `uv run nota record SOL` (real schema), `paths.py` trimmed
       - **blocked on the builder key**
 - [x] Demo video bundled at `nota/static/demo.mp4` and served at `/demo.mp4`; `demo_video_url`
-      filled in both files - **goes live on the next `vercel deploy --prod --yes`**
+      filled in both files and live
 - [ ] Optional: mirror the same file on YouTube if the judges prefer a player
 - [ ] X post published (tag @ryodigital), `x_post_url` filled in both
