@@ -103,3 +103,13 @@ def test_record_writes_fixture(tmp_path):
     path = record(client, "market_overview", {}, tmp_path)
     assert path == tmp_path / "market_overview" / "default.json"
     assert RecordedRyoClient(tmp_path).call("market_overview", {}).tool == "market_overview"
+
+
+
+def test_authenticated_call_without_a_key_says_which_key_is_missing(monkeypatch):
+    """Otherwise httpx raises LocalProtocolError on the empty bearer, which names nothing."""
+    monkeypatch.delenv("RYO_MCP_KEY", raising=False)
+    client = RyoClient(BASE, sleep=lambda _s: None)
+    assert client.key == ""
+    with pytest.raises(RyoError, match="RYO_MCP_KEY is not set"):
+        client.call("analyze_token", {"symbol": "SOL"})

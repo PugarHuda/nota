@@ -6,63 +6,122 @@
 <title>Nota</title>
 <!--OG-->
 <style>
-  /* One palette for both themes: light-dark() reads the root's color-scheme, so the toggle only flips that. */
+  /* Nota reads as a lab notebook, not a terminal: an agent's argument is prose and is set in a serif
+     at a real measure, while every number, dotted RYO path and id stays monospace and tabular,
+     because those are evidence and have to line up. Two families, no more. */
   :root { color-scheme: light dark;
-    --bg:light-dark(#f6f7f9,#0f1115); --panel:light-dark(#ffffff,#161a22); --line:light-dark(#d7dbe3,#262c38);
-    --fg:light-dark(#1a1d24,#e6e8ee); --dim:light-dark(#5b6478,#8b93a7); --ok:light-dark(#0f8f5e,#3ecf8e);
-    --warn:light-dark(#9a6300,#f5b53f); --bad:light-dark(#c92a2a,#ff6b6b); --acc:light-dark(#2a5fd6,#7aa2ff);
-    --sel:light-dark(#e6ecfb,#1f2634); --warn-bg:light-dark(#fff6e0,#2b2412); }
+    --paper:light-dark(#f5f4f0,#121316); --panel:light-dark(#ffffff,#191a1e);
+    --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
+    --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
+    --accent:light-dark(#1b4b8f,#82a9e6);
+    --long:light-dark(#2c6a4e,#61a482); --short:light-dark(#a83a2c,#e0806d);
+    --warn:light-dark(#845c0d,#d3a63c); --warn-bg:light-dark(#fbf3df,#241d0d);
+    --sel:light-dark(#eceff6,#1e222b);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
   :root[data-theme="light"] { color-scheme: light } :root[data-theme="dark"] { color-scheme: dark }
   * { box-sizing:border-box }
-  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  a { color:var(--acc); text-decoration:none }
-  header { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline; padding:10px 16px; border-bottom:1px solid var(--line); }
-  header h1 { font-size:16px; margin:0 }
-  header .dim { color:var(--dim); font-size:12px }
-  header .keys { margin-left:auto }
-  main { display:grid; grid-template-columns: 300px 1fr 300px; min-height:calc(100vh - 42px); }
-  @media (max-width: 1000px) { main { grid-template-columns:1fr } aside { border:0 } }
-  nav, section, aside { padding:12px; overflow:auto }
-  nav { border-right:1px solid var(--line) } aside { border-left:1px solid var(--line) }
-  input { width:100%; background:var(--panel); color:var(--fg); border:1px solid var(--line); padding:6px 8px; font:inherit; border-radius:4px }
-  :focus-visible { outline:2px solid var(--acc); outline-offset:2px }
-  .skip { position:absolute; left:-999px; top:8px; background:var(--acc); color:var(--bg); padding:6px 10px; border-radius:4px; z-index:9 }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.55 var(--serif); }
+  a { color:var(--accent); text-underline-offset:2px }
+  code, .mono, .num, kbd, input, select, button, h2, .badge, .meta, .cite, th { font-family:var(--mono) }
+  .num, td, th { font-variant-numeric:tabular-nums }
+
+  header { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:baseline;
+           padding:14px 22px 12px; border-bottom:1px solid var(--rule-2); background:var(--panel) }
+  header h1 { font-size:20px; margin:0; letter-spacing:-.01em; font-weight:600 }
+  header .tagline { color:var(--ink-2); font-size:14px }
+  header .keys { margin-left:auto; font:12px/1.6 var(--mono); color:var(--ink-2) }
+  #health { display:flex; flex-wrap:wrap; gap:6px; flex-basis:100%; font-size:12px }
+  #health .badge { border:1px solid var(--rule); border-radius:2px; padding:2px 7px }
+
+  main { display:grid; grid-template-columns: 290px minmax(0,1fr) 300px; min-height:calc(100vh - 78px) }
+  @media (max-width: 1040px) { main { grid-template-columns:1fr } aside, nav { border:0 } }
+  nav, section, aside { padding:18px 20px; overflow:auto }
+  nav { border-right:1px solid var(--rule); background:var(--panel) }
+  aside { border-left:1px solid var(--rule) }
+  section > * { max-width:76ch }
+  section table, section .wide, section details { max-width:none }
+
+  input, select { width:100%; background:var(--paper); color:var(--ink); border:1px solid var(--rule-2);
+                  padding:7px 9px; font-size:13px; border-radius:2px }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+  .skip { position:absolute; left:-999px; top:8px; background:var(--accent); color:var(--paper); padding:6px 10px; border-radius:2px; z-index:9 }
   .skip:focus { left:8px }
-  .row { padding:6px 8px; border-radius:4px; cursor:pointer; display:grid; grid-template-columns: 1fr auto; gap:2px 8px;
-         width:100%; text-align:left; font:inherit; color:inherit; background:none; border:0; }
-  .row:hover { background:var(--panel) } .row.sel { background:var(--sel); outline:1px solid var(--acc) }
-  .row .t { color:var(--dim); font-size:11px; grid-column:1/3 }
-  .badge { font-size:11px; padding:1px 6px; border-radius:3px; border:1px solid var(--line); color:var(--dim) }
-  .badge.long { color:var(--ok); border-color:var(--ok) } .badge.short { color:var(--bad); border-color:var(--bad) }
-  .badge.ok { color:var(--ok) } .badge.partial { color:var(--warn) } .badge.unavailable, .badge.error { color:var(--bad) }
-  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-right:4px }
-  .banner { background:var(--warn-bg); border:1px solid var(--warn); color:var(--warn); padding:8px 10px; border-radius:4px; margin-bottom:12px }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin:18px 0 8px }
+
+  .row { display:grid; grid-template-columns:1fr auto; gap:3px 10px; width:100%; text-align:left;
+         padding:9px 10px; border:0; border-left:2px solid transparent; background:none; color:inherit;
+         font:inherit; cursor:pointer; border-bottom:1px solid var(--rule) }
+  .row:hover { background:var(--sel) }
+  .row.sel { background:var(--sel); border-left-color:var(--accent) }
+  .row b { font-family:var(--mono); font-size:14px; letter-spacing:.02em }
+  .row .t { grid-column:1/3; color:var(--ink-2); font:11px/1.5 var(--mono) }
+  .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--warn); margin-right:6px; vertical-align:middle }
+
+  .badge { font-size:11px; line-height:1.6; color:var(--ink-2) }
+  .badge.long { color:var(--long) } .badge.short, .badge.no_trade { color:var(--short) }
+  .badge.ok { color:var(--long) } .badge.partial { color:var(--warn) }
+  .badge.unavailable, .badge.error { color:var(--short) }
+  button.badge { cursor:pointer; background:none; border:1px solid var(--rule-2); border-radius:2px; padding:3px 9px; color:var(--ink) }
+
+  h2 { font-size:13px; font-weight:600; line-height:1.4; color:var(--ink-2); margin:26px 0 9px;
+       padding-bottom:5px; border-bottom:1px solid var(--rule) }
   h2:first-child { margin-top:0 }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:8px }
-  .headline { font-size:16px; margin:0 0 4px }
-  table { width:100%; border-collapse:collapse; font-size:12.5px } td, th { padding:4px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; overflow-wrap:anywhere }
-  th { color:var(--dim); font-weight:normal }
-  .num { text-align:right; font-variant-numeric:tabular-nums }
-  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden } .bar i { display:block; height:100%; background:var(--acc) }
+  h2.bare { border-bottom:0; padding-bottom:0; margin-bottom:0 }   /* the verdict brings its own rule */
+  header .tagline a { color:var(--ink-2); text-decoration:none; border-bottom:1px solid var(--rule-2) }
+  header .tagline a:hover { color:var(--accent); border-bottom-color:var(--accent) }
+  .headline { font:600 26px/1.25 var(--serif); margin:0 0 10px; letter-spacing:-.015em }
+
+  /* the one loud thing on the page: what the council decided, and how sure it was */
+  .verdict { display:grid; grid-template-columns:1fr auto; align-items:end; gap:8px 20px;
+             padding:12px 0 10px; border-top:2px solid var(--ink); border-bottom:1px solid var(--rule) }
+  .verdict .act { font:600 30px/1 var(--serif); letter-spacing:-.02em }
+  .verdict .act.long { color:var(--long) } .verdict .act.short, .verdict .act.no_trade { color:var(--short) }
+  .verdict .p { font:400 30px/1 var(--mono); text-align:right }
+  .verdict .p small { display:block; font-size:11px; line-height:1.5; color:var(--ink-2) }
+  .rationale { margin:12px 0 0; max-width:68ch }
+
+  .card { background:var(--panel); border:1px solid var(--rule); border-radius:2px; padding:12px 14px; margin-bottom:10px }
+  .summary-line { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin:0 }
+  .summary-line dt { font:12px/1.7 var(--mono); color:var(--ink-2) }
+  .summary-line dd { margin:0 }
+  .meta { font-size:11px; line-height:1.8; color:var(--ink-2); display:flex; flex-wrap:wrap; gap:0 18px }
+  .banner { background:var(--warn-bg); border-left:3px solid var(--warn); padding:10px 12px; margin-bottom:14px }
+
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  td, th { padding:6px 10px 6px 0; border-bottom:1px solid var(--rule); text-align:left; vertical-align:top; overflow-wrap:anywhere }
+  th { font-size:11px; line-height:1.4; color:var(--ink-2); font-weight:400 }
+  td code { font-size:12px }
+  .num { text-align:right }
+  .bar { height:3px; background:var(--rule); overflow:hidden } .bar i { display:block; height:100%; background:var(--accent) }
   .pos .bar { position:relative } .pos .bar i { position:absolute; top:0; left:50% }
-  .pos .bar i.neg { background:var(--bad); transform:translateX(-100%) } .pos .bar i.pos { background:var(--ok) }
-  .cite { color:var(--dim); font-size:12px } .cite code { color:var(--fg) }
-  .muted { color:var(--dim) } .small { font-size:12px }
-  .empty { color:var(--dim); padding:24px; text-align:center }
-  kbd { border:1px solid var(--line); border-radius:3px; padding:0 4px; font-size:11px; color:var(--dim) }
-  details summary { cursor:pointer; color:var(--dim) }
-  #help { position:fixed; right:16px; bottom:16px; background:var(--panel); border:1px solid var(--line); padding:10px 14px; border-radius:6px; }
+  .pos .bar i.neg { background:var(--short); transform:translateX(-100%) } .pos .bar i.pos { background:var(--long) }
+
+  .opinion { margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--rule) }
+  .opinion .who { font:600 15px/1.4 var(--serif) }
+  .opinion .thesis { margin:6px 0 10px; max-width:68ch }
+  .cite { font-size:12px; line-height:1.8; color:var(--ink-2); padding-left:15px; text-indent:-15px }
+  .cite code { color:var(--ink) }
+  .muted { color:var(--ink-2) } .small { font-size:12px }
+  .empty { color:var(--ink-2); padding:28px 0 }
+  kbd { font-size:11px; border:1px solid var(--rule-2); border-radius:2px; padding:0 4px; color:var(--ink-2) }
+  details summary { cursor:pointer; color:var(--ink-2); font-size:12px; line-height:1.8 }
+  #orient { font-size:13px } #orient p { max-width:none }
+  #skills label, #skill-out, #backing, #backers, #scores, #positions, #attention { font-size:13px }
+  #help { position:fixed; right:18px; bottom:18px; background:var(--panel); border:1px solid var(--rule-2);
+          padding:12px 16px; border-radius:2px; font-size:13px;
+          box-shadow:0 6px 24px light-dark(rgba(0,0,0,.12), rgba(0,0,0,.5)) }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important } }
 </style>
 </head>
 <body>
 <a class="skip" href="#detail">Skip to receipt</a>
 <header>
   <h1>Nota</h1>
-  <span class="dim">council decisions on read-only RYO evidence · practice trades only · not financial advice ·
-    <a href="/demo.mp4">2-minute walkthrough</a></span>
-  <span class="dim" id="health" aria-live="polite"></span>
-  <span class="dim keys"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help
+  <span class="tagline">Council decisions on read-only RYO evidence. Practice trades only, never financial advice.
+    <a href="/demo.mp4">Two-minute walkthrough</a></span>
+  <span id="health" aria-live="polite"></span>
+  <span class="keys"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help
     <button type="button" class="badge" id="theme" title="theme: system / light / dark">theme: system</button></span>
 </header>
 <main>
@@ -101,8 +160,8 @@
 <div id="help" hidden>
   <b>Keys</b><br>
   <kbd>j</kbd> / <kbd>k</kbd> next / previous decision<br>
-  <kbd>Enter</kbd> open selected · <kbd>p</kbd> open previous receipt of this symbol<br>
-  <kbd>/</kbd> focus filter · <kbd>Esc</kbd> back to list · <kbd>?</kbd> toggle this help
+  <kbd>Enter</kbd> open selected<br><kbd>p</kbd> open previous receipt of this symbol<br>
+  <kbd>/</kbd> focus filter<br><kbd>Esc</kbd> back to list<br><kbd>?</kbd> toggle this help
 </div>
 <script>
 const $ = s => document.querySelector(s);
@@ -121,6 +180,9 @@ setTheme(THEMES.includes(theme) ? theme : 'system');
 $('#theme').onclick = () => setTheme(THEMES[(THEMES.indexOf(document.documentElement.dataset.theme || 'system') + 1) % 3]);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = v => v === null || v === undefined ? '<span class="muted">null</span>' : typeof v === 'number' ? (Math.abs(v) >= 1000 ? v.toLocaleString() : +v.toFixed(4)) : esc(String(v));
+const px = v => v === null || v === undefined ? '—'
+  : Math.abs(v) >= 100 ? v.toLocaleString(undefined, {maximumFractionDigits: 2})
+  : Math.abs(v) >= 1 ? v.toFixed(3) : v.toPrecision(4);
 const api = async p => { const r = await fetch(p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
 
 let all = [], shown = [], sel = 0, current = null;
@@ -131,8 +193,8 @@ function renderList() {
   $('#list').innerHTML = shown.length ? shown.map((d, i) => `
     <button type="button" class="row ${i === sel ? 'sel' : ''}" data-i="${i}" aria-current="${i === sel}" aria-label="${esc(d.symbol)} ${esc(d.action)}${d.degraded ? ', degraded evidence' : ''}, ${esc(d.created_at)}">
       <span>${d.degraded ? '<span class="dot" title="degraded evidence"></span>' : ''}<b>${esc(d.symbol)}</b> <span class="muted small">${esc(d.source)}</span></span>
-      <span class="badge ${d.action}">${esc(d.action)}${d.trade_kind === 'trade' ? ' · trade' : ''}</span>
-      <span class="t">${esc(d.created_at)} · p_up ${d.p_up_7d.toFixed(2)}${d.resolved ? ' · resolved' : ''}</span>
+      <span class="badge ${d.action}">${esc(d.action.replace('_', ' '))}${d.trade_kind === 'trade' ? ', sized' : ''}</span>
+      <span class="t">${esc(d.created_at)}   p_up ${d.p_up_7d.toFixed(2)}${d.resolved ? '   resolved' : ''}</span>
     </button>`).join('') : '<div class="empty">No receipts yet.<br>Run <code>uv run nota decide SOL</code>.</div>';
   $('#list').querySelectorAll('.row').forEach(el => el.onclick = () => { sel = +el.dataset.i; open(shown[sel].id); });
 }
@@ -151,35 +213,42 @@ async function open(id, push = true) {
     ${degraded.length ? `<div class="banner">Degraded evidence: ${degraded.map(([k, s]) => `<b>${esc(k)}</b> ${esc(s)}`).join(', ')}. Missing values stay null; the judge was told.</div>` : ''}
     <p class="headline">${esc(r.headline)}</p>
     <div class="card" id="summary" aria-label="thirty second summary">
-      <div><b>Now:</b> ${t.kind === 'trade' ? `${t.side.toUpperCase()} practice trade, ${t.size_usd.toFixed(0)} USD at ${t.entry_price}, stop ${t.stop_price}, target ${t.target_price}` : `no trade · ${esc(t.reason)}`}</div>
-      <div><b>Biggest change:</b> ${d.changes.length ? `<code>${esc(d.changes[0].path)}</code> ${fmt(d.changes[0].before)} → ${fmt(d.changes[0].after)} · ${esc(d.changes[0].why)}` : (d.previous_id ? 'nothing changed since the previous receipt' : 'first receipt for this symbol')}</div>
+      <div><b>Now:</b> ${t.kind === 'trade' ? `${t.side.toUpperCase()} practice trade, ${t.size_usd.toFixed(0)} USD at ${px(t.entry_price)}, stop ${px(t.stop_price)}, target ${px(t.target_price)}` : `no trade — ${esc(t.reason)}`}</div>
+      <div><b>Biggest change:</b> ${d.changes.length ? `<code>${esc(d.changes[0].path)}</code> ${fmt(d.changes[0].before)} → ${fmt(d.changes[0].after)} (${esc(d.changes[0].why)})` : (d.previous_id ? 'nothing changed since the previous receipt' : 'first receipt for this symbol')}</div>
       <div id="summary-position"><b>Position:</b> <span class="muted">checking…</span></div>
       <div><b>Next:</b> ${d.outcome ? `scored: ${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}% (${d.outcome.went_up ? 'went up' : 'went down'})` : nextStep(r)}</div>
     </div>
-    <div class="muted small">receipt <a href="/r/${r.id}">${r.id}</a> · ${esc(r.created_at)} · source <b>${esc(r.source)}</b> · model ${esc(r.model)} (${esc(r.prompt_version)}) · evidence ${r.pack_hash.slice(0, 16)}…
-      ${d.previous_id ? ` · previous <a href="/r/${d.previous_id}" data-open="${d.previous_id}">${d.previous_id}</a>` : ''}</div>
+    <div class="meta"><span>receipt <a href="/r/${r.id}">${r.id}</a></span><span>${esc(r.created_at)}</span>
+      <span>source ${esc(r.source)}</span><span>model ${esc(r.model)} (${esc(r.prompt_version)})</span>
+      <span>evidence ${r.pack_hash.slice(0, 16)}</span>
+      ${d.previous_id ? `<span>previous <a href="/r/${d.previous_id}" data-open="${d.previous_id}">${d.previous_id}</a></span>` : ''}</div>
 
     <h2>What changed${d.previous_id ? ` since ${d.previous_id}` : ''}</h2>
     ${d.changes.length ? changesTable(d.changes) : `<div class="card muted">${d.previous_id ? 'Nothing changed: identical evidence and verdict.' : 'First receipt for this symbol; nothing to diff against.'}</div>`}
 
-    <h2>Verdict: ${esc(r.verdict.action)} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)})</h2>
-    <div class="card">${esc(r.verdict.rationale)}
-      ${r.verdict.agreed_with?.length ? `<div class="small muted">agreed with: ${esc(r.verdict.agreed_with.join(', '))}</div>` : ''}
-      ${r.verdict.disagreed_with?.length ? `<div class="small muted">disagreed with: ${esc(r.verdict.disagreed_with.join(', '))}</div>` : ''}
-      ${(r.verdict.key_risks || []).map(k => `<div class="small">⚠ ${esc(k)}</div>`).join('')}</div>
+    <h2 class="bare">Verdict</h2>
+    <div class="verdict">
+      <div class="act ${esc(r.verdict.action)}">${esc(r.verdict.action.replace('_', ' '))}</div>
+      <div class="p">${r.verdict.p_up_7d.toFixed(2)}<small>probability the price is higher in 7 days</small></div>
+    </div>
+    <p class="rationale">${esc(r.verdict.rationale)}</p>
+    <div class="meta">
+      ${r.verdict.agreed_with?.length ? `<span>agreed with ${esc(r.verdict.agreed_with.join(', '))}</span>` : ''}
+      ${r.verdict.disagreed_with?.length ? `<span>disagreed with ${esc(r.verdict.disagreed_with.join(', '))}</span>` : ''}</div>
+    ${(r.verdict.key_risks || []).length ? `<ul class="small">${(r.verdict.key_risks || []).map(k => `<li>${esc(k)}</li>`).join('')}</ul>` : ''}
 
     <h2>Practice trade</h2>
     <div class="card">${t.kind === 'trade'
-      ? `<b>${t.side.toUpperCase()}</b> ${t.size_units} ${esc(t.symbol)} ≈ ${t.size_usd.toFixed(2)} USD at ${t.entry_price}<br>stop ${t.stop_price} · target ${t.target_price} · risk ${t.risk_usd.toFixed(2)} USD · ATR(14) ${t.atr} · edge ${t.edge.toFixed(2)}
-         <div class="cite">price <code>${esc(t.source_paths.price)}</code> · atr <code>${esc(t.source_paths.atr)}</code></div>`
+      ? `<b>${t.side.toUpperCase()}</b> ${px(t.size_units)} ${esc(t.symbol)} ≈ ${t.size_usd.toFixed(2)} USD at ${px(t.entry_price)}<br><span class="meta"><span>stop ${px(t.stop_price)}</span><span>target ${px(t.target_price)}</span><span>risk ${t.risk_usd.toFixed(2)} USD</span><span>ATR(14) ${px(t.atr)}</span><span>edge ${t.edge.toFixed(2)}</span></span>
+         <div class="cite">price <code>${esc(t.source_paths.price)}</code><br>atr <code>${esc(t.source_paths.atr)}</code></div>`
       : `<b>Blocked:</b> ${esc(t.reason)}`}</div>
 
-    ${d.outcome ? `<h2>Outcome</h2><div class="card">${d.outcome.price_then} → ${d.outcome.price_now} (${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}%) · ${d.outcome.horizon_reached ? '7d horizon reached' : 'before 7d horizon'}
-      ${d.outcome.trade_result_usd !== null ? ` · practice P&L ${d.outcome.trade_result_usd} USD` : ''}<br><span class="small muted">brier: ${Object.entries(d.outcome.brier).map(([k, v]) => `${esc(k)} ${v}`).join(' · ')}</span></div>` : ''}
+    ${d.outcome ? `<h2>Outcome</h2><div class="card">${px(d.outcome.price_then)} → ${px(d.outcome.price_now)} (${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}%), ${d.outcome.horizon_reached ? 'at the 7-day horizon' : 'closed before the 7-day horizon'}
+      ${d.outcome.trade_result_usd !== null ? `, practice P&L ${d.outcome.trade_result_usd} USD` : ''}<br><span class="small muted">brier: ${Object.entries(d.outcome.brier).map(([k, v]) => `${esc(k)} ${v}`).join('   ')}</span></div>` : ''}
 
     <h2>Backing</h2>
     <div class="card" id="backing">
-      <span id="back-counts">${d.backing.agree} agree · ${d.backing.disagree} disagree</span>
+      <span id="back-counts">${d.backing.agree} agree, ${d.backing.disagree} disagree</span>
       <span class="small muted">${d.backing.handles.map(h => `${esc(h.handle)} (${h.stance})`).join(', ')}</span>
       <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
         <input id="handle" placeholder="your handle" maxlength="32" style="width:180px" aria-label="your handle">
@@ -191,11 +260,13 @@ async function open(id, push = true) {
     </div>
 
     <h2>Council</h2>
-    ${r.opinions.map(o => `<div class="card"><b>${esc(o.role)}</b> · ${esc(o.stance)} · p_up ${o.p_up_7d.toFixed(2)} · ${esc(o.confidence)} confidence
-      <div>${esc(o.thesis)}</div>
-      ${o.citations.map(c => `<div class="cite"><code>${esc(c.path)}</code> = ${esc(c.value)}${c.note ? ' · ' + esc(c.note) : ''}</div>`).join('')}
-      ${o.dropped_citations ? `<div class="cite">${o.dropped_citations} citation(s) dropped: path not in evidence</div>` : ''}
-      <div class="small muted">invalidation: ${esc(o.invalidation)}</div></div>`).join('')}
+    ${r.opinions.map(o => `<div class="opinion">
+      <div class="who">${esc(o.role)} <span class="badge ${o.stance === 'bullish' ? 'long' : o.stance === 'bearish' ? 'short' : ''}">${esc(o.stance)}</span>
+        <span class="badge">p_up ${o.p_up_7d.toFixed(2)}, ${esc(o.confidence)} confidence</span></div>
+      <p class="thesis">${esc(o.thesis)}</p>
+      ${o.citations.map(c => `<div class="cite"><code>${esc(c.path)}</code> = ${esc(c.value)}${c.note ? ' — ' + esc(c.note) : ''}</div>`).join('')}
+      ${o.dropped_citations ? `<div class="cite">${o.dropped_citations} citation(s) dropped: the path was not in the evidence</div>` : ''}
+      <p class="small muted" style="margin:8px 0 0">Invalidated by: ${esc(o.invalidation)}</p></div>`).join('')}
 
     <h2>Evidence provenance</h2>
     <table><tr><th>section</th><th>tool</th><th>status</th><th>as_of</th><th>data_mode</th><th>trace</th></tr>
@@ -203,8 +274,8 @@ async function open(id, push = true) {
     </table>
     ${r.warnings.length ? `<h2>Warnings</h2>${r.warnings.map(w => `<div class="small">• ${esc(w)}</div>`).join('')}` : ''}
     <p class="small muted">Replay: <button type="button" id="verify" class="badge">Verify replay now</button> <span id="verify-out" aria-live="polite"></span>
-      · <a href="/r/${r.id}.json">JSON</a> · <a href="/r/${r.id}.md">Markdown</a>
-      · <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
+      <a href="/r/${r.id}.json">JSON</a>   <a href="/r/${r.id}.md">Markdown</a>
+      <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
   $('#detail').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open); });
   try { $('#handle').value = localStorage.getItem('nota.handle') || ''; } catch (_) {}
   $('#backing').querySelectorAll('[data-stance]').forEach(b => b.onclick = async () => {
@@ -215,7 +286,7 @@ async function open(id, push = true) {
       const res = await fetch(`/api/decisions/${r.id}/back`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ handle, stance: b.dataset.stance }) });
       if (!res.ok) throw new Error((await res.json()).detail || res.status);
       const c = await res.json();
-      $('#back-counts').textContent = `${c.agree} agree · ${c.disagree} disagree`;
+      $('#back-counts').textContent = `${c.agree} agree, ${c.disagree} disagree`;
       $('#back-out').textContent = `recorded: ${handle} ${b.dataset.stance}s`;
       loadSide();
     } catch (e) { $('#back-out').textContent = e.message; }
@@ -258,8 +329,8 @@ async function loadHealth() {
   try {
     const h = await api('/api/health');
     window.__health = h;
-    const ryo = h.ryo.error ? `<span class="badge unavailable">RYO down</span>` : `<span class="badge ok">RYO ${esc(h.ryo.status)} · ${h.ryo.tools} tools</span>`;
-    $('#health').innerHTML = `${h.readonly ? '<span class="badge partial" title="ledger snapshot; backing disabled">read-only demo</span> ' : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} · ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${h.ledger.decisions} receipts · ${h.ledger.due} due for scoring</span>`;
+    const ryo = h.ryo.error ? `<span class="badge unavailable">RYO down</span>` : `<span class="badge ok">RYO ${esc(h.ryo.status)}, ${h.ryo.tools} tools</span>`;
+    $('#health').innerHTML = `${h.readonly ? '<span class="badge partial" title="ledger snapshot; backing disabled">read-only demo</span> ' : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${h.ledger.decisions} receipts, ${h.ledger.due} due for scoring</span>`;
   } catch (e) { $('#health').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
 }
 
@@ -280,11 +351,11 @@ async function loadSide() {
   $('#attention').innerHTML = items.length ? `<b>Needs attention:</b> ${items.join(' ')}` : '';
   const mine = current && pos.find(p => p.symbol === current.receipt.symbol);
   const sp = $('#summary-position');
-  if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${mine.side} from ${mine.entry}, latest ${fmt(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) · <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
+  if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${mine.side} from ${px(mine.entry)}, latest ${px(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) — <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
   $('#positions').innerHTML = pos.length ? pos.map(p => `<div class="card">
       <b>${esc(p.symbol)}</b> <span class="badge ${p.side}">${p.side}</span> <span class="badge ${p.status === 'open' ? 'ok' : p.status === 'target' ? 'long' : p.status === 'stopped' ? 'short' : 'partial'}">${esc(POSITION_TEXT[p.status])}</span> <a class="small" href="/r/${p.decision_id}" data-open="${p.decision_id}">receipt</a>
-      <div class="small">entry ${p.entry} · stop ${p.stop} · target ${p.target} · ${p.size_usd.toFixed(0)} USD</div>
-      <div class="small muted">latest ${fmt(p.latest_price)} as of ${fmt(p.latest_as_of)} · move ${p.move_pct === null ? '<span class="muted">unavailable</span>' : (p.move_pct >= 0 ? '+' : '') + p.move_pct + '%'}</div>
+      <div class="meta"><span>entry ${px(p.entry)}</span><span>stop ${px(p.stop)}</span><span>target ${px(p.target)}</span><span>${p.size_usd.toFixed(0)} USD</span></div>
+      <div class="small muted">latest ${px(p.latest_price)} as of ${fmt(p.latest_as_of)}, move ${p.move_pct === null ? '<span class="muted">unavailable</span>' : (p.move_pct >= 0 ? '+' : '') + p.move_pct + '%'}</div>
       <div class="bar" title="−100 = at stop, +100 = one stop-distance in profit"><i class="${(p.stop_progress_pct || 0) < 0 ? 'neg' : 'pos'}" style="width:${Math.min(50, Math.abs(p.stop_progress_pct || 0) / 2)}%"></i></div></div>`).join('')
     : '<div class="muted small">No open practice positions.</div>';
   $('#positions').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open); });

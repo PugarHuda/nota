@@ -124,6 +124,11 @@ class RyoClient:
     def _headers(self, auth: bool) -> dict[str, str]:
         h = {"Content-Type": "application/json"}
         if auth:
+            if not self.key:
+                # Sending "Bearer " with nothing after it makes httpx raise LocalProtocolError, which
+                # tells the caller nothing. Say what is actually missing.
+                raise RyoError(0, "NO_KEY", "RYO_MCP_KEY is not set, so authenticated RYO calls are "
+                                           "unavailable; use --source recorded or set the key in .env")
             h["Authorization"] = f"Bearer {self.key}"
         return h
 

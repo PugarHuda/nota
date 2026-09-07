@@ -16,3 +16,8 @@ dist/
 !.env.example
 .playwright-mcp/
 docs/demo/
+
+# third-party design skill installed with npx, not part of the submission
+.agents/
+.claude/skills/
+skills-lock.json
