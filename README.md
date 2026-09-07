@@ -67,6 +67,24 @@ gather ──────────► council ──► judge ──► risk 
   `tools/call` on the same base URL) with `RYO_TRANSPORT=mcp`; `nota health` lists the live
   tool catalog over MCP when a key is set.
 
+## The public surface is treated as public
+
+`/api/skills/<name>/invoke` and `POST /mcp` are unauthenticated on purpose, so they are written for
+strangers:
+
+- A voice id goes into an outbound URL, so it is validated first. `../../evil` used to resolve to
+  `https://t.me/evil`, which handed a caller the path on the target host; with redirects followed
+  that is a step towards making this server fetch somewhere of their choosing. Handles are letters,
+  digits, underscore, dot and hyphen, up to 64 characters, and anything else is refused before a
+  request is built.
+- `tools/call` over MCP is metered per address exactly like the REST route, 60 an hour, because it
+  reaches third-party APIs. `initialize`, `tools/list` and `resources/*` stay free: they touch
+  nothing outside the process.
+- A JSON-RPC batch is capped at 25 messages, and `Origin` is validated on every MCP request as the
+  transport spec's security section requires.
+- Backing is capped at 30 an hour per address, and on the read-only deployment it answers 503 with
+  an explanation rather than pretending to have written.
+
 ## Honesty rules this code enforces
 
 - Every number in a receipt carries its source path, RYO `as_of`, `data_mode` and trace id.
@@ -216,7 +234,7 @@ NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verif
 NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 149 tests
+uv run pytest -q                              # 164 tests
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's

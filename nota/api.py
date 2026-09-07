@@ -260,6 +260,7 @@ def replay_check(id: str) -> dict[str, Any]:
 
 
 # --- Nota as an MCP server: the same four skills, over the Streamable HTTP transport ------------
+MCP_BATCH_MAX = 25
 ALLOWED_ORIGIN_HOSTS = {"nota-ryo.vercel.app", "ryo-arena.vercel.app", "localhost", "127.0.0.1", "testserver"}
 
 
@@ -287,6 +288,18 @@ async def mcp_endpoint(request: Request) -> Response:
         return JSONResponse({"jsonrpc": "2.0", "id": None,
                              "error": {"code": -32600, "message": "expected a JSON-RPC message or a batch"}},
                             status_code=400)
+    if len(batch) > MCP_BATCH_MAX:
+        return JSONResponse({"jsonrpc": "2.0", "id": None,
+                             "error": {"code": -32600,
+                                       "message": f"batch of {len(batch)} exceeds the limit of {MCP_BATCH_MAX}"}},
+                            status_code=400)
+    # tools/call reaches third-party APIs, so it is metered exactly like the REST skill route. The
+    # endpoint is public and unauthenticated by design, which makes it an amplifier without this.
+    calls = sum(1 for m in batch if m.get("method") == "tools/call")
+    if calls:
+        ip = request.client.host if request.client else "unknown"
+        for _ in range(calls):
+            _throttle(f"skill:{ip}", limit=60)
     deps: dict[str, Any] = {}
     replies = [r for r in (mcp_handle(m, deps) for m in batch) if r is not None]
     if not replies:                       # only notifications or responses came in

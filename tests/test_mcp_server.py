@@ -119,3 +119,27 @@ def test_initialize_advertises_the_resources_capability():
     caps = rpc({"jsonrpc": "2.0", "id": 14, "method": "initialize",
                 "params": {"protocolVersion": "2025-03-26", "capabilities": {}}}).json()["result"]["capabilities"]
     assert "tools" in caps and "resources" in caps
+
+
+def test_tools_call_over_mcp_is_metered_like_the_rest_route(monkeypatch):
+    """The endpoint is public and unauthenticated on purpose, so the expensive verb is capped;
+    listing and initialising stay free because they touch nothing outside this process."""
+    from nota.api import BACKING_LIMIT, _BACKING_HITS
+
+    _BACKING_HITS.clear()
+    for _ in range(70):                       # cheap verbs never consume the budget
+        assert rpc({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).status_code == 200
+    assert not _BACKING_HITS
+
+    for i in range(60):
+        rpc({"jsonrpc": "2.0", "id": i, "method": "tools/call",
+             "params": {"name": "price_crosscheck", "arguments": {}}})   # bad args, still metered
+    assert rpc({"jsonrpc": "2.0", "id": 99, "method": "tools/call",
+                "params": {"name": "price_crosscheck", "arguments": {}}}).status_code == 429
+    _BACKING_HITS.clear()
+
+
+def test_an_oversized_batch_is_refused_rather_than_executed():
+    huge = [{"jsonrpc": "2.0", "id": i, "method": "ping"} for i in range(200)]
+    r = rpc(huge)
+    assert r.status_code == 400 and "exceeds the limit" in r.json()["error"]["message"]

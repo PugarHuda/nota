@@ -25,6 +25,22 @@ from nota.skills.contract import SourceUnavailable
 
 UA = "Mozilla/5.0 (compatible; nota/0.1; +https://ryobuild.com)"
 
+# A voice id arrives from whoever called the skill, and the skill endpoints are public. Interpolating
+# it straight into a URL let `../../evil` resolve to https://t.me/evil, which hands a caller the path
+# on the target host, and with redirects followed that is a step from making this server fetch
+# somewhere of their choosing. Handles are letters, digits, underscore, dot and hyphen, and nothing
+# else gets near a URL.
+_HANDLE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+
+
+def clean_handle(raw: str, voice: str) -> str:
+    handle = raw.strip().lstrip("@")
+    if not _HANDLE.match(handle) or handle.startswith(".") or ".." in handle:
+        raise SourceUnavailable(
+            f"{voice}: {raw!r} is not a handle. Letters, digits, underscore, dot and hyphen only, "
+            "up to 64 characters.")
+    return handle
+
 
 class Message(BaseModel):
     voice: str
@@ -74,7 +90,7 @@ class TelegramPublic:
     def fetch(self, channel: str) -> list[Message]:
         voice = f"tg:{channel}"
         try:
-            resp = self.http.get(f"https://t.me/s/{channel}")
+            resp = self.http.get(f"https://t.me/s/{clean_handle(channel, voice)}")
         except httpx.HTTPError as exc:
             raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
         if resp.status_code != 200:
@@ -139,7 +155,7 @@ class XPublic:
     def fetch(self, handle: str) -> list[Message]:
         voice = f"x:{handle}"
         try:
-            resp = self.http.get(f"{self.base}/{handle.lstrip('@')}")
+            resp = self.http.get(f"{self.base}/{clean_handle(handle, voice)}")
         except httpx.HTTPError as exc:
             raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
         if resp.status_code != 200:
@@ -160,7 +176,8 @@ class BlueskyPublic:
         voice = f"bs:{handle}"
         try:
             resp = self.http.get("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed",
-                                 params={"actor": handle.lstrip("@"), "limit": limit, "filter": "posts_no_replies"})
+                                 params={"actor": clean_handle(handle, voice), "limit": limit,
+                                         "filter": "posts_no_replies"})
         except httpx.HTTPError as exc:
             raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
         if resp.status_code != 200:

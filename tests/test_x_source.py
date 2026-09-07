@@ -55,3 +55,25 @@ def test_a_network_error_is_unavailable_too():
     respx.get(f"{BASE}/whoever").mock(side_effect=httpx.ConnectError("boom"))
     with pytest.raises(SourceUnavailable, match="network error ConnectError"):
         XPublic().fetch("whoever")
+
+
+@pytest.mark.parametrize("handle", ["../../evil", "//evil.example/x", "a/../../b", "x?y=1",
+                                    "..", ".hidden", "a b", "", "x" * 70])
+def test_a_handle_can_never_reach_outside_its_own_path(handle):
+    """These endpoints are public. `../../evil` used to resolve to https://t.me/evil, which handed a
+    caller the path on the target host, and with redirects followed that is a step towards making
+    this server fetch somewhere of their choosing."""
+    from nota.skills.sources import BlueskyPublic, TelegramPublic, clean_handle
+
+    for reader, voice in ((XPublic(), "x"), (TelegramPublic(), "tg"), (BlueskyPublic(), "bs")):
+        with pytest.raises(SourceUnavailable, match="is not a handle"):
+            reader.fetch(handle)
+    with pytest.raises(SourceUnavailable):
+        clean_handle(handle, "tg:x")
+
+
+@pytest.mark.parametrize("handle", ["WatcherGuru", "@decrypt.co", "ryo-digital", "a_b.c-d"])
+def test_real_handles_still_pass(handle):
+    from nota.skills.sources import clean_handle
+
+    assert clean_handle(handle, "tg:x") == handle.lstrip("@")
