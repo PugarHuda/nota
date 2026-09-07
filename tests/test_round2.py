@@ -10,7 +10,7 @@ from httpx import Response
 from typer.testing import CliRunner
 
 from nota import cli
-from nota.calibration import Outcome, reliability
+from nota.calibration import Outcome, reliability, role_scores
 from nota.council import Verdict
 from nota.decide import decide
 from nota.evidence import gather
@@ -91,11 +91,24 @@ def test_fear_greed_crosscheck_in_price_check():
 def test_reliability_bins_judge_probabilities():
     led = Ledger(":memory:")
     a = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(action="long", p=0.7), led)
-    assert reliability(led) == {"n": 0, "judge_brier": None, "bins": [{"bin": f"{i / 5:.1f}-{(i + 1) / 5:.1f}", "n": 0, "mean_p": None, "hit_rate": None} for i in range(5)]}
+    assert reliability(led) == {"n": 0, "judge_brier": None, "excluded_before_horizon": 0,
+                                "bins": [{"bin": f"{i / 5:.1f}-{(i + 1) / 5:.1f}", "n": 0, "mean_p": None, "hit_rate": None} for i in range(5)]}
     led.save_outcome(a.id, Outcome(decision_id=a.id, symbol="SOL", resolved_at="x", decided_as_of=None, horizon_reached=True, price_then=150.0,
                                    price_now=160.0, return_pct=6.7, went_up=True, brier={}).model_dump_json())
     rel = reliability(led)
     assert rel["n"] == 1 and rel["judge_brier"] == 0.09 and rel["bins"][3] == {"bin": "0.6-0.8", "n": 1, "mean_p": 0.7, "hit_rate": 1.0}
+
+
+def test_calibration_table_ignores_positions_closed_before_the_horizon():
+    """A stop hit on day one does not answer "is the price higher in seven days"."""
+    led = Ledger(":memory:")
+    a = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(action="long", p=0.7), led)
+    led.save_outcome(a.id, Outcome(decision_id=a.id, symbol="SOL", resolved_at="x", decided_as_of=None,
+                                   horizon_reached=False, closed_reason="stopped", price_then=150.0, price_now=138.0,
+                                   return_pct=-8.0, went_up=False, brier={"judge": 0.49}).model_dump_json())
+    rel = reliability(led)
+    assert rel["n"] == 0 and rel["judge_brier"] is None and rel["excluded_before_horizon"] == 1
+    assert role_scores(led)["judge"]["n"] == 1  # still counted where it belongs: the trading loop
 
 
 def test_watch_scan_top_picks_candidates(tmp_path, monkeypatch):

@@ -155,10 +155,19 @@ def role_scores(ledger: Ledger) -> dict[str, dict[str, float]]:
 
 def reliability(ledger: Ledger, bins: int = 5) -> dict[str, Any]:
     """Reliability (calibration) table for the judge: outcomes bucketed by stated p_up_7d.
-    A well-calibrated judge has hit_rate close to mean_p in every bucket. Empty buckets stay empty."""
+    A well-calibrated judge has hit_rate close to mean_p in every bucket. Empty buckets stay empty.
+
+    Only outcomes that actually reached the seven-day horizon count. A position closed early at its
+    stop, or scored with `resolve --early`, answers a different question than "is the price higher in
+    seven days", and mixing it in would bias the table towards whatever moves fastest. Those outcomes
+    still feed `role_scores`, which is the trading feedback loop rather than a calibration claim."""
     rows: list[tuple[float, float]] = []
+    excluded = 0
     for raw in ledger.list_outcomes():
         o = json.loads(raw)
+        if not o.get("horizon_reached"):
+            excluded += 1
+            continue
         rec = ledger.get_decision(o["decision_id"])
         if rec:
             rows.append((Receipt.model_validate_json(rec).verdict.p_up_7d, 1.0 if o["went_up"] else 0.0))
@@ -170,7 +179,7 @@ def reliability(ledger: Ledger, bins: int = 5) -> dict[str, Any]:
                       "mean_p": round(sum(p for p, _ in hits) / len(hits), 3) if hits else None,
                       "hit_rate": round(sum(y for _, y in hits) / len(hits), 3) if hits else None})
     brier = round(sum((p - y) ** 2 for p, y in rows) / len(rows), 4) if rows else None
-    return {"n": len(rows), "judge_brier": brier, "bins": table}
+    return {"n": len(rows), "judge_brier": brier, "bins": table, "excluded_before_horizon": excluded}
 
 
 def role_weights(scores: dict[str, dict[str, float]]) -> dict[str, float]:

@@ -56,3 +56,23 @@ def test_short_sizing_and_position_cap():
     assert isinstance(t, PracticeTrade)
     assert t.side == "short" and t.stop_price == 162.0 and t.target_price == 132.0
     assert t.size_usd == 500.0 and t.risk_usd == 40.0 and t.edge == 0.7
+
+
+
+def _priced(price, atr):
+    pk = pack()
+    d = pk.sections["deep_analysis"].envelope.data
+    d["market"]["price_usd"] = price
+    d["technicals"]["atr_14"] = atr
+    return pk
+
+
+def test_blocks_when_atr_puts_a_level_through_zero():
+    """A cheap, wildly volatile token would otherwise get a negative stop or target on a receipt."""
+    long_ = size_trade(v("long", 0.8), _priced(1.0, 0.6))          # 2x ATR = 1.2 > price
+    assert isinstance(long_, Blocked) and "at or below zero" in long_.reason
+
+    short = size_trade(v("short", 0.2), _priced(1.0, 0.4))         # 3x ATR target = 1.2 > price
+    assert isinstance(short, Blocked) and "at or below zero" in short.reason
+
+    assert isinstance(size_trade(v("long", 0.8), _priced(100.0, 6.0)), PracticeTrade)

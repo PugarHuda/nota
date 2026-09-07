@@ -295,7 +295,7 @@ async function loadSide() {
       <h2>Judge calibration (stated p_up vs hit rate)</h2>
       <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
       ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
-      <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved</div>`
+      <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved at the 7-day horizon${sc.reliability.excluded_before_horizon ? `, ${sc.reliability.excluded_before_horizon} closed earlier and left out` : ''}</div>`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
 }
 

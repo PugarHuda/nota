@@ -63,6 +63,14 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
 
     sign = 1.0 if verdict.action == "long" else -1.0
     stop_distance = atr * limits.atr_stop_mult
+    stop_price = price - sign * stop_distance
+    target_price = price + sign * atr * limits.atr_target_mult
+    if stop_price <= 0 or target_price <= 0:
+        # ATR that large next to the price means the levels fall through zero. A receipt must not
+        # print a negative stop; say the instrument is too volatile for this rule instead.
+        return Blocked(reason=f"ATR({limits.atr_stop_mult:g}x/{limits.atr_target_mult:g}x) of {atr:g} "
+                              f"puts the stop or target at or below zero for a price of {price:g}; "
+                              "the fixed-multiple rule does not apply here")
     risk_usd = limits.account_usd * limits.risk_per_trade_pct / 100.0
     size_units = risk_usd / stop_distance
     max_usd = limits.account_usd * limits.max_position_pct / 100.0
@@ -75,8 +83,8 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
         symbol=pack.symbol,
         side=verdict.action,
         entry_price=price,
-        stop_price=price - sign * stop_distance,
-        target_price=price + sign * atr * limits.atr_target_mult,
+        stop_price=stop_price,
+        target_price=target_price,
         size_units=round(size_units, 6),
         size_usd=round(size_usd, 2),
         risk_usd=round(risk_usd, 2),

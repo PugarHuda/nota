@@ -165,7 +165,7 @@ NOTA_DB=data/demo.db uv run nota replay 2acd47917d13   # identical: True - verif
 NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 116 tests, no network
+uv run pytest -q                              # 118 tests, no network
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
