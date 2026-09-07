@@ -102,12 +102,13 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       inside RYO's own builder guide
 - [x] Third-party code and resources disclosed in the README
 - [x] Track stated (1, 2 and 3)
-- [ ] **Application Form downloaded from the #participant-setup-process channel**, filled in and
-      committed. `docs/project-submission-form.md` + `.pdf` in this repository is a reconstruction
-      from the platform's `HackathonSubmissionFields` schema, made because the public link
-      (`ryobuild.com/project-submission-form.pdf`) serves the site's SPA shell rather than a PDF.
-      The organiser's own template is only in Discord, so it has to be downloaded there and
-      committed; that is the one submission item this repository cannot produce for itself.
+- [x] **Application Form**: the organiser's own template downloaded 2026-09-07 from
+      `https://ryobuild.com/RYOCHAN-Hackthon-Project-Submission-Form.pdf` (note their spelling of
+      "Hackthon", which is why every earlier guess at the URL missed) and committed unchanged as
+      `docs/RYOCHAN-Hackathon-Project-Submission-Form-BLANK.pdf`. It carries no interactive fields,
+      so `docs/project-submission-form.md` fills the same sections in the same order (Members,
+      Overview, Tech Stack, Repository / Demo, Testing Information) and
+      `scripts/submission_pdf.py` renders it to `docs/project-submission-form.pdf`.
 - [ ] Demo video uploaded to a cloud service with an accessible link (and its password, if any).
       The project already serves it at `/demo.mp4` with no password, which satisfies "any similar
       service"; a Drive or Dropbox copy is the safer reading of their wording.
