@@ -67,6 +67,24 @@ def main() -> None:
         browser = p.chromium.launch()
         ctx = browser.new_context(viewport={"width": 1280, "height": 720}, record_video_dir=str(OUT), record_video_size={"width": 1280, "height": 720})
         page = ctx.new_page()
+        # open where a reader opens: the page the link in a post leads to
+        page.goto(base + "/", wait_until="networkidle")
+        say(page, "Nota: a trading call you can re-run. This is the page a link leads to.", 4200)
+        say(page, "The mark is not decoration. Its ticks are the evidence hash of a real receipt and "
+                  "the arc is the probability that receipt's judge stated, so the same evidence always "
+                  "draws the same figure.", 7000)
+        page.click("#verify")
+        page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')",
+                               timeout=30000)
+        page.locator("#verify-out").scroll_into_view_if_needed()
+        say(page, "And the claim checks itself. That button just called this deployment's own API and "
+                  "re-ran the receipt from stored evidence.", 6500)
+        page.evaluate("document.querySelector('#proof').scrollIntoView()")
+        say(page, "Nota audits the data it is given: RSI and ATR recomputed from public candles with "
+                  "Wilder's method, against RYO's own figures, 0.67 percent apart.", 6500)
+        page.evaluate("document.querySelector('#ledger').scrollIntoView()")
+        say(page, "Four receipts in the shipped ledger, each drawing itself from its own hash.", 4500)
+        page.evaluate("() => { const e = document.getElementById('__cap'); if (e) e.remove(); }")
         page.goto(base + "/app")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")

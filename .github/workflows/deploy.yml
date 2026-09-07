@@ -1,0 +1,39 @@
+name: deploy
+
+# Vercel's own GitHub integration is linked to this repository but has never fired: every
+# deployment on the project reports source=cli, none reports a git trigger. Rather than leave
+# publishing to a manual command, this calls the project's deploy hook on every push to main.
+# The hook URL is a credential, so it lives in the VERCEL_DEPLOY_HOOK repository secret and
+# never appears in the log.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the Vercel production build
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "VERCEL_DEPLOY_HOOK is not set on this repository; nothing to call."
+            exit 1
+          fi
+          code=$(curl -s -o response.json -w '%{http_code}' -X POST "$HOOK")
+          echo "deploy hook responded $code"
+          cat response.json
+          # Vercel answers 201 when it queues a build, and 429 when the account is over its
+          # daily deployment cap. The second is not a failure of this repository.
+          case "$code" in
+            201|200) exit 0 ;;
+            429) echo "::warning::Vercel refused the build: the account is over its daily deployment limit." ; exit 0 ;;
+            *) exit 1 ;;
+          esac
