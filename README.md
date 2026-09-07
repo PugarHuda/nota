@@ -159,11 +159,12 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
 
 ## Evaluate with zero keys
 
-The repository ships a ledger snapshot with real receipts (fixture-sourced, labelled as such):
+The repository ships a ledger snapshot of four receipts made on live RYO evidence (2026-09-07,
+SOL / BTC / ETH, each labelled with its own source) and every one of them verifies:
 
 ```bash
 uv sync
-NOTA_DB=data/demo.db uv run nota replay 2acd47917d13   # identical: True - verified with no key at all
+NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verified with no key at all
 NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
@@ -183,8 +184,8 @@ without either.
 ## Hosted demo
 
 A read-only copy of the dashboard runs at https://nota-ryo.vercel.app (Vercel, framework-detected
-FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (fixture-sourced
-receipts, labelled as such) with `NOTA_READONLY=1`: reads, replay verification, cards and exports
+FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (four receipts on live
+RYO evidence, each carrying its trace ids) with `NOTA_READONLY=1`: reads, replay verification, cards and exports
 work; backing answers 503 because a serverless filesystem cannot be written. The full system,
 including live RYO evidence, the `watch` loop, notifications and backing, runs with
 `uv run nota serve` on any machine with a writable disk.

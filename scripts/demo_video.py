@@ -72,11 +72,13 @@ def main() -> None:
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")
         say(page, "Nota: an AI trading opinion you can audit. Every decision is a receipt you can re-run "
                   "and get identical output, with every number traced back to the RYO path it came from.", 5500)
-        say(page, "Header, left to right: read-only snapshot, RYO MCP up with 6 tools, NO builder key. "
-                  "So these receipts are fixture-sourced, and the page says so rather than pretending.", 6500)
+        say(page, "Header, left to right: read-only snapshot, RYO MCP up with six tools, and whether a key is "
+                  "configured here. These four receipts were made on live RYO evidence and carry its trace ids.", 6500)
         say(page, "The 30-second summary answers: what now, what changed most, where the practice position stands, what happens next.", 5500)
-        say(page, "The newest call is no_trade - and here is why that matters: an independent exchange cross-check "
-                  "found the evidence price 42% away from the exchange median, so the judge refused to size anything.", 7000)
+        say(page, "Here is the claim this project stands on. Nota does not just read RYO - it audits it. "
+                  "Wilder ATR(14) recomputed from public candles came out at 4.347 against RYO's own 4.3762, "
+                  "0.67 percent apart, and RYO's price sits 0.1 percent from the exchange median.", 8000)
+        say(page, "When those disagree, the judge refuses to size a trade at all rather than trusting one feed.", 4500)
         page.keyboard.press("j"); pause(page, 700)
         say(page, "Keyboard-first: j / k move, Enter opens, / filters, ? shows the keys. No mouse needed.", 3000)
         page.keyboard.press("Enter")
@@ -114,8 +116,8 @@ def main() -> None:
         say(page, "Back comes RYO's envelope field for field: status, data_mode, as_of, availability per voice, "
                   "warnings, and the sentiment method named. Silence is null, never 0.", 6500)
         page.locator("h2:has-text('Open practice positions')").scroll_into_view_if_needed()
-        say(page, "The practice position is sized from ATR: stop at 2x ATR, size from 1% risk. "
-                  "It is marked against an independent exchange price, and it is past its stop here - shown, not hidden.", 6500)
+        say(page, "The practice position is sized from RYO's own ATR in dollars - not its percentage twin, which "
+                  "would be right by luck near $100 and hundreds of times wrong on BTC - stop at 2x ATR, size from 1% risk.", 7000)
         say(page, "Agents are weighted by their own Brier score once calls resolve at the 7-day horizon. "
                   "Nothing has resolved yet, so every weight is 1.0 and the table says so.", 6000)
         page.click("#theme")

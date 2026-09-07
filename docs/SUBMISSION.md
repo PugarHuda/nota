@@ -98,7 +98,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       bundled walkthrough. `.env` is absent, only `.env.example`. Remote `organiser`; re-push with
       `git push organiser main`.
 
-- [x] `uv run pytest -q` green (118 passed, 2026-09-07)
+- [x] `uv run pytest -q` green (118 passed, 2026-09-07, on the real schema)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (re-checked 2026-09-07)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`
@@ -110,8 +110,12 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       through the hosted skill endpoint returned three exchanges (median $105.44) - Vercel reaches
       Coinbase and Kraken, which this developer's ISP blocks. https://ryo-arena.vercel.app serves
       the same build as a fallback.
-- [ ] `fixtures/recorded/` captured with `uv run nota record SOL` (real schema), `paths.py` trimmed
-      - **blocked on the builder key**
+- [x] Builder key issued 2026-09-07 (batch 2, expires 2026-12-17, 60/min). `nota record SOL` captured
+      all six tools into `fixtures/recorded/` (committed, no key material) and `paths.py` now holds
+      RYO's real field names: every guessed ATR and RSI path was wrong, and RYO reports ATR both as a
+      percentage and in dollars - see the commit for why that distinction matters on BTC.
+- [x] Four live receipts (SOL / BTC / ETH, 2026-09-07) replace the fixture snapshot in
+      `data/demo.db`; all four replay `identical: True`.
 - [x] Demo video bundled at `nota/static/demo.mp4` and served at `/demo.mp4`; `demo_video_url`
       filled in both files and live
 - [ ] Optional: mirror the same file on YouTube if the judges prefer a player
