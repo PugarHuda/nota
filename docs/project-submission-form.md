@@ -18,7 +18,7 @@
 | `github_username` | PugarHuda |
 | `project_name` | Nota |
 | `tracks` | `track_1`, `track_2`, `track_3` |
-| `repo_url` | _pending_ — organiser's private repo not yet issued; working mirror: https://github.com/PugarHuda/nota (private) |
+| `repo_url` | https://github.com/RYO-Digital/ryochan-hackathon_repository-235 (private repo issued by the organiser 2026-09-07; mirror of the same history: https://github.com/PugarHuda/nota) |
 | `demo_video_url` | https://nota-ryo.vercel.app/demo.mp4 (the 2-minute walkthrough, served by the project itself) |
 | `x_post_url` | _pending post_ |
 | `agree_rules` | yes |

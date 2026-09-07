@@ -15,7 +15,7 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 | github_username | PugarHuda |
 | project_name | Nota |
 | tracks | track_1, track_2, track_3 |
-| repo_url | _(private repo from organiser; current mirror: https://github.com/PugarHuda/nota, private)_ |
+| repo_url | https://github.com/RYO-Digital/ryochan-hackathon_repository-235 |
 | demo_video_url | https://nota-ryo.vercel.app/demo.mp4 |
 | hosted demo | https://nota-ryo.vercel.app (read-only ledger snapshot) |
 | x_post_url | _(TBD)_ |
@@ -92,6 +92,9 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 (`tools: 6`); `/api/hackathon/config` is byte-for-byte unchanged.
 
 ## Pre-flight checklist
+
+- [ ] Push this history into the organiser's repo (invited by @johnzenza 2026-09-07, write access,
+      repo still empty): `git push organiser main` - the remote is already configured
 
 - [x] `uv run pytest -q` green (118 passed, 2026-09-07)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
