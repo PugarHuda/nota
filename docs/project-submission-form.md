@@ -22,7 +22,7 @@
 | `demo_video_url` | https://nota-ryo.vercel.app/demo.mp4 (the 2-minute walkthrough, served by the project itself) |
 | `x_post_url` | _pending post_ |
 | `agree_rules` | yes |
-| `confirm_no_secrets` | yes — `.env` is gitignored, `.env.example` carries names only, `git grep` for `ryo_mcp_`, `tvly-`, `sk-or-v1-` and `VENICE_INFERENCE_KEY_` returns only placeholders and test doubles (verified 2026-09-06) |
+| `confirm_no_secrets` | yes — `.env` is gitignored, `.env.example` carries names only, `git grep` for `ryo_mcp_`, `tvly-`, `sk-or-v1-` and `VENICE_INFERENCE_KEY_` returns only placeholders and test doubles (re-verified 2026-09-07) |
 
 ## `project_description`
 

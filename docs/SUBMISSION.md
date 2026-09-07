@@ -94,7 +94,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 
 - [x] `uv run pytest -q` green (118 passed, 2026-09-07)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
-      only doc placeholders and test doubles (2026-09-06)
+      only doc placeholders and test doubles (re-checked 2026-09-07)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`
       (`uv run python scripts/submission_pdf.py` regenerates it) - official link still broken
 - [x] README "Disclosed third-party libraries" matches `pyproject.toml` (2026-09-06)
