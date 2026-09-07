@@ -91,6 +91,28 @@ re-record the moment the key lands; nothing else in the script changes.
 Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api/mcp/health` is up
 (`tools: 6`); `/api/hackathon/config` is byte-for-byte unchanged.
 
+## What the organiser asks for (Discord, #submit-your-buidl)
+
+- [x] Documentation in the repository explaining the project, its purpose, features and how it works
+      (README, `docs/skills/SKILL-SPEC.md`, `docs/HACKATHON-ANALYSIS.md`)
+- [x] All final code on the main branch of the provided repository
+      (`RYO-Digital/ryochan-hackathon_repository-235`, remote `organiser`)
+- [x] No secret in the repository **or in the git history**, which they say they review: 49 commits
+      and 448 blobs scanned against twelve credential patterns, one match and it is the placeholder
+      inside RYO's own builder guide
+- [x] Third-party code and resources disclosed in the README
+- [x] Track stated (1, 2 and 3)
+- [ ] **Application Form downloaded from the #participant-setup-process channel**, filled in and
+      committed. `docs/project-submission-form.md` + `.pdf` in this repository is a reconstruction
+      from the platform's `HackathonSubmissionFields` schema, made because the public link
+      (`ryobuild.com/project-submission-form.pdf`) serves the site's SPA shell rather than a PDF.
+      The organiser's own template is only in Discord, so it has to be downloaded there and
+      committed; that is the one submission item this repository cannot produce for itself.
+- [ ] Demo video uploaded to a cloud service with an accessible link (and its password, if any).
+      The project already serves it at `/demo.mp4` with no password, which satisfies "any similar
+      service"; a Drive or Dropbox copy is the safer reading of their wording.
+- [ ] Submitted with `/apply` in #submit-your-buidl, entering the repository name
+
 ## Pre-flight checklist
 
 - [x] Pushed into the organiser's repo 2026-09-07 (invited by @johnzenza; it arrived empty):
