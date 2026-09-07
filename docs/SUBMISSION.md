@@ -93,8 +93,10 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 
 ## Pre-flight checklist
 
-- [ ] Push this history into the organiser's repo (invited by @johnzenza 2026-09-07, write access,
-      repo still empty): `git push organiser main` - the remote is already configured
+- [x] Pushed into the organiser's repo 2026-09-07 (invited by @johnzenza; it arrived empty):
+      all 39 commits, 87 files at `f5771e7`, including `docs/project-submission-form.pdf` and the
+      bundled walkthrough. `.env` is absent, only `.env.example`. Remote `organiser`; re-push with
+      `git push organiser main`.
 
 - [x] `uv run pytest -q` green (118 passed, 2026-09-07)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
