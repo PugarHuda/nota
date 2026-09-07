@@ -72,7 +72,7 @@ def test_score_text_tokens_sentiment_conviction_urgency():
 # --- narrative_convergence --------------------------------------------------------------
 @respx.mock
 def test_narrative_convergence_detects_convergence_and_reports_failures():
-    respx.get(url__regex=r"https://twiiit\.com/.*").mock(return_value=httpx.Response(502))
+    respx.get(url__regex=r"https://syndication\.twitter\.com/.*").mock(return_value=httpx.Response(502))
     respx.get("https://t.me/s/alpha").mock(return_value=httpx.Response(200, text=page("alpha")))
     respx.get("https://t.me/s/beta").mock(return_value=httpx.Response(200, text=page("beta")))
     respx.get("https://t.me/s/private").mock(return_value=httpx.Response(200, text=page("private")))
@@ -100,7 +100,7 @@ def test_narrative_all_voices_down_is_unavailable():
 
 @respx.mock
 def test_x_voice_via_tavily_marks_missing_times():
-    respx.get(url__regex=r"https://twiiit\.com/.*").mock(return_value=httpx.Response(502))
+    respx.get(url__regex=r"https://syndication\.twitter\.com/.*").mock(return_value=httpx.Response(502))
     respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(200, json={"results": [
         {"title": "Trader on X", "url": "https://x.com/trader/status/1", "content": "$AVAX breakout, long here", "score": 0.8}]}))
     env = narrative_convergence(["x:trader"], telegram=TelegramPublic(httpx.Client()), tavily=Tavily(api_key="tvly-test", http=httpx.Client()))

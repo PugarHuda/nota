@@ -130,3 +130,17 @@ def test_landing_at_root_dashboard_at_app(tmp_path, monkeypatch):
     assert c.get("/app").status_code == 200 and 'id="list"' in c.get("/app").text
     assert c.get("/img/dashboard.png").headers["content-type"] == "image/png"
     assert c.get("/img/nope.png").status_code == 404
+
+
+def test_llms_txt_describes_this_deployment_from_its_own_routes(tmp_path, monkeypatch):
+    """The llms.txt convention: an agent should not have to infer the API from HTML."""
+    first, second = _seed(tmp_path, monkeypatch)
+    r = TestClient(api.app).get("/llms.txt")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
+    body = r.text
+    assert body.startswith("# Nota")
+    for skill in ("narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck"):
+        assert f"`{skill}`" in body
+    assert "/mcp" in body and "nota://receipt/" in body and "tools/call" in body
+    assert f"/r/{second.id}.md" in body and f"/r/{first.id}.md" in body   # generated from the ledger
+    assert "no order is ever placed" in body

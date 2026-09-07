@@ -26,7 +26,7 @@ Monitor up to 20 user-selected voices and detect when several converge on one to
 
 | arg | type | required | notes |
 |---|---|---|---|
-| `voices` | array[string] | yes | `tg:<channel>` (Telegram public preview), `bs:<handle>` (Bluesky public API), `x:<handle>` (Nitter mirror, Tavily fallback; best effort) |
+| `voices` | array[string] | yes | `tg:<channel>` (Telegram public preview), `bs:<handle>` (Bluesky public API), `x:<handle>` (X public syndication endpoint, Tavily fallback; best effort) |
 | `tokens` | array[string] | no | restrict to these symbols; default every cashtag / known name found |
 | `hours` | integer | no | look-back window, default 24, max 336 |
 
@@ -64,7 +64,8 @@ pass is dated and deterministic. Feeds that fail are listed in `warnings`; parsi
 
 Sentiment method is `vader_3.3.2+crypto_lexicon_v2`: VADER (MIT) with the crypto lexicon added
 at +/-2.0, so negation ("not bullish") and intensity ("very bullish!!") are handled. A text with
-no lexicon word at all stays `null`. `x:` voices are read through a Nitter mirror (unofficial,
+no lexicon word at all stays `null`. `x:` voices are read through X's own public syndication endpoint, the one that serves embedded
+timelines (unofficial and rate limited,
 flagged in `warnings`) and fall back to Tavily when configured.
 
 ## `price_crosscheck`

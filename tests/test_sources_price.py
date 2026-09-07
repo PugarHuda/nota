@@ -14,7 +14,7 @@ from nota.skills.contract import SourceUnavailable
 from nota.skills.narrative import narrative_convergence, score_text
 from nota.skills.news import news_verify
 from nota.skills.price_check import ExchangePrices, price_crosscheck
-from nota.skills.sources import NitterPublic, RssNews, Tavily, parse_nitter_timeline
+from nota.skills.sources import RssNews, Tavily, XPublic
 from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -70,26 +70,19 @@ NITTER = """<div class="timeline-item "><a class="tweet-link" href="/WatcherGuru
 
 
 @respx.mock
-def test_nitter_parse_and_router_redirect():
-    respx.get("https://twiiit.com/WatcherGuru").mock(return_value=Response(302, headers={"location": "https://nitter.example/WatcherGuru"}))
-    respx.get("https://nitter.example/WatcherGuru").mock(return_value=Response(200, text=NITTER))
-    msgs = NitterPublic(http=httpx.Client(follow_redirects=True)).fetch("@WatcherGuru")
-    assert [m.url for m in msgs] == ["https://x.com/WatcherGuru/status/1", "https://x.com/WatcherGuru/status/2"]
-    assert msgs[0].at == "2026-09-06T07:00:00+00:00" and msgs[1].at is None
-    with pytest.raises(SourceUnavailable):
-        parse_nitter_timeline("<html>rate limited</html>", "x:a", "https://n")
-
-
-@respx.mock
-def test_x_voice_uses_mirror_then_tavily_fallback(monkeypatch):
+def test_x_voice_reads_syndication_and_falls_back_when_a_handle_cannot_be_read(monkeypatch):
+    """The X reader has its own tests; this one is about the skill's behaviour around it."""
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
-    respx.get("https://twiiit.com/WatcherGuru").mock(return_value=Response(200, text=NITTER))
-    respx.get("https://twiiit.com/dead").mock(return_value=Response(502))
-    env = narrative_convergence(["x:WatcherGuru", "x:dead"], hours=24 * 7, nitter=NitterPublic(http=httpx.Client(follow_redirects=True)), tavily=Tavily(api_key=""))
-    assert env.availability == {"x:WatcherGuru": "ok", "x:dead": "unavailable"}
-    sol = next(t for t in env.data["tokens"] if t["symbol"] == "SOL")
-    assert sol["sentiment_mean"] > 0
-    assert any("unofficial Nitter mirror" in w for w in env.warnings) and any("x:dead" in w and "TAVILY" in w for w in env.warnings)
+    from pathlib import Path as _P
+    payload = (_P(__file__).parent / "fixtures" / "x" / "ryodigital.html").read_text(encoding="utf-8")
+    base = "https://syndication.twitter.com/srv/timeline-profile/screen-name"
+    respx.get(f"{base}/ryodigital").mock(return_value=Response(200, text=payload))
+    respx.get(f"{base}/dead").mock(return_value=Response(429))
+    env = narrative_convergence(["x:ryodigital", "x:dead"], hours=24 * 400, x=XPublic(),
+                                tavily=Tavily(api_key=""))
+    assert env.availability == {"x:ryodigital": "ok", "x:dead": "unavailable"}
+    assert any("syndication" in w for w in env.warnings)
+    assert any("x:dead" in w for w in env.warnings)
 
 
 def test_vader_handles_negation_and_null():

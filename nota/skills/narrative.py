@@ -19,7 +19,7 @@ from nota.envelope import Envelope
 from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-from nota.skills.sources import BlueskyPublic, Message, NitterPublic, Tavily, TelegramPublic
+from nota.skills.sources import BlueskyPublic, Message, Tavily, TelegramPublic, XPublic
 
 DEFINITION = SkillDefinition(
     name="narrative_convergence",
@@ -96,7 +96,7 @@ def _within(msg: Message, since: datetime) -> bool:
 
 def narrative_convergence(
     voices: list[str], tokens: list[str] | None = None, hours: int = 24,
-    telegram: TelegramPublic | None = None, tavily: Tavily | None = None, nitter: NitterPublic | None = None,
+    telegram: TelegramPublic | None = None, tavily: Tavily | None = None, x: XPublic | None = None,
     bluesky: BlueskyPublic | None = None,
 ) -> Envelope:
     voices = [v.strip() for v in voices if v.strip()][:20]
@@ -105,7 +105,7 @@ def narrative_convergence(
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     telegram = telegram or TelegramPublic()
     tavily = tavily or Tavily()
-    nitter = nitter or NitterPublic()
+    x = x or XPublic()
     bluesky = bluesky or BlueskyPublic()
 
     availability: dict[str, str] = {}
@@ -122,8 +122,8 @@ def narrative_convergence(
                 msgs = bluesky.fetch(ident)
             elif kind == "x":
                 try:
-                    msgs = nitter.fetch(ident)
-                    warnings.append(f"{voice}: read through an unofficial Nitter mirror; treat as best effort")
+                    msgs = x.fetch(ident)
+                    warnings.append(f"{voice}: read through an unofficial X syndication endpoint; treat as best effort")
                 except SourceUnavailable as exc:
                     if not tavily.configured:
                         raise SourceUnavailable(f"{exc}; no TAVILY_API_KEY to fall back on") from exc

@@ -111,9 +111,13 @@ served on RYO's own skill paths, so plugging them into RYO is a route registrati
 returning `SkillCallResponse {name, status: success|error, result, latency_ms, xp, guard_decision}`.
 The dashboard's "Run a skill" panel builds its form from those definitions and shows the envelope.
 
-- `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky
-  public API, `x:` via a Nitter mirror with Tavily fallback), VADER sentiment plus a crypto
-  lexicon, conviction, urgency, and convergence detection. Silence is `null`, not 0.
+- `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky public
+  API, `x:` through X's own public syndication endpoint, the one that serves embedded timelines,
+  with a Tavily fallback), VADER sentiment plus a crypto lexicon, conviction, urgency, and
+  convergence detection. Silence is `null`, not 0. Nitter, which `x:` used to go through, was served
+  cease-and-desist letters in August 2026 and its public mirrors went dark, so that reader was
+  advertising a source that could not answer; syndication is keyless, dated and still open, and
+  every failure is reported as `unavailable` rather than guessed.
 - `news_verify`: dated headlines from CoinDesk, Cointelegraph, The Block and Decrypt RSS,
   plus Tavily or Venice web search for breadth; counts independent domains and attaches RYO
   `analyze_token` context.
@@ -140,6 +144,15 @@ curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d
 
 curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"technicals_crosscheck","arguments":{"symbol":"SOL"}}}'
 ```
+
+It serves both MCP primitives that apply here: `tools/list` and `tools/call` for the four skills,
+and `resources/list` and `resources/read` for every receipt in the ledger, addressed as
+`nota://receipt/<id>` and returned as markdown plus the receipt's own JSON. A client that never
+touches this project's HTTP API can still list its decisions and read one.
+
+`GET /llms.txt` follows the llms.txt convention: one generated page telling an agent what is here,
+how to call the MCP endpoint, which skills exist and which receipts the ledger holds. It is built
+from the routes and the ledger, so it cannot drift from them.
 
 One endpoint, POST only, stateless. It negotiates the protocol version the client asks for
 (`2026-07-28`, `2025-06-18`, `2025-03-26` or RYO's own `2024-11-05`), validates the `Origin` header
@@ -198,7 +211,7 @@ NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verif
 NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 139 tests
+uv run pytest -q                              # 149 tests
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
@@ -248,7 +261,7 @@ nota/
   receipt.py      Receipt + markdown rendering
   notify.py       Telegram Bot API + Discord webhook publishing
   api.py          FastAPI read API + static/index.html dashboard
-  skills/         contract, sources (Telegram, Nitter, RSS, Tavily, Venice), narrative, news, price_check
+  skills/         contract, sources (Telegram, Bluesky, X syndication, RSS, Tavily, Venice), narrative, news, price_check
   decide.py / replay.py / calibration.py / cli.py
 docs/             hackathon analysis, MCP builder guide copy, design spec, skill spec, submission draft
 tests/            pytest, no network (respx + FakeLLM test double)
@@ -259,6 +272,6 @@ tests/            pytest, no network (respx + FakeLLM test double)
 httpx, pydantic, anthropic, typer, python-dotenv, fastapi, uvicorn, vaderSentiment (MIT),
 defusedxml, pillow; dev: pytest, respx, playwright (browser end-to-end tests in
 `tests/test_dashboard_e2e.py`, run after `uv run playwright install chromium`). Data sources:
-RYO MCP, t.me/s previews, Bluesky public AppView, Nitter mirrors via twiiit, CoinDesk /
+RYO MCP, t.me/s previews, Bluesky public AppView, X public syndication, CoinDesk /
 Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken and alternative.me public
 APIs, Tavily or Venice web search. All application code was written during the hackathon.

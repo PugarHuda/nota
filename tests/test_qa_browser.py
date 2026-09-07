@@ -255,3 +255,37 @@ def test_reduced_motion_is_actually_honoured(server, browser):
     assert animated == 0, "something still animates under prefers-reduced-motion: reduce"
     assert problems == [], problems
     page.close()
+
+
+def test_mcp_and_llms_txt_answer_over_the_wire_not_just_through_the_test_client(server, browser):
+    """An MCP host and an agent both reach this over real HTTP, so check it that way."""
+    page, problems = page_with_log(browser)
+    ctx = page.request
+
+    init = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                                           "params": {"protocolVersion": "2026-07-28", "capabilities": {}}})
+    assert init.status == 200
+    result = init.json()["result"]
+    assert result["protocolVersion"] == "2026-07-28"
+    assert {"tools", "resources"} <= set(result["capabilities"])
+
+    tools = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).json()
+    assert len(tools["result"]["tools"]) == 4
+
+    resources = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 3, "method": "resources/list"}).json()
+    uris = [r["uri"] for r in resources["result"]["resources"]]
+    assert f"nota://receipt/{RECEIPT}" in uris
+    read = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 4, "method": "resources/read",
+                                           "params": {"uri": f"nota://receipt/{RECEIPT}"}}).json()
+    assert read["result"]["contents"][0]["text"].startswith(f"# Decision receipt {RECEIPT}")
+
+    # transport rules hold over the wire too
+    assert ctx.get(server + "/mcp").status == 405
+    assert ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "method": "notifications/initialized"}).status == 202
+
+    txt = ctx.get(server + "/llms.txt")
+    assert txt.status == 200 and txt.headers["content-type"].startswith("text/plain")
+    body = txt.text()
+    assert "/mcp" in body and "nota://receipt/" in body and RECEIPT in body
+    assert problems == [], problems
+    page.close()

@@ -302,6 +302,65 @@ def mcp_no_stream() -> Response:
     return Response(status_code=405, headers={"Allow": "POST"})
 
 
+@app.get("/llms.txt", include_in_schema=False)
+def llms_txt(request: Request) -> PlainTextResponse:
+    """The llms.txt convention: one page that tells an agent what is here and how to call it,
+    instead of making it infer the API from HTML. Generated, so it cannot drift from the routes."""
+    base = os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    led = _ledger()
+    nl = chr(10)
+    skills = nl.join(f"- `{d.name}`: {d.description}" for d in skill_definitions())
+    receipts = nl.join(
+        f"- [{d['symbol']} {d['id']}]({base}/r/{d['id']}.md) recorded {d['created_at']}"
+        for d in led.list_decisions(limit=20))
+    return PlainTextResponse(f"""# Nota
+
+> A council of AI agents argues over live RYO market evidence and records each call as a decision
+> receipt that replays identically from the ledger. Read-only research: no order is ever placed.
+
+Every number in a receipt carries the dotted RYO path it came from, its `as_of` and its `data_mode`.
+A value that could not be fetched stays null and is never turned into zero. Nota also recomputes
+RYO's own RSI and ATR from public candles and checks its price against three exchanges, and the
+judge refuses to size a trade when they disagree.
+
+## Call the skills over MCP
+
+POST {base}/mcp speaks the Model Context Protocol over Streamable HTTP (stateless; versions
+2026-07-28, 2025-06-18, 2025-03-26 and 2024-11-05 are all accepted).
+
+- `tools/list`, `tools/call` for the four research skills below
+- `resources/list`, `resources/read` for every receipt, addressed as `nota://receipt/<id>`
+
+```
+curl -s {base}/mcp -H 'content-type: application/json' \
+  -d '{{"jsonrpc":"2.0","id":1,"method":"tools/list"}}'
+```
+
+## Skills
+
+{skills}
+
+Each returns RYO's public envelope: `status`, `data_mode`, `as_of`, `availability` per source and
+`warnings`. They are also served over plain HTTP at `{base}/api/skills/` and
+`POST {base}/api/skills/<name>/invoke`.
+
+## Receipts in this ledger
+
+{receipts}
+
+Each receipt is also available as `{base}/r/<id>.json` and as a card image at `{base}/r/<id>.png`,
+and `{base}/api/decisions/<id>/replay` re-runs it from the stored evidence and reports whether the
+result is identical.
+
+## Pages
+
+- [Overview]({base}/): what Nota claims and how to check it
+- [Dashboard]({base}/app): every receipt, diffed against the one before it
+- [Health]({base}/api/health): what this deployment can and cannot do right now
+- [OpenAPI]({base}/docs)
+""", media_type="text/plain; charset=utf-8")
+
+
 @app.get("/r/{id}.md")
 def receipt_markdown(id: str) -> PlainTextResponse:
     return PlainTextResponse(render_markdown(_receipt(_ledger(), id)), media_type="text/markdown; charset=utf-8")

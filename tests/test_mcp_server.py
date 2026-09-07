@@ -89,3 +89,33 @@ def test_input_schema_is_json_schema_a_client_can_actually_build_a_call_from():
                                               "description": schema["properties"]["voices"]["description"]}
     assert "voices" in schema["required"] and "tokens" not in schema["required"]
     assert len(tool_list()) == len(definitions())
+
+
+def test_receipts_are_readable_as_mcp_resources(tmp_path, monkeypatch):
+    """A client that never touches this project's HTTP API can still list and read its receipts."""
+    from tests.test_api import _seed
+
+    first, second = _seed(tmp_path, monkeypatch)
+    listed = rpc({"jsonrpc": "2.0", "id": 10, "method": "resources/list"}).json()["result"]["resources"]
+    uris = [r["uri"] for r in listed]
+    assert f"nota://receipt/{first.id}" in uris and f"nota://receipt/{second.id}" in uris
+    assert all(r["mimeType"] == "text/markdown" and r["name"] and r["description"] for r in listed)
+
+    read = rpc({"jsonrpc": "2.0", "id": 11, "method": "resources/read",
+                "params": {"uri": f"nota://receipt/{second.id}"}}).json()["result"]["contents"]
+    assert [c["mimeType"] for c in read] == ["text/markdown", "application/json"]
+    assert read[0]["text"].startswith(f"# Decision receipt {second.id}")
+    assert json.loads(read[1]["text"])["id"] == second.id          # the receipt's own JSON, unaltered
+
+    missing = rpc({"jsonrpc": "2.0", "id": 12, "method": "resources/read",
+                   "params": {"uri": "nota://receipt/nope"}}).json()
+    assert missing["error"]["code"] == -32002
+    off_scheme = rpc({"jsonrpc": "2.0", "id": 13, "method": "resources/read",
+                      "params": {"uri": "file:///etc/passwd"}}).json()
+    assert off_scheme["error"]["code"] == -32002       # only this scheme is served
+
+
+def test_initialize_advertises_the_resources_capability():
+    caps = rpc({"jsonrpc": "2.0", "id": 14, "method": "initialize",
+                "params": {"protocolVersion": "2025-03-26", "capabilities": {}}}).json()["result"]["capabilities"]
+    assert "tools" in caps and "resources" in caps

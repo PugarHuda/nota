@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import os
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -81,57 +82,71 @@ class TelegramPublic:
         return parse_telegram_preview(resp.text, voice)
 
 
-# --- X / Twitter via Nitter mirror (best effort, unofficial) ----------------------------------
-_NITTER_LINK = re.compile(r'<a class="tweet-link" href="([^"]+)"')
-_NITTER_TEXT = re.compile(r'<div class="tweet-content[^"]*"[^>]*>(.*?)</div>', re.S)
-_NITTER_DATE = re.compile(r'<span class="tweet-date"><a[^>]*title="([^"]+)"')
-NITTER_ROUTER = "https://twiiit.com"  # redirects to a currently-alive public Nitter instance
+# --- X via its own public syndication endpoint (unofficial, keyless, rate limited) ------------
+_SYNDICATION = "https://syndication.twitter.com/srv/timeline-profile/screen-name"
+_NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S)
 
 
-def parse_nitter_timeline(page: str, voice: str, base: str) -> list[Message]:
-    if "timeline-item" not in page:
-        raise SourceUnavailable(f"{voice}: mirror returned no timeline (protected account, rate limit, or mirror down)")
+def parse_syndication(page: str, voice: str) -> list[Message]:
+    """Pull the timeline out of the embed page's own `__NEXT_DATA__` payload."""
+    m = _NEXT_DATA.search(page)
+    if not m:
+        raise SourceUnavailable(f"{voice}: syndication returned no timeline payload (rate limit, "
+                                "protected account, or the handle does not exist)")
+    try:
+        entries = json.loads(m.group(1))["props"]["pageProps"]["timeline"]["entries"]
+    except (KeyError, ValueError) as exc:
+        raise SourceUnavailable(f"{voice}: unexpected syndication payload ({type(exc).__name__})") from exc
     out: list[Message] = []
-    for block in page.split('<div class="timeline-item')[1:]:
-        link = _NITTER_LINK.search(block)
-        text = _NITTER_TEXT.search(block)
-        if not link or not text:
+    for entry in entries:
+        tweet = (entry.get("content") or {}).get("tweet")
+        if entry.get("type") != "tweet" or not tweet or not tweet.get("full_text"):
             continue
-        date = _NITTER_DATE.search(block)
         at = None
-        if date:
-            for fmt in ("%b %d, %Y · %I:%M %p UTC", "%b %d, %Y · %H:%M UTC"):
-                try:
-                    at = datetime.strptime(date.group(1), fmt).replace(tzinfo=timezone.utc).isoformat(timespec="seconds")
-                    break
-                except ValueError:
-                    continue
-        href = link.group(1).split("#")[0]
-        out.append(Message(voice=voice, id=href, url=f"https://x.com{href}", at=at, text=_strip(text.group(1))))
+        if tweet.get("created_at"):                      # "Mon Aug 17 09:00:50 +0000 2026"
+            try:
+                at = datetime.strptime(tweet["created_at"], "%a %b %d %H:%M:%S %z %Y").astimezone(
+                    timezone.utc).isoformat(timespec="seconds")
+            except ValueError:
+                at = None
+        out.append(Message(voice=voice, id=str(tweet.get("id_str") or entry.get("entry_id", "")),
+                           url=tweet.get("permalink") and f"https://x.com{tweet['permalink']}",
+                           at=at, text=_strip(tweet["full_text"])))
     return out
 
 
-class NitterPublic:
-    """Reads a public X timeline through whichever Nitter mirror the twiiit router points at.
+class XPublic:
+    """`x:<handle>` voices through X's own public syndication endpoint, the one that serves embedded
+    timelines. No key, no login, and the posts are dated.
 
-    Honest limits: unofficial, mirrors come and go (X served Nitter a cease-and-desist in Aug 2026),
-    so every failure is a SourceUnavailable and the voice is reported `unavailable`, never guessed.
+    Nitter, which this used to go through, is gone: X served cease-and-desist letters in August 2026
+    and the public mirrors including xcancel went dark, so a mirror-based reader is a feature that
+    does not work. This reads the syndication payload instead. It is unofficial and rate limited, so
+    every failure raises SourceUnavailable and the voice is reported `unavailable`, never guessed.
     """
 
-    def __init__(self, http: httpx.Client | None = None, router: str = NITTER_ROUTER):
-        self.http = http or httpx.Client(timeout=25.0, headers={"User-Agent": UA}, follow_redirects=True)
-        self.router = router.rstrip("/")
+    # the endpoint serves embedded timelines to browsers and answers a bot agent with a rate-limit
+    # page, so this one source asks the way a browser does
+    BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/140.0 Safari/537.36")
+
+    def __init__(self, http: httpx.Client | None = None, base: str = _SYNDICATION):
+        self.http = http or httpx.Client(timeout=25.0, follow_redirects=True,
+                                         headers={"User-Agent": self.BROWSER_UA,
+                                                  "Accept": "text/html,application/xhtml+xml"})
+        self.base = base.rstrip("/")
 
     def fetch(self, handle: str) -> list[Message]:
         voice = f"x:{handle}"
         try:
-            resp = self.http.get(f"{self.router}/{handle.lstrip('@')}")
+            resp = self.http.get(f"{self.base}/{handle.lstrip('@')}")
         except httpx.HTTPError as exc:
-            raise SourceUnavailable(f"{voice}: mirror network error {type(exc).__name__}") from exc
+            raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
         if resp.status_code != 200:
-            raise SourceUnavailable(f"{voice}: mirror HTTP {resp.status_code}")
-        base = f"{resp.url.scheme}://{resp.url.host}"
-        return parse_nitter_timeline(resp.text, voice, base)
+            raise SourceUnavailable(f"{voice}: syndication HTTP {resp.status_code}")
+        if "Rate limit exceeded" in resp.text[:2000]:
+            raise SourceUnavailable(f"{voice}: syndication rate limit reached for this address")
+        return parse_syndication(resp.text, voice)
 
 
 # --- Bluesky (public AppView API, no key) ----------------------------------------------------

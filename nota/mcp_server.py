@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from nota.ledger import Ledger
+from nota.receipt import Receipt, render_markdown
 from nota.skills import SKILLS, definitions, invoke
 
 SERVER_NAME = "nota"
@@ -49,6 +51,40 @@ def tool_list() -> list[dict[str, Any]]:
     return [{"name": d.name, "description": d.description, "inputSchema": input_schema(d)} for d in definitions()]
 
 
+RESOURCE_SCHEME = "nota://receipt/"
+RESOURCE_NOT_FOUND = -32002          # the spec's own code for an unknown resource
+
+
+def _ledger() -> Ledger:
+    import os
+
+    return Ledger(os.environ.get("NOTA_DB", "nota.db"))
+
+
+def resource_list(limit: int = 100) -> list[dict[str, Any]]:
+    """Every receipt in the ledger, addressable. A client can read one without knowing this API."""
+    out = []
+    for d in _ledger().list_decisions(limit=limit):
+        out.append({"uri": f"{RESOURCE_SCHEME}{d['id']}",
+                    "name": f"{d['symbol']} receipt {d['id']}",
+                    "description": f"Decision receipt for {d['symbol']} recorded {d['created_at']} "
+                                   f"by {d['model']}. Replayable from the stored evidence.",
+                    "mimeType": "text/markdown"})
+    return out
+
+
+def resource_read(uri: str) -> list[dict[str, Any]]:
+    """Markdown for a human or an LLM, and the receipt's own JSON beside it for a parser."""
+    if not uri.startswith(RESOURCE_SCHEME):
+        raise KeyError(uri)
+    raw = _ledger().get_decision(uri[len(RESOURCE_SCHEME):])
+    if raw is None:
+        raise KeyError(uri)
+    receipt = Receipt.model_validate_json(raw)
+    return [{"uri": uri, "mimeType": "text/markdown", "text": render_markdown(receipt)},
+            {"uri": f"{uri}.json", "mimeType": "application/json", "text": raw}]
+
+
 def _error(id_: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
     err: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
@@ -68,11 +104,12 @@ def handle(message: dict[str, Any], deps: dict[str, Any] | None = None) -> dict[
         version = asked if asked in SUPPORTED_PROTOCOLS else DEFAULT_PROTOCOL
         return {"jsonrpc": "2.0", "id": id_, "result": {
             "protocolVersion": version,
-            "capabilities": {"tools": {"listChanged": False}},
+            "capabilities": {"tools": {"listChanged": False}, "resources": {"listChanged": False}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
-            "instructions": "Four read-only research skills. Every result is RYO's public envelope: "
-                            "status, data_mode, as_of, availability per source and warnings. A value "
-                            "that could not be fetched stays null and is never replaced with zero.",
+            "instructions": "Four read-only research skills, plus every decision receipt in the "
+                            "ledger as a resource under nota://receipt/. Every skill result is RYO's "
+                            "public envelope: status, data_mode, as_of, availability per source and "
+                            "warnings. A value that could not be fetched stays null, never zero.",
         }}
     if method in ("notifications/initialized", "notifications/cancelled"):
         return None
@@ -80,6 +117,15 @@ def handle(message: dict[str, Any], deps: dict[str, Any] | None = None) -> dict[
         return {"jsonrpc": "2.0", "id": id_, "result": {}}
     if method == "tools/list":
         return {"jsonrpc": "2.0", "id": id_, "result": {"tools": tool_list()}}
+    if method == "resources/list":
+        return {"jsonrpc": "2.0", "id": id_, "result": {"resources": resource_list()}}
+    if method == "resources/read":
+        try:
+            contents = resource_read(params.get("uri", ""))
+        except KeyError:
+            return _error(id_, RESOURCE_NOT_FOUND, f"no such resource {params.get('uri')!r}",
+                          {"scheme": RESOURCE_SCHEME})
+        return {"jsonrpc": "2.0", "id": id_, "result": {"contents": contents}}
     if method == "tools/call":
         name, args = params.get("name"), params.get("arguments") or {}
         if name not in SKILLS:
