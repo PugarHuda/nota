@@ -95,6 +95,14 @@ def render_markdown(r: Receipt) -> str:
         lines += [f"- {t.side.upper()} {t.size_units:g} {t.symbol} ~ {t.size_usd:.2f} USD at {t.entry_price:g}",
                   f"- Stop {t.stop_price:g}  |  Target {t.target_price:g}  |  Risk {t.risk_usd:.2f} USD  |  ATR(14) {t.atr:g}  |  Edge {t.edge:.2f}",
                   f"- Price from `{t.source_paths['price']}`, ATR from `{t.source_paths['atr']}`"]
+        v = t.vs_ryo_plan
+        if v:
+            agree = "same direction" if v.get("agrees_on_direction") else "opposite direction"
+            lines.append(
+                f"- Against RYO's own plan (`{v['path']}`, {v.get('method')}): RYO stops at "
+                f"{v.get('ryo_stop')} and targets {v.get('ryo_target')} on a {v.get('ryo_atr_multiplier')}x ATR; "
+                f"this sizing uses {v.get('nota_atr_multiplier')}x, so the stop sits "
+                f"{v.get('stop_diff_pct')}% and the target {v.get('target_diff_pct')}% of entry away, {agree}.")
     else:
         lines.append(f"- Blocked: {t.reason}")
     lines += ["", "_Research on read-only RYO evidence. No order was placed. Not financial advice._"]

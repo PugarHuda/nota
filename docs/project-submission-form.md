@@ -44,7 +44,7 @@ by impact. Read-only; no orders.
 - Hosted dashboard: https://nota-ryo.vercel.app (read-only ledger snapshot, `/api/health` reports
   `ryo_key_set: false` — nothing is disguised as live).
 - `NOTA_DB=data/demo.db uv run nota serve`, `uv run nota skill run price_crosscheck '{"symbol":"SOL"}'`,
-  `uv run pytest -q` (118 tests, no network).
+  `uv run pytest -q` (139 tests; the browser QA drives a real server).
 
 ## Declarations
 

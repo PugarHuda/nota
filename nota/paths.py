@@ -27,3 +27,7 @@ RSI_14 = [
     "deep_analysis.data.technical_analysis.rsi_14",
     "analyze_token.data.technical_analysis.rsi_14",
 ]
+
+# RYO ships its own ATR-based preview plan. Nota sizes independently and then compares, because a
+# provider's plan is evidence about the provider, not an instruction.
+RYO_PLAN = "deep_analysis.data.trade_plan"

@@ -240,7 +240,11 @@ async function open(id, push = true) {
     <h2>Practice trade</h2>
     <div class="card">${t.kind === 'trade'
       ? `<b>${t.side.toUpperCase()}</b> ${px(t.size_units)} ${esc(t.symbol)} ≈ ${t.size_usd.toFixed(2)} USD at ${px(t.entry_price)}<br><span class="meta"><span>stop ${px(t.stop_price)}</span><span>target ${px(t.target_price)}</span><span>risk ${t.risk_usd.toFixed(2)} USD</span><span>ATR(14) ${px(t.atr)}</span><span>edge ${t.edge.toFixed(2)}</span></span>
-         <div class="cite">price <code>${esc(t.source_paths.price)}</code><br>atr <code>${esc(t.source_paths.atr)}</code></div>`
+         <div class="cite">price <code>${esc(t.source_paths.price)}</code><br>atr <code>${esc(t.source_paths.atr)}</code></div>
+      ${t.vs_ryo_plan ? `<div class="cite" style="margin-top:8px">against RYO's own plan (<code>${esc(t.vs_ryo_plan.path)}</code>, ${esc(t.vs_ryo_plan.method)}):
+        RYO stops ${px(t.vs_ryo_plan.ryo_stop)} and targets ${px(t.vs_ryo_plan.ryo_target)} on ${t.vs_ryo_plan.ryo_atr_multiplier}x ATR,
+        this sizing uses ${t.vs_ryo_plan.nota_atr_multiplier}x, so the stop is ${t.vs_ryo_plan.stop_diff_pct}% and the target
+        ${t.vs_ryo_plan.target_diff_pct}% of entry away, <b>${t.vs_ryo_plan.agrees_on_direction ? 'same direction' : 'opposite direction'}</b></div>` : ''}`
       : `<b>Blocked:</b> ${esc(t.reason)}`}</div>
 
     ${d.outcome ? `<h2>Outcome</h2><div class="card">${px(d.outcome.price_then)} → ${px(d.outcome.price_now)} (${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}%), ${d.outcome.horizon_reached ? 'at the 7-day horizon' : 'closed before the 7-day horizon'}

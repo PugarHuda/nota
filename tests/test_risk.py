@@ -77,3 +77,29 @@ def test_blocks_when_atr_puts_a_level_through_zero():
     assert isinstance(short, Blocked) and "at or below zero" in short.reason
 
     assert isinstance(size_trade(v("long", 0.8), _priced(100.0, 6.0)), PracticeTrade)
+
+
+def test_sizing_is_held_against_ryos_own_published_plan():
+    """RYO ships an ATR plan of its own. Nota sizes independently and then reports the gap, because
+    a provider's plan is evidence about the provider, not an instruction to follow."""
+    from pathlib import Path
+
+    from nota.ryo_client import RecordedRyoClient
+
+    recorded = Path(__file__).resolve().parents[1] / "fixtures" / "recorded"
+    if not (recorded / "deep_analysis" / "SOL.json").exists():
+        pytest.skip("no recorded live fixtures in this checkout")
+    live = gather(RecordedRyoClient(recorded, name="recorded"), "SOL")
+    t = size_trade(v("long", 0.7), live, RiskLimits())
+    assert isinstance(t, PracticeTrade)
+    plan = t.vs_ryo_plan
+    assert plan["path"] == "deep_analysis.data.trade_plan"
+    assert plan["ryo_atr_multiplier"] == 1.5 and plan["nota_atr_multiplier"] == 2.0
+    assert plan["agrees_on_direction"] is True          # both long, from the same ATR
+    assert plan["stop_diff_pct"] < 0 and plan["target_diff_pct"] > 0   # a wider stop and a further target
+    assert "wilder" in plan["method"]
+
+    # and a pack where RYO published no plan reports nothing rather than inventing a comparison
+    bare = _priced(100.0, 6.0)
+    bare.sections["deep_analysis"].envelope.data.pop("trade_plan")
+    assert size_trade(v("long", 0.8), bare, RiskLimits()).vs_ryo_plan is None

@@ -6,7 +6,7 @@ ATR is missing from the evidence the trade is blocked; we never assume a number.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -37,6 +37,7 @@ class PracticeTrade(BaseModel):
     atr: float
     edge: float
     source_paths: dict[str, str]
+    vs_ryo_plan: dict[str, Any] | None = None
 
 
 class Blocked(BaseModel):
@@ -56,6 +57,33 @@ def atr_usd(pack: EvidencePack, price: float) -> tuple[str | None, float | None]
     if pct is None:
         return None, None
     return f"{pct_path} x price / 100", price * pct / 100.0
+
+
+def compare_to_ryo_plan(pack: EvidencePack, entry: float, stop: float, target: float) -> dict[str, Any] | None:
+    """RYO publishes its own preview plan from the same ATR. Sizing here is independent, so the two
+    can be held against each other: agreement is corroboration, and a gap is worth seeing before
+    anyone acts. Returns None when RYO published no plan for this token."""
+    plan = pack.get(paths.RYO_PLAN)
+    if not isinstance(plan, dict):
+        return None
+    ryo_stop, ryo_targets = plan.get("stop"), plan.get("targets") or []
+    ryo_target = ryo_targets[0] if ryo_targets else plan.get("target")
+    out: dict[str, Any] = {
+        "path": paths.RYO_PLAN,
+        "method": plan.get("method"),
+        "ryo_atr_multiplier": plan.get("atr_multiplier"),
+        "nota_atr_multiplier": None,
+        "ryo_entry": plan.get("entry"), "ryo_stop": ryo_stop, "ryo_target": ryo_target,
+        "stop_diff_pct": None, "target_diff_pct": None, "agrees_on_direction": None,
+    }
+    if isinstance(ryo_stop, (int, float)) and not isinstance(ryo_stop, bool) and entry:
+        out["stop_diff_pct"] = round((stop - ryo_stop) / entry * 100, 3)
+    if isinstance(ryo_target, (int, float)) and not isinstance(ryo_target, bool) and entry:
+        out["target_diff_pct"] = round((target - ryo_target) / entry * 100, 3)
+        # RYO's plan is a long setup when its first target sits above its entry
+        ryo_long = ryo_target > (plan.get("entry") or entry)
+        out["agrees_on_direction"] = ryo_long == (target > entry)
+    return out
 
 
 def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None = None) -> PracticeTrade | Blocked:
@@ -105,4 +133,6 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
         atr=atr,
         edge=round(edge, 4),
         source_paths={"price": price_path or "", "atr": atr_path or ""},
+        vs_ryo_plan=(lambda c: c and {**c, "nota_atr_multiplier": limits.atr_stop_mult})(
+            compare_to_ryo_plan(pack, price, stop_price, target_price)),
     )

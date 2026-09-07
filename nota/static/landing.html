@@ -51,7 +51,22 @@
     mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 62%, transparent) }
   header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);
                  gap:clamp(24px,4vw,52px); align-items:center; position:relative }
-  .stage { position:relative; margin-right:calc(-1 * var(--pad) - 8px); perspective:1900px }
+  .seal { display:flex; flex-direction:column; align-items:center; gap:16px }
+  .seal svg { width:min(420px,86%); height:auto; overflow:visible }
+  .seal figcaption { max-width:40ch; text-align:center; margin:0; line-height:1.75 }
+  .seal .tick { stroke:var(--ink); stroke-width:1.4; opacity:.5 }
+  .seal .ring { fill:none; stroke:var(--rule-2) }
+  .seal .arc { fill:none; stroke:var(--accent); stroke-width:9; stroke-linecap:butt }
+  .seal .arc-track { fill:none; stroke:var(--rule); stroke-width:9 }
+  .seal .petal { fill:none; stroke:var(--ink); stroke-width:1; opacity:.32 }
+  .seal .core { fill:var(--panel); stroke:var(--rule-2) }
+  .seal .p { font:600 46px/1 var(--serif); fill:var(--ink); text-anchor:middle }
+  .seal .plabel { font:11px/1 var(--mono); fill:var(--ink-2); text-anchor:middle }
+  @media (prefers-reduced-motion: no-preference) {
+    .seal .tick, .seal .petal { animation:ink .7s both } .seal .arc { animation:sweep .9s .15s both }
+    @keyframes ink { from { opacity:0 } }
+    @keyframes sweep { from { stroke-dasharray:0 9999 } }
+  }
   .stage .frame { border:1px solid var(--rule-2); border-radius:3px; overflow:hidden; aspect-ratio:16/10.6;
     transform:rotateY(-9deg) rotateX(2deg) translateZ(0); transform-origin:left center;
     box-shadow:0 30px 60px -28px light-dark(rgba(23,23,27,.34), rgba(0,0,0,.72)),
@@ -132,6 +147,7 @@
   @media (max-width:700px) { .tracks article { grid-template-columns:1fr; gap:6px } }
 
   footer { border-top:1px solid var(--rule-2); padding:34px 0 46px; background:var(--panel) }
+  footer .cols code { color:var(--ink) }
   footer .cols { display:flex; flex-wrap:wrap; gap:14px 34px; font:13px/1.9 var(--mono) }
   footer .fine { color:var(--ink-2); font-size:13px; margin:20px 0 0; max-width:70ch }
 
@@ -170,12 +186,12 @@
       <output id="verify-out" aria-live="polite">Calls this site's API and re-runs receipt dbd7727f5a25.</output>
     </p>
     </div>
-    <div class="stage">
-      <div class="frame">
-        <img src="/img/dashboard.png" width="1400" height="900" fetchpriority="high"
-             alt="The Nota dashboard: a long call on ETH with its evidence provenance and the ranked diff against the previous receipt.">
-      </div>
-    </div>
+    <figure class="seal">
+      <svg id="mark" viewBox="0 0 420 420" role="img"
+           aria-label="A circular mark drawn from receipt dbd7727f5a25: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability of 0.68."></svg>
+      <figcaption>Receipt <a href="/r/dbd7727f5a25">dbd7727f5a25</a>. The ticks are its evidence hash,
+        the arc is the probability the judge stated. The same evidence always draws the same mark.</figcaption>
+    </figure>
   </div>
 </header>
 
@@ -295,6 +311,7 @@
       <a href="/app">Dashboard</a>
       <a href="/demo.mp4">Walkthrough video</a>
       <a href="/api/skills/">Skill catalogue</a>
+      <span class="muted">MCP endpoint: <code>POST /mcp</code></span>
       <a href="/api/health">Health</a>
       <a href="https://github.com/PugarHuda/nota">Source</a>
     </div>
@@ -303,6 +320,49 @@
   </div>
 </footer>
 <script>
+  // The mark is drawn from the receipt itself, not decoration: every tick is a nibble of the
+  // evidence hash and the arc is the probability the judge stated. Same receipt, same mark.
+  (() => {
+    const HASH = 'd298483bba6c278de5d7c1e1ee096d6a5eaf7e7e5bf9823edc0c4aabc008071a', P_UP = 0.68;
+    const svg = document.getElementById('mark'), NS = 'http://www.w3.org/2000/svg';
+    const cx = 210, cy = 210, add = (tag, attrs, cls) => {
+      const el = document.createElementNS(NS, tag);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      if (cls) el.setAttribute('class', cls);
+      svg.appendChild(el); return el;
+    };
+    const pt = (r, deg) => [cx + r * Math.cos((deg - 90) * Math.PI / 180), cy + r * Math.sin((deg - 90) * Math.PI / 180)];
+
+    add('circle', {cx, cy, r: 196, 'stroke-width': 1}, 'ring');
+    add('circle', {cx, cy, r: 150, 'stroke-width': 1}, 'ring');
+
+    // 64 ticks, one per hex character, length set by its value
+    [...HASH].forEach((ch, i) => {
+      const v = parseInt(ch, 16), a = i * (360 / HASH.length);
+      const [x1, y1] = pt(152, a), [x2, y2] = pt(158 + v * 2.6, a);
+      const el = add('line', {x1, y1, x2, y2}, 'tick');
+      el.style.animationDelay = `${i * 6}ms`;
+    });
+
+    // 16 chords across the field, each pair of bytes choosing where it lands
+    for (let i = 0; i < 16; i++) {
+      const a = parseInt(HASH.slice(i * 4, i * 4 + 2), 16) / 255 * 360;
+      const b = parseInt(HASH.slice(i * 4 + 2, i * 4 + 4), 16) / 255 * 360;
+      const [x1, y1] = pt(140, a), [x2, y2] = pt(140, b);
+      const el = add('path', {d: `M${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`}, 'petal');
+      el.style.animationDelay = `${120 + i * 22}ms`;
+    }
+
+    // the judge's probability, as the arc it literally is
+    const R = 174, sweep = P_UP * 360, [sx, sy] = pt(R, 0), [ex, ey] = pt(R, sweep);
+    add('circle', {cx, cy, r: R}, 'arc-track');
+    add('path', {d: `M${sx} ${sy} A ${R} ${R} 0 ${sweep > 180 ? 1 : 0} 1 ${ex} ${ey}`}, 'arc');
+
+    add('circle', {cx, cy, r: 96, 'stroke-width': 1}, 'core');
+    add('text', {x: cx, y: cy + 6}, 'p').textContent = P_UP.toFixed(2);
+    add('text', {x: cx, y: cy + 30}, 'plabel').textContent = 'p_up_7d';
+  })();
+
   // The headline claims a receipt re-runs. The button lets the reader check that claim against the
   // deployed API before reading another word, and reports a failure as a failure.
   const out = document.getElementById('verify-out'), btn = document.getElementById('verify');

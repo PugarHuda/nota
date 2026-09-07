@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import json
 import os
+from urllib.parse import urlparse
 import re
 import time
 from pathlib import Path
@@ -16,7 +17,7 @@ from typing import Any, Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from nota import paths
@@ -28,6 +29,7 @@ from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
 from nota.risk import PracticeTrade
 from nota.ryo_client import RyoClient
+from nota.mcp_server import handle as mcp_handle
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 
 load_dotenv()
@@ -255,6 +257,49 @@ def replay_check(id: str) -> dict[str, Any]:
     except RuntimeError as exc:
         return {"identical": None, "diff": [], "error": str(exc)}
     return {"identical": res.identical, "diff": res.diff, "error": None}
+
+
+# --- Nota as an MCP server: the same four skills, over the Streamable HTTP transport ------------
+ALLOWED_ORIGIN_HOSTS = {"nota-ryo.vercel.app", "ryo-arena.vercel.app", "localhost", "127.0.0.1", "testserver"}
+
+
+def _origin_ok(request: Request) -> bool:
+    """The transport spec requires servers to validate Origin against DNS rebinding. A request with
+    no Origin is a non-browser client (curl, an MCP host) and is allowed."""
+    origin = request.headers.get("origin")
+    if not origin:
+        return True
+    host = urlparse(origin).hostname or ""
+    return host in ALLOWED_ORIGIN_HOSTS
+
+
+@app.post("/mcp", include_in_schema=False)
+async def mcp_endpoint(request: Request) -> Response:
+    if not _origin_ok(request):
+        raise HTTPException(403, "origin not allowed")
+    try:
+        body = json.loads(await request.body())
+    except ValueError as exc:
+        return JSONResponse({"jsonrpc": "2.0", "id": None,
+                             "error": {"code": -32700, "message": f"parse error: {exc}"}}, status_code=400)
+    batch = body if isinstance(body, list) else [body]
+    if not batch or not all(isinstance(m, dict) for m in batch):
+        return JSONResponse({"jsonrpc": "2.0", "id": None,
+                             "error": {"code": -32600, "message": "expected a JSON-RPC message or a batch"}},
+                            status_code=400)
+    deps: dict[str, Any] = {}
+    replies = [r for r in (mcp_handle(m, deps) for m in batch) if r is not None]
+    if not replies:                       # only notifications or responses came in
+        return Response(status_code=202)
+    return JSONResponse(replies if isinstance(body, list) else replies[0])
+
+
+@app.get("/mcp", include_in_schema=False)
+@app.delete("/mcp", include_in_schema=False)
+def mcp_no_stream() -> Response:
+    """Stateless server: no server-initiated stream and no session to delete, which the spec
+    answers with 405 rather than pretending to hold one."""
+    return Response(status_code=405, headers={"Allow": "POST"})
 
 
 @app.get("/r/{id}.md")

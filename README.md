@@ -43,6 +43,11 @@ gather ──────────► council ──► judge ──► risk 
   opinion is downgraded.
 - **Judge**: weighs opinions by each agent's historical Brier score and decides
   long / short / no_trade.
+- **RYO's own plan is evidence, not an instruction**: `deep_analysis.data.trade_plan` carries RYO's
+  ATR preview (entry, stop, targets, multiplier, method). Nota sizes independently and then reports
+  the gap on the receipt: on the shipped ETH call, RYO stops at 2357.83 on a 1.5× ATR while this
+  sizing uses 2.0×, so the stop sits 1.8% of entry lower and the first target 5.4% further, both in
+  the same direction.
 - **Risk**: a pure function. Stop = 2×ATR(14), target = 3×ATR, size from 1% account risk,
   capped at 20% of the account. No price or no ATR means **Blocked**, never a guessed number,
   and so does an ATR big enough to put the stop or target at or below zero: on an instrument that
@@ -120,6 +125,31 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
   of reference values (RYO's `technicals.rsi_14` / `atr_14`) from the independent calculation.
   The Technician sees it as `technicals_check` on every decision.
 
+## Nota is also an MCP server (Track 3)
+
+Nota is an MCP client of RYO. It is also an MCP server, so RYO, Claude Desktop, Cursor or any other
+MCP host can call the four skills directly with no wrapper:
+
+```jsonc
+// claude_desktop_config.json, or any MCP client that speaks Streamable HTTP
+{ "mcpServers": { "nota": { "url": "https://nota-ryo.vercel.app/mcp" } } }
+```
+
+```bash
+curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
+
+curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"technicals_crosscheck","arguments":{"symbol":"SOL"}}}'
+```
+
+One endpoint, POST only, stateless. It negotiates the protocol version the client asks for
+(`2026-07-28`, `2025-06-18`, `2025-03-26` or RYO's own `2024-11-05`), validates the `Origin` header
+against DNS rebinding as the transport spec requires, answers a batch with one response per request,
+returns `202 Accepted` with no body when the body holds only notifications, and answers `405` to GET
+and DELETE because there is no stream to open and no session to delete. Each tool's `inputSchema` is
+generated from the same skill definition the REST route and the dashboard form use, so the three can
+never drift apart. `tools/call` returns the RYO envelope twice: as text for clients that only read
+text, and as `structuredContent` for clients that parse.
+
 ## Dashboard (Track 2)
 
 `nota serve` exposes a read-only API over the ledger (`/api/decisions`, `/api/decisions/{id}`,
@@ -168,7 +198,7 @@ NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verif
 NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 118 tests, no network
+uv run pytest -q                              # 139 tests
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
