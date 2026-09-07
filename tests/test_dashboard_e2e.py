@@ -53,7 +53,7 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     page = browser.new_page(viewport={"width": 1400, "height": 900})
     errors = []
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
-    page.goto(base + "/")
+    page.goto(base + "/app")
     page.wait_for_selector("#list .row")
     assert page.locator("#list .row").count() == 2
     page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
@@ -123,7 +123,7 @@ def test_permalink_404_exports_and_mobile_layout(server, browser):
 def test_theme_toggle_cycles_and_persists(server, browser):
     base, _first, _second = server
     page = browser.new_page(viewport={"width": 1000, "height": 700})
-    page.goto(base + "/")
+    page.goto(base + "/app")
     page.wait_for_selector("#theme")
     assert page.locator("#theme").inner_text() == "theme: system"
     assert page.evaluate("document.documentElement.dataset.theme") in (None, "")  # system sets no attribute

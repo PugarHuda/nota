@@ -67,7 +67,7 @@ def main() -> None:
         browser = p.chromium.launch()
         ctx = browser.new_context(viewport={"width": 1280, "height": 720}, record_video_dir=str(OUT), record_video_size={"width": 1280, "height": 720})
         page = ctx.new_page()
-        page.goto(base + "/")
+        page.goto(base + "/app")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")
         say(page, "Nota: an AI trading opinion you can audit. Every decision is a receipt you can re-run "

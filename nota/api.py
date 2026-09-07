@@ -395,8 +395,22 @@ def favicon() -> Response:
 
 
 @app.get("/")
+def landing() -> FileResponse:
+    """The reading room: what Nota claims and how to check it. The instrument itself is /app."""
+    return FileResponse(STATIC / "landing.html")
+
+
+@app.get("/app")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/img/{name}.png", include_in_schema=False)
+def landing_image(name: str) -> FileResponse:
+    path = (STATIC / "img" / f"{name}.png").resolve()
+    if path.parent != (STATIC / "img").resolve() or not path.exists():
+        raise HTTPException(404, "no such image")
+    return FileResponse(path, media_type="image/png")
 
 
 @app.get("/demo.mp4", include_in_schema=False)

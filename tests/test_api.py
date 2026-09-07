@@ -118,3 +118,15 @@ def test_health_admits_when_no_llm_key_is_configured(tmp_path, monkeypatch):
     assert TestClient(api.app).get("/api/health").json()["llm"]["key_set"] is False
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     assert TestClient(api.app).get("/api/health").json()["llm"]["key_set"] is True
+
+
+def test_landing_at_root_dashboard_at_app(tmp_path, monkeypatch):
+    """The root is the reading room; the instrument keeps its own URL so permalinks stay put."""
+    _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    root = c.get("/")
+    assert root.status_code == 200 and "A trading call you can re-run" in root.text
+    assert '<div id="list"></div>' not in root.text          # the landing is not the dashboard
+    assert c.get("/app").status_code == 200 and 'id="list"' in c.get("/app").text
+    assert c.get("/img/dashboard.png").headers["content-type"] == "image/png"
+    assert c.get("/img/nope.png").status_code == 404

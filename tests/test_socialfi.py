@@ -79,6 +79,6 @@ def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):
     page = c.get(f"/r/{second.id}").text
     assert f'<meta property="og:image" content="http://testserver/r/{second.id}.png">' in page
     assert 'name="twitter:card" content="summary_large_image"' in page and "<!--OG-->" not in page
-    assert "<!--OG-->" in c.get("/").text and "<!--OG-->" in c.get("/r/nope").text
+    assert "<!--OG-->" in c.get("/app").text and "<!--OG-->" in c.get("/r/nope").text  # the placeholder is only in the dashboard shell
     monkeypatch.setenv("NOTA_PUBLIC_URL", "https://nota.example/")
     assert 'content="https://nota.example/r/' in c.get(f"/r/{second.id}").text

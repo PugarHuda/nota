@@ -36,7 +36,7 @@ def main() -> None:
     with sync_playwright() as p:
         b = p.chromium.launch()
         page = b.new_page(viewport={"width": 1400, "height": 900})
-        page.goto(base + "/")
+        page.goto(base + "/app")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
         page.wait_for_function("document.querySelector('#summary-position').textContent.includes('Position')")
         page.screenshot(path=str(OUT / "dashboard.png"))
@@ -45,7 +45,7 @@ def main() -> None:
         page.locator("#verify").scroll_into_view_if_needed()
         page.screenshot(path=str(OUT / "verify-replay.png"), clip={"x": 300, "y": 0, "width": 800, "height": 900})
         mobile = b.new_page(viewport={"width": 390, "height": 844})
-        mobile.goto(base + "/")
+        mobile.goto(base + "/app")
         mobile.wait_for_selector("#detail .headline")
         mobile.screenshot(path=str(OUT / "mobile.png"))
         first = page.evaluate("document.querySelector('#list .row').getAttribute('aria-label')")

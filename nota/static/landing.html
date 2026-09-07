@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nota</title>
+<meta name="description" content="An AI council reads live RYO market evidence and stores every call as a receipt that re-runs identically, with no key and no network.">
+<meta property="og:title" content="Nota: a trading call you can re-run">
+<meta property="og:description" content="Every decision is a receipt. Replay it from the ledger and get the same answer, with every number traced to the RYO path it came from.">
+<meta property="og:type" content="website">
+<style>
+  /* One system with the dashboard: same tokens, same two families, same 2px corner. The landing is
+     the reading room; /app is the instrument. Native CSS, no framework, so it works offline. */
+  :root { color-scheme: light dark;
+    --paper:light-dark(#f5f4f0,#121316); --panel:light-dark(#ffffff,#191a1e);
+    --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
+    --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
+    --accent:light-dark(#1b4b8f,#82a9e6);
+    --long:light-dark(#2c6a4e,#61a482);
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --measure:66ch; --pad:clamp(20px,5vw,64px);
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.6 var(--serif);
+         -webkit-font-smoothing:antialiased }
+  code, .mono, kbd, .num { font-family:var(--mono); font-variant-numeric:tabular-nums }
+  a { color:var(--accent); text-underline-offset:3px }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:3px }
+  img { max-width:100%; display:block }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 var(--pad) }
+
+  /* navigation: one line, 62px */
+  nav { height:62px; display:flex; align-items:center; gap:26px; border-bottom:1px solid var(--rule);
+        background:var(--panel); position:sticky; top:0; z-index:10 }
+  nav .wrap { display:flex; align-items:center; gap:26px; width:100% }
+  nav b { font-size:19px; letter-spacing:-.01em }
+  nav a { font:13px/1 var(--mono); color:var(--ink-2); text-decoration:none }
+  nav a:hover { color:var(--ink) }
+  nav .right { margin-left:auto; display:flex; align-items:center; gap:20px }
+  nav .cta { color:var(--accent) }
+  @media (max-width:640px) { nav .right a:not(.cta) { display:none } }
+
+  /* hero: headline, subtext, two actions. Nothing else. */
+  header { padding:clamp(40px,7vh,72px) 0 clamp(40px,7vh,64px) }
+  header .wrap { display:grid; grid-template-columns:1.02fr .98fr; gap:clamp(28px,5vw,64px); align-items:center }
+  @media (max-width:960px) { header .wrap { grid-template-columns:1fr } }
+  h1 { font:600 clamp(34px,3.7vw,45px)/1.1 var(--serif); letter-spacing:-.028em; margin:0; max-width:19ch; hyphens:none }
+  .sub { font-size:clamp(17px,1.6vw,20px); color:var(--ink-2); margin:18px 0 0; max-width:46ch }
+  .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px }
+  .btn { font:13px/1 var(--mono); padding:12px 16px; white-space:nowrap; border-radius:2px; text-decoration:none;
+         border:1px solid var(--accent); color:var(--paper); background:var(--accent) }
+  .btn.ghost { background:none; color:var(--accent) }
+  .btn:hover { filter:brightness(1.08) }
+
+  section { padding:clamp(44px,7vh,76px) 0; border-top:1px solid var(--rule) }
+  h2 { font:600 clamp(26px,3.4vw,36px)/1.18 var(--serif); letter-spacing:-.02em; margin:0 0 14px; max-width:22ch }
+  h3 { font:600 18px/1.35 var(--serif); margin:0 0 4px }
+  p { max-width:var(--measure) }
+  .lede { color:var(--ink-2); margin:0 0 32px }
+
+  /* the proof: a real terminal transcript, not a styled div pretending to be one */
+  figure { margin:0 }
+  pre.proof { margin:0; background:light-dark(#1a1b1f,#0d0e11); color:#e8e7e2; border-radius:2px; white-space:pre;
+           padding:20px 22px; font:13px/1.8 var(--mono); overflow-x:auto }
+  .proof .p { color:#8fa3c4 } .proof .ok { color:#7fc9a3 } .proof .c { color:#9298a6 }
+  figcaption { font:13px/1.6 var(--mono); color:var(--ink-2); margin-top:12px }
+  .audit { display:grid; grid-template-columns:1fr auto auto auto; gap:0; margin-top:26px;
+           font:14px/1 var(--mono); max-width:640px }
+  .audit > * { padding:11px 14px 11px 0; border-bottom:1px solid var(--rule) }
+  .audit .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
+  .audit .n { text-align:right; font-variant-numeric:tabular-nums }
+  .audit .agree { text-align:right; color:var(--long) }
+
+  /* the sequence: this content really is ordered, so it is numbered */
+  ol.steps { list-style:none; margin:0; padding:0; counter-reset:s;
+             display:grid; gap:0; border-top:1px solid var(--rule) }
+  ol.steps li { counter-increment:s; display:grid; grid-template-columns:52px 1fr;
+                gap:20px; padding:20px 0; border-bottom:1px solid var(--rule) }
+  ol.steps li::before { content:counter(s,decimal-leading-zero); font:13px/1.7 var(--mono); color:var(--ink-2) }
+  ol.steps p { margin:0; color:var(--ink-2); max-width:60ch }
+
+  /* asymmetric image and text, used once */
+  .shot { display:grid; grid-template-columns:1.55fr 1fr; gap:40px; align-items:start }
+  .shot img { border:1px solid var(--rule-2); border-radius:2px }
+  @media (max-width:900px) { .shot { grid-template-columns:1fr } }
+
+  dl.rules { display:grid; grid-template-columns:minmax(200px,1fr) 2fr; gap:0; margin:0;
+             border-top:1px solid var(--rule) }
+  dl.rules dt { font:13px/1.7 var(--mono); padding:16px 20px 16px 0; border-bottom:1px solid var(--rule) }
+  dl.rules dd { margin:0; padding:16px 0; border-bottom:1px solid var(--rule); color:var(--ink-2) }
+  @media (max-width:760px) { dl.rules { grid-template-columns:1fr } dl.rules dt { border:0; padding-bottom:2px } }
+
+  .social { display:grid; grid-template-columns:1fr 1.15fr; gap:44px; align-items:center }
+  .social p { margin:0 0 14px; color:var(--ink-2); max-width:52ch }
+  .social img { border:1px solid var(--rule-2); border-radius:2px }
+  @media (max-width:900px) { .social { grid-template-columns:1fr; gap:24px } }
+
+  .tracks { border-top:1px solid var(--rule) }
+  .tracks article { display:grid; grid-template-columns:120px 1fr; gap:24px;
+                    padding:24px 0; border-bottom:1px solid var(--rule) }
+  .tracks .no { font:13px/1.7 var(--mono); color:var(--ink-2) }
+  .tracks p { margin:0; color:var(--ink-2) }
+  @media (max-width:700px) { .tracks article { grid-template-columns:1fr; gap:6px } }
+
+  footer { border-top:1px solid var(--rule-2); padding:34px 0 46px; background:var(--panel) }
+  footer .cols { display:flex; flex-wrap:wrap; gap:14px 34px; font:13px/1.9 var(--mono) }
+  footer .fine { color:var(--ink-2); font-size:13px; margin:20px 0 0; max-width:70ch }
+
+  /* one orchestrated moment: the hero settles once on load, then the page is still */
+  @media (prefers-reduced-motion: no-preference) {
+    header > .wrap > * { animation:rise .5s both cubic-bezier(.2,.7,.3,1) }
+    header h1 { animation-delay:.02s } .sub { animation-delay:.10s } .actions { animation-delay:.18s }
+    @keyframes rise { from { opacity:0; transform:translateY(9px) } to { opacity:1; transform:none } }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <b>Nota</b>
+    <div class="right">
+      <a href="#proof">Verification</a>
+      <a href="#how">How it works</a>
+      <a href="https://github.com/PugarHuda/nota">Source</a>
+      <a class="cta" href="/app">Open the dashboard</a>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div>
+    <h1>A trading call you can re-run.</h1>
+    <p class="sub">A council of agents argues over live RYO market evidence, then stores the call as a receipt that reproduces exactly.</p>
+    <div class="actions">
+      <a class="btn" href="/app">Open the dashboard</a>
+      <a class="btn ghost" href="/demo.mp4">Watch the demo</a>
+    </div>
+    </div>
+    <figure>
+      <pre class="proof"><span class="c">$</span> NOTA_DB=data/demo.db nota replay dbd7727f5a25
+<span class="ok">identical: True</span>  (fresh=False)
+
+<span class="c">$</span> curl -s https://nota-ryo.vercel.app/api/decisions/dbd7727f5a25/replay
+{<span class="p">"identical"</span>: true, <span class="p">"diff"</span>: [], <span class="p">"error"</span>: null}</pre>
+      <figcaption>Real output. Replay reads the ledger only, so it needs no key and no network.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<section id="proof">
+  <div class="wrap">
+    <h2>Nota audits the data it is given.</h2>
+    <p class="lede">RYO publishes an ATR and an RSI. Nota recomputes both from public candles with Wilder's method
+      and compares them, and it checks RYO's price against the median of three exchanges. When they disagree, the
+      judge refuses to size a trade at all. These figures come from the live receipt of 7 September 2026, and all
+      four shipped receipts replay identically, including one produced by a different model provider.</p>
+    <div class="audit">
+      <div class="h">Measure</div><div class="h n">Nota</div><div class="h n">RYO</div><div class="h n">Apart</div>
+      <div>ATR(14), USD</div><div class="n">4.347</div><div class="n">4.3762</div><div class="agree">0.67%</div>
+      <div>RSI(14)</div><div class="n">64.84</div><div class="n">68.70</div><div class="agree">3.9 pts</div>
+      <div>Price, USD</div><div class="n">105.05</div><div class="n">104.946</div><div class="agree">0.10%</div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How one decision is made</h2>
+    <ol class="steps">
+      <li><div><h3>Gather</h3><p>Five RYO tools are read into one evidence pack. A tool that fails becomes a
+        section marked with its error, and the pack is still built.</p></div></li>
+      <li><div><h3>Argue</h3><p>A macro, a technical and a narrative agent each return a stance, a probability and
+        citations as dotted paths. A citation pointing at absent evidence is dropped in code, and the opinion is
+        downgraded for it.</p></div></li>
+      <li><div><h3>Judge</h3><p>A fourth agent weighs the three by their own Brier score from past calls, then
+        decides long, short, or no trade.</p></div></li>
+      <li><div><h3>Size</h3><p>Pure arithmetic, no model: stop at twice ATR, target at three times, size from one
+        percent of the account. A missing price or ATR blocks the trade rather than assuming a number.</p></div></li>
+      <li><div><h3>Record</h3><p>Everything lands in a receipt with each number's RYO path, as_of, data_mode and
+        trace id, so the decision can be replayed and later scored against what the price actually did.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap shot">
+    <img src="/img/dashboard.png" width="1400" height="900"
+         alt="The Nota dashboard showing a long call on ETH, its evidence provenance and the ranked diff against the previous receipt.">
+    <div>
+      <h2>Built to be read, not admired</h2>
+      <p class="lede">The dashboard opens on a thirty second summary: what was decided, what changed most since the
+        previous receipt, where the practice position stands, and what happens next.</p>
+      <p class="lede">Every receipt is diffed against the one before it and ranked by impact, degraded evidence is
+        announced at the top rather than buried, and the whole page is reachable from the keyboard.</p>
+      <p><a href="/app">Open the dashboard</a></p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Rules the code enforces</h2>
+    <dl class="rules">
+      <dt>null stays null</dt><dd>A missing value is never turned into zero, anywhere in the pipeline.</dd>
+      <dt>values come from evidence</dt><dd>Each cited number is read back out of the evidence pack, never retyped by the model.</dd>
+      <dt>simulated never trades</dt><dd>If RYO marks the primary evidence as simulated, sizing is blocked and the receipt says so.</dd>
+      <dt>no order is ever placed</dt><dd>The RYO surface used here is read only. Positions are paper, and they are labelled as paper.</dd>
+      <dt>the label is on the receipt</dt><dd>Live, recorded and fixture evidence each carry their own source label, printed on the receipt.</dd>
+      <dt>agents earn their weight</dt><dd>Once a call resolves at its seven day horizon, each agent's Brier score changes how much the judge listens.</dd>
+    </dl>
+  </div>
+</section>
+
+<section id="social">
+  <div class="wrap">
+    <h2>Public reasoning, publicly scored</h2>
+    <div class="social">
+      <div>
+        <p>A call only its author can see costs nothing to make. Every receipt has a permanent link and renders as
+          this card when the link is shared, so the argument travels with the number.</p>
+        <p>Anyone can back a receipt or disagree with it under a handle, one stance each, before the outcome is
+          known. At the seven day horizon the call is scored against a fresh price and every backer's accuracy moves
+          with it. A no trade is never scored.</p>
+        <p>The agents are on the same hook: each carries its own Brier score from past calls, and that score is what
+          decides how much the judge listens next time.</p>
+      </div>
+      <figure>
+        <img src="/img/card.png" width="1200" height="630"
+             alt="The Open Graph card generated for a Nota receipt, showing the symbol, the verdict and the evidence hash.">
+        <figcaption>Generated per receipt at /r/&lt;id&gt;.png</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Three tracks, one system</h2>
+    <div class="tracks">
+      <article>
+        <div class="no">Track 1</div>
+        <div><h3>Autonomous agents</h3><p>The council, the receipts, and a watch loop that decides on a schedule,
+          exits practice positions at stop or target, scores what has matured, and publishes to Telegram or Discord.</p></div>
+      </article>
+      <article>
+        <div class="no">Track 2</div>
+        <div><h3>Dashboard</h3><p>Diff first and keyboard first, with replay verification, Open Graph receipt cards,
+          and a public backing leaderboard scored when a call resolves.</p></div>
+      </article>
+      <article>
+        <div class="no">Track 3</div>
+        <div><h3>Skills</h3><p>Four research skills served on RYO's own /api/skills paths in RYO's envelope, so
+          adding them to RYO is a route registration rather than a port: narrative convergence, news verification,
+          price cross-check and technicals cross-check.</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <a href="/app">Dashboard</a>
+      <a href="/demo.mp4">Walkthrough video</a>
+      <a href="/api/skills/">Skill catalogue</a>
+      <a href="/api/health">Health</a>
+      <a href="https://github.com/PugarHuda/nota">Source</a>
+    </div>
+    <p class="fine">Built for the RYO-CHAN Virtual Hackathon 2026. Research on read only market evidence.
+      Practice trades only, and not financial advice.</p>
+  </div>
+</footer>
+</body>
+</html>
