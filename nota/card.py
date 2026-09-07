@@ -58,7 +58,14 @@ def render_card(r: Receipt) -> bytes:
         d.text((48, y), f"entry {t.entry_price:g}   stop {t.stop_price:g}   target {t.target_price:g}   size {t.size_usd:.0f} USD   ATR {t.atr:g}",
                font=_font(28), fill=FG)
     else:
-        d.text((48, y), f"blocked: {t.reason}"[:90], font=_font(28), fill=FG)
+        # the headline already says a trade was blocked, so this line carries what the reader does
+        # not have yet: why the judge held back, or the risk it named when the reason only restates
+        # the verdict. A card is read out of context and cannot afford to say one thing three times.
+        reason = t.reason
+        if reason.startswith("judge decided"):
+            risks = r.verdict.key_risks or []
+            reason = risks[0] if risks else "the council did not reach a tradeable edge"
+        d.text((48, y), f"why: {reason}"[:96], font=_font(28), fill=FG)
     y += 50
     council = "   ".join(f"{o.role} {o.stance} {o.p_up_7d:.2f}" for o in r.opinions)
     d.text((48, y), council, font=_font(26), fill=DIM)

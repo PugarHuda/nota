@@ -121,7 +121,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       bundled walkthrough. `.env` is absent, only `.env.example`. Remote `organiser`; re-push with
       `git push organiser main`.
 
-- [x] `uv run pytest -q` green (165 passed, 2026-09-07)
+- [x] `uv run pytest -q` green (167 passed, 2026-09-07)
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (re-checked 2026-09-07)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`

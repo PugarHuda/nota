@@ -114,7 +114,7 @@ uv run nota scores
 uv run nota record SOL         # capture all six live tools into fixtures/recorded
 uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
 uv run nota positions                      # open practice positions vs the latest independent price
-uv run nota serve                          # dashboard + read API on http://127.0.0.1:8000
+uv run nota serve                          # http://127.0.0.1:8000 overview, /app dashboard, /mcp
 uv run nota skill spec                     # Track 3 definitions
 uv run nota skill run price_crosscheck '{"symbol":"SOL","reference_price":150}'
 uv run pytest -q
@@ -231,10 +231,10 @@ SOL / BTC / ETH, each labelled with its own source) and every one of them verifi
 ```bash
 uv sync
 NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verified with no key at all
-NOTA_DB=data/demo.db uv run nota serve      # dashboard, replay verification, cards, skills, backing
+NOTA_DB=data/demo.db uv run nota serve      # then open http://127.0.0.1:8000/app for the dashboard
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 165 tests
+uv run pytest -q                              # 167 tests
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's

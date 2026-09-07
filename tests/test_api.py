@@ -170,3 +170,20 @@ def test_the_landing_page_never_states_a_number_the_ledger_does_not_hold():
     known = {r["pack_hash"] for r in receipts}
     on_page = set(re.findall(r"\b[0-9a-f]{64}\b", page))
     assert on_page <= known, f"hex strings on the page that no receipt holds: {sorted(on_page - known)}"
+
+
+def test_documented_local_paths_all_exist(tmp_path, monkeypatch):
+    """Route changes are silent in prose. Every path the README and the submission form tell a judge
+    to open is asserted here, so moving one breaks a test instead of a first impression."""
+    import re
+    from pathlib import Path
+
+    _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    root = Path(__file__).resolve().parents[1]
+    docs = "\n".join((root / f).read_text(encoding="utf-8")
+                     for f in ("README.md", "docs/project-submission-form.md"))
+    paths = {m.group(1) or "/" for m in re.finditer(r"http://127\.0\.0\.1:8000(/[\w./-]*)?", docs)}
+    assert paths, "no local URL is documented at all"
+    for path in sorted(paths):
+        assert c.get(path).status_code == 200, f"the docs send a judge to {path}, which does not answer"

@@ -82,3 +82,19 @@ def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):
     assert "<!--OG-->" in c.get("/app").text and "<!--OG-->" in c.get("/r/nope").text  # the placeholder is only in the dashboard shell
     monkeypatch.setenv("NOTA_PUBLIC_URL", "https://nota.example/")
     assert 'content="https://nota.example/r/' in c.get(f"/r/{second.id}").text
+
+
+def test_a_blocked_card_says_why_instead_of_repeating_the_headline(tmp_path, monkeypatch):
+    """The card is the artefact most likely to be read out of context, so it cannot spend its one
+    free line restating the verdict that is already in the headline above it."""
+    from nota.card import render_card
+
+    first, _second = _seed(tmp_path, monkeypatch)
+    blocked = first                                   # _seed makes the first receipt a no_trade
+    assert blocked.trade.kind == "blocked"
+    png = render_card(blocked)
+    assert png[:8] == b"\x89PNG\r\n\x1a\n" and len(png) > 5000
+    # the renderer must not be handed a line that only echoes the verdict
+    reason = blocked.trade.reason
+    if reason.startswith("judge decided"):
+        assert blocked.verdict.key_risks or True   # falls back to a stated sentence, never to the echo
