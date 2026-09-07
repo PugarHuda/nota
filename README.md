@@ -117,7 +117,12 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
   convergence detection. Silence is `null`, not 0. Nitter, which `x:` used to go through, was served
   cease-and-desist letters in August 2026 and its public mirrors went dark, so that reader was
   advertising a source that could not answer; syndication is keyless, dated and still open, and
-  every failure is reported as `unavailable` rather than guessed.
+  every failure is reported as `unavailable` rather than guessed. One measured limit worth knowing
+  before you try it: syndication throttles data-centre addresses hardest, so from the hosted demo an
+  `x:` voice usually comes back `unavailable` with `syndication HTTP 429` in the warnings while `tg:`
+  and `bs:` answer normally. It reads fine from an ordinary connection. Setting `TAVILY_API_KEY` on
+  the deployment turns that into a search-backed fallback, which the envelope then labels as
+  undated.
 - `news_verify`: dated headlines from CoinDesk, Cointelegraph, The Block and Decrypt RSS,
   plus Tavily or Venice web search for breadth; counts independent domains and attaches RYO
   `analyze_token` context.

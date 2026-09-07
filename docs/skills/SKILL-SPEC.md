@@ -65,7 +65,8 @@ pass is dated and deterministic. Feeds that fail are listed in `warnings`; parsi
 Sentiment method is `vader_3.3.2+crypto_lexicon_v2`: VADER (MIT) with the crypto lexicon added
 at +/-2.0, so negation ("not bullish") and intensity ("very bullish!!") are handled. A text with
 no lexicon word at all stays `null`. `x:` voices are read through X's own public syndication endpoint, the one that serves embedded
-timelines (unofficial and rate limited,
+timelines (unofficial and rate limited, and throttled hardest on data-centre addresses, so a
+hosted deployment usually reports these voices `unavailable`;
 flagged in `warnings`) and fall back to Tavily when configured.
 
 ## `price_crosscheck`
