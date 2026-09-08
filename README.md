@@ -244,7 +244,7 @@ The repository ships a ledger snapshot of four receipts made on live RYO evidenc
 SOL / BTC / ETH, each labelled with its own source) and every one of them verifies:
 
 ```bash
-uv sync
+uv sync   # on PowerShell, set the variable first: $env:NOTA_DB = "data/demo.db"
 NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verified with no key at all
 NOTA_DB=data/demo.db uv run nota serve      # then open http://127.0.0.1:8000/app for the dashboard
 NOTA_DB=data/demo.db uv run nota positions
@@ -254,8 +254,9 @@ uv run pytest -q                              # 176 tests
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
 own evidence and the model outputs stored beside it, keyed by the model that produced them, so it
-touches no API and cannot drift. Every one of the five shipped receipts verifies this way, including
-the one made under a different provider. `--fresh` is the opposite: it calls today's model on the
+touches no API and cannot drift. All four shipped receipts verify this way, the recorded-source one
+included, because a cached replay is keyed by the model that produced the output rather than by
+whatever model is configured today. `--fresh` is the opposite: it calls today's model on the
 same evidence and prints the differences as drift.
 
 A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as
