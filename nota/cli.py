@@ -269,10 +269,15 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
 
 @app.command()
 def scores():
-    """Per-agent Brier scores and the weights the judge currently uses."""
-    led = _ledger()
-    s = role_scores(led)
-    typer.echo(json.dumps({"scores": s, "weights": role_weights(s)}, indent=1))
+    """Per-agent Brier scores and the weights the judge currently uses, with how many decisions are
+    scored and how many are still waiting for their horizon - an empty table means "nothing due yet",
+    not "nothing works"."""
+    from nota.api import scores as scores_api  # same numbers the dashboard reads
+
+    v = scores_api()
+    if not v["reliability"]["n"]:  # five empty bins say less than one sentence does
+        v["reliability"] = {"n": 0, "note": "no decision has reached its seven-day horizon yet"}
+    typer.echo(json.dumps(v, indent=1))
 
 
 @app.command()
@@ -286,7 +291,8 @@ def show(decision_id: str, as_json: bool = typer.Option(False, "--json")):
 
 @app.command("positions")
 def positions_cmd(as_json: bool = typer.Option(False, "--json")):
-    """Open practice positions against the latest independent price: open, past stop, or at target."""
+    """Open practice positions against the newest evidence price - an independent exchange median when
+    that receipt carries one, otherwise RYO's own price. The as_of beside it says which moment it is."""
     from nota.api import positions as open_positions
 
     rows = open_positions()
@@ -296,8 +302,10 @@ def positions_cmd(as_json: bool = typer.Option(False, "--json")):
     if not rows:
         typer.echo("no open practice positions")
     for p in rows:
-        typer.echo(f"{p['symbol']:6} {p['side']:5} entry {p['entry']:g} stop {p['stop']:g} target {p['target']:g} | latest {p['latest_price']} "
-                   f"({p['latest_as_of']}) | {p['status']} | {p['pnl_usd']} USD | receipt {p['decision_id']}")
+        latest = "unavailable" if p["latest_price"] is None else f"{p['latest_price']:g}"
+        pnl = "-" if p["pnl_usd"] is None else f"{p['pnl_usd']} USD"
+        typer.echo(f"{p['symbol']:6} {p['side']:5} entry {p['entry']:g} stop {p['stop']:g} target {p['target']:g} | latest {latest} "
+                   f"({p['latest_as_of']}) | {p['status']} | {pnl} | receipt {p['decision_id']}")
 
 
 @app.command("list")
