@@ -191,6 +191,10 @@ It serves all four MCP primitives, not just the easy one:
 - **completions**: `completion/complete` offers the receipt ids and symbols this deployment actually
   holds, so a client never has to guess one.
 
+Nota is **published in the official MCP registry** as `io.github.PugarHuda/nota` (version 0.1.0,
+2026-09-10), so a client can find it without being handed the URL:
+`curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.PugarHuda/nota"`.
+
 `server.json` at the repository root is this server's entry for the official MCP registry, and the
 deployment serves it at `/.well-known/mcp/server.json` and `/server.json`, so the description and the
 endpoint it names cannot drift apart. Two rules the registry enforces and a test here mirrors: the
