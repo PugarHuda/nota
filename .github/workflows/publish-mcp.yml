@@ -1,0 +1,46 @@
+name: publish-mcp
+
+# Publishes server.json to the official MCP registry. OIDC rather than the interactive device flow:
+# the workflow's own identity token proves the repository owner, which is exactly what the registry
+# checks for an `io.github.<owner>/` namespace, so nobody has to be at a keyboard to type a code
+# before it expires.
+#
+# The registry makes a published version immutable, so every run needs a `version` in server.json
+# that has not been published before. server.json is the single source of that number: a tag is only
+# a trigger, never a second place to keep it.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write # OIDC
+  contents: read
+
+jobs:
+  publish:
+    # The namespace is io.github.PugarHuda/nota, so only that owner's repository can claim it. On the
+    # organiser's mirror this would fail authentication rather than do nothing quietly.
+    if: github.repository == 'PugarHuda/nota'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+
+      - name: The endpoint the entry advertises must actually answer
+        # A remote server must be publicly reachable at the URL it registers. Listing a dead endpoint
+        # is worse than not listing at all, and the version that did it could never be taken back.
+        run: |
+          url=$(jq -r '.remotes[0].url' server.json)
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$url" \
+            -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"ping"}')
+          echo "$url answered $code"
+          [ "$code" = "200" ] || { echo "::error::refusing to publish: $url answered $code"; exit 1; }
+
+      - run: ./mcp-publisher validate
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish

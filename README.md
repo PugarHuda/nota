@@ -193,7 +193,11 @@ It serves all four MCP primitives, not just the easy one:
 
 `server.json` at the repository root is this server's entry for the official MCP registry, and the
 deployment serves it at `/.well-known/mcp/server.json` and `/server.json`, so the description and the
-endpoint it names cannot drift apart.
+endpoint it names cannot drift apart. Two rules the registry enforces and a test here mirrors: the
+description is capped at 100 characters, and **a published version is immutable** - every republish
+needs a new `version`, so changing anything in that file means bumping it. Publish with
+`mcp-publisher login github && mcp-publisher publish` from the repository root; `mcp-publisher
+validate` checks the file against the live registry without publishing.
 
 `GET /llms.txt` follows the llms.txt convention: one generated page telling an agent what is here,
 how to call the MCP endpoint, which skills exist and which receipts the ledger holds. It is built
