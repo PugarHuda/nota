@@ -6,8 +6,10 @@ what a judge meets. Nothing is stubbed: the verify button really calls the API, 
 really invokes the skills.
 """
 
+import json
 import os
 import socket
+import sqlite3
 import threading
 import time
 from pathlib import Path
@@ -20,6 +22,13 @@ playwright = pytest.importorskip("playwright.sync_api")
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "data" / "demo.db"
 RECEIPT = "dbd7727f5a25"
+# Read from the snapshot rather than written down: a daily cycle adds receipts, and a test that
+# counts them by hand goes red the first morning it runs.
+SHIPPED = len(sqlite3.connect(DEMO).execute("SELECT id FROM decisions").fetchall())
+SHIPPED_ETH = len(sqlite3.connect(DEMO).execute("SELECT id FROM decisions WHERE symbol='ETH'").fetchall())
+# The landing draws the newest receipt, whichever that is after the last cycle.
+NEWEST = json.loads(sqlite3.connect(DEMO).execute(
+    "SELECT receipt_json FROM decisions ORDER BY created_at DESC LIMIT 1").fetchone()[0])
 
 
 @pytest.fixture(scope="module")
@@ -93,7 +102,7 @@ def test_landing_renders_draws_its_mark_and_verifies_a_receipt_for_real(server, 
     # the mark is generated from the receipt, so it has one tick per hex character of the hash
     assert page.locator("#mark line.tick").count() == 64
     assert page.locator("#mark path.arc").count() == 1
-    assert page.locator("#mark text.p").text_content() == "0.68"   # SVG text, not an HTMLElement
+    assert page.locator("#mark text.p").text_content() == f"{NEWEST['verdict']['p_up_7d']:.2f}"  # SVG text, not an HTMLElement
 
     # the CTA is reachable without scrolling
     cta = page.locator("a.btn").first.bounding_box()
@@ -185,7 +194,7 @@ def test_dashboard_is_legible_in_both_themes(server, browser, theme):
     }""")
     assert not same
     assert page.locator("#detail .headline").inner_text().strip() != ""
-    assert page.locator("#list .row").count() == 4
+    assert page.locator("#list .row").count() == SHIPPED
     assert problems == [], problems
     page.close()
 
@@ -204,9 +213,9 @@ def test_keyboard_alone_reaches_the_receipt_the_diff_and_the_replay_check(server
     page.keyboard.press("/")
     assert page.evaluate("document.activeElement.id") == "filter"
     page.keyboard.type("eth")
-    page.wait_for_function("document.querySelectorAll('#list .row').length === 1")
+    page.wait_for_function(f"document.querySelectorAll('#list .row').length === {SHIPPED_ETH}")
     page.locator("#filter").fill("")          # fill() refocuses the input, so blur before the next key
-    page.wait_for_function("document.querySelectorAll('#list .row').length === 4")
+    page.wait_for_function(f"document.querySelectorAll('#list .row').length === {SHIPPED}")
     page.keyboard.press("Escape")
     assert page.evaluate("document.activeElement.id") != "filter"
 

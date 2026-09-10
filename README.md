@@ -240,8 +240,10 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
 
 ## Evaluate with zero keys
 
-The repository ships a ledger snapshot of four receipts made on live RYO evidence (2026-09-07,
-SOL / BTC / ETH, each labelled with its own source) and every one of them verifies:
+The repository ships a ledger snapshot that starts with four receipts made on live RYO evidence
+(2026-09-07, SOL / BTC / ETH, each labelled with its own source) and grows: a daily cycle
+(`.github/workflows/ledger.yml`) scores whatever reached its seven-day horizon and commits the
+snapshot back. Every receipt in it verifies, and a test says so:
 
 ```bash
 uv sync   # on PowerShell, set the variable first: $env:NOTA_DB = "data/demo.db"
@@ -254,7 +256,7 @@ uv run pytest -q                              # 176 tests
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
 own evidence and the model outputs stored beside it, keyed by the model that produced them, so it
-touches no API and cannot drift. All four shipped receipts verify this way, the recorded-source one
+touches no API and cannot drift. Every shipped receipt verifies this way, the recorded-source one
 included, because a cached replay is keyed by the model that produced the output rather than by
 whatever model is configured today. `--fresh` is the opposite: it calls today's model on the
 same evidence and prints the differences as drift.
@@ -292,7 +294,7 @@ returns; every figure spoken is one this deployment produces on demand.
 ## Hosted demo
 
 A read-only copy of the dashboard runs at https://nota-ryo.vercel.app (Vercel, framework-detected
-FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (four receipts on live
+FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (receipts on live
 RYO evidence, each carrying its trace ids) with `NOTA_READONLY=1`: reads, replay verification, cards and exports
 work; backing answers 503 because a serverless filesystem cannot be written. The full system,
 including live RYO evidence, the `watch` loop, notifications and backing, runs with

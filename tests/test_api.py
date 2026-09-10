@@ -146,30 +146,31 @@ def test_llms_txt_describes_this_deployment_from_its_own_routes(tmp_path, monkey
     assert "no order is ever placed" in body
 
 
-def test_the_landing_page_never_states_a_number_the_ledger_does_not_hold():
-    """The landing hardcodes the shipped receipts so it can draw them without a request. That makes
-    it possible to write a hash by hand, and a hand-written hash is fabricated data on a page whose
-    entire argument is that nothing here is fabricated. This binds the two."""
-    import json as _json
+def test_the_landing_page_states_no_number_of_its_own():
+    """The landing used to hardcode the shipped receipts so it could draw them without a request,
+    which made it possible to write a hash by hand - fabricated data on a page whose entire argument
+    is that nothing here is fabricated. It reads them from the API now, so the binding is structural:
+    there is no hash on the page to be wrong, and a daily cycle cannot leave the copy stale."""
     import re
     from pathlib import Path
 
+    page = (Path(__file__).resolve().parents[1] / "nota" / "static" / "landing.html").read_text(encoding="utf-8")
+    assert re.findall(r"[0-9a-f]{64}", page) == [], "an evidence hash is written into the landing page"
+    assert "/api/decisions?limit=" in page, "the landing no longer reads the ledger it draws"
+
+
+def test_every_shipped_receipt_replays_identically():
+    """The landing says every receipt in the ledger replays identically. This is that sentence."""
     from nota.ledger import Ledger
+    from nota.replay import replay
 
     root = Path(__file__).resolve().parents[1]
-    page = (root / "nota" / "static" / "landing.html").read_text(encoding="utf-8")
     led = Ledger(str(root / "data" / "demo.db"), readonly=True)
-
-    receipts = [_json.loads(led.get_decision(d["id"])) for d in led.list_decisions(limit=50)]
-    assert receipts, "the shipped ledger is empty"
-    for r in receipts:
-        assert r["id"] in page, f"{r['id']} is missing from the landing page"
-        assert r["pack_hash"] in page, f"the evidence hash of {r['id']} is not the one on the page"
-        assert f"{r['verdict']['p_up_7d']:.2f}" in page
-
-    known = {r["pack_hash"] for r in receipts}
-    on_page = set(re.findall(r"\b[0-9a-f]{64}\b", page))
-    assert on_page <= known, f"hex strings on the page that no receipt holds: {sorted(on_page - known)}"
+    ids = [d["id"] for d in led.list_decisions(limit=200)]
+    assert ids, "the shipped ledger is empty"
+    for id in ids:
+        result = replay(id, led, None)
+        assert result.identical, f"{id} does not replay identically: {result.diff}"
 
 
 def test_documented_local_paths_all_exist(tmp_path, monkeypatch):

@@ -134,7 +134,7 @@
   dl.rules dd { margin:0; padding:16px 0; border-bottom:1px solid var(--rule); color:var(--ink-2) }
   @media (max-width:760px) { dl.rules { grid-template-columns:1fr } dl.rules dt { border:0; padding-bottom:2px } }
 
-  .ledger { display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(14px,3vw,34px) }
+  .ledger { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:clamp(14px,3vw,34px) }
   .ledger figure { text-align:center }
   .ledger svg { width:100%; height:auto; overflow:visible }
   .ledger figcaption { font-size:12px; line-height:1.7; color:var(--ink-2); margin-top:10px }
@@ -210,8 +210,11 @@
     <h2>Nota audits the data it is given.</h2>
     <p class="lede">RYO publishes an ATR and an RSI. Nota recomputes both from public candles with Wilder's method
       and compares them, and it checks RYO's price against the median of three exchanges. When they disagree, the
-      judge refuses to size a trade at all. These figures come from the live receipt of 7 September 2026, and all
-      four shipped receipts replay identically, including one produced by a different model provider.</p>
+      judge refuses to size a trade at all. These figures come from the live receipt of 7 September 2026, and
+      every receipt in the ledger replays identically - including the one recorded on 10 September, when the
+      builder key started answering 401 and all five RYO sections went to error at once. Nothing was patched
+      for it: the council read what was left, the judge refused the trade, and the diff put the collapse at
+      the top of the page.</p>
     <div class="audit">
       <div class="h">Measure</div><div class="h n">Nota</div><div class="h n">RYO</div><div class="h n">Apart</div>
       <div>ATR(14), USD</div><div class="n">4.347</div><div class="n">4.3762</div><div class="agree">0.67%</div>
@@ -337,20 +340,11 @@
 <script>
   // The mark is drawn from the receipt itself, not decoration: every tick is a nibble of the
   // evidence hash and the arc is the probability the judge stated. Same receipt, same mark.
-  // the four receipts this deployment ships, with the values their own ledger holds
-  const LEDGER = [
-    {id: 'dbd7727f5a25', symbol: 'ETH', p: 0.68, action: 'long',     source: 'live',
-     hash: 'd298483bba6c278de5d7c1e1ee096d6a5eaf7e7e5bf9823edc0c4aabc008071a'},
-    {id: '3de8cad7af1f', symbol: 'BTC', p: 0.58, action: 'no trade', source: 'live',
-     hash: 'a80a7859288587f55dd8b2a11146f4d59c1a9779e0aa7981d97ffa5cb429fef6'},
-    {id: '20ae8d1547b9', symbol: 'SOL', p: 0.62, action: 'long',     source: 'recorded',
-     hash: '729c5ed62aa06a3b18d46268c38bc058baa992f13e174327470ab6b328affe25'},
-    {id: 'b80b42835b01', symbol: 'SOL', p: 0.63, action: 'no trade', source: 'live',
-     hash: '7b247252244761f57825e7845beef4630de2c3f8b4b910ecfae52bbc290c559f'},
-  ];
-
-  (() => {
-    const HASH = LEDGER[0].hash, P_UP = LEDGER[0].p;
+  // Where the receipts come from: this deployment's own API, never a copy pasted into this file.
+  // A hash typed by hand is fabricated data on a page whose whole argument is that nothing here is
+  // fabricated - and a daily cycle adds receipts, so any copy would be wrong by morning anyway.
+  const drawHero = (r) => {
+    const HASH = r.hash, P_UP = r.p;
     const svg = document.getElementById('mark'), NS = 'http://www.w3.org/2000/svg';
     const cx = 210, cy = 210, add = (tag, attrs, cls) => {
       const el = document.createElementNS(NS, tag);
@@ -388,15 +382,15 @@
     add('circle', {cx, cy, r: 96, 'stroke-width': 1}, 'core');
     add('text', {x: cx, y: cy + 6}, 'p').textContent = P_UP.toFixed(2);
     add('text', {x: cx, y: cy + 30}, 'plabel').textContent = 'p_up_7d';
-  })();
+  };
 
   // The headline claims a receipt re-runs. The button lets the reader check that claim against the
   // deployed API before reading another word, and reports a failure as a failure.
   // the same drawing, small, once per receipt in the ledger
-  (() => {
+  const drawLedger = (ledger) => {
     const NS = 'http://www.w3.org/2000/svg', host = document.getElementById('ledger');
     if (!host) return;
-    for (const r of LEDGER) {
+    for (const r of ledger) {
       const fig = document.createElement('figure');
       const svg = document.createElementNS(NS, 'svg');
       svg.setAttribute('viewBox', '0 0 200 200');
@@ -432,14 +426,33 @@
       fig.appendChild(cap);
       host.appendChild(fig);
     }
-  })();
+  };
+
+  // The newest receipts, drawn from what the API answers right now. A failure says so rather than
+  // leaving an empty shape the reader has to interpret.
+  let verifyId = null;
+  fetch('/api/decisions?limit=5')
+    .then(res => res.ok ? res.json() : Promise.reject(new Error('HTTP ' + res.status)))
+    .then(rows => {
+      const ledger = rows.map(d => ({id: d.id, symbol: d.symbol, p: d.p_up_7d, source: d.source,
+                                     action: d.action.replace('_', ' '), hash: d.pack_hash}));
+      if (!ledger.length) throw new Error('the ledger is empty');
+      verifyId = ledger[0].id;
+      drawHero(ledger[0]);
+      drawLedger(ledger);
+    })
+    .catch(err => {
+      const host = document.getElementById('ledger');
+      if (host) host.textContent = `The ledger could not be read: ${err.message}`;
+    });
 
   const out = document.getElementById('verify-out'), btn = document.getElementById('verify');
   btn.addEventListener('click', async () => {
+    if (!verifyId) { out.textContent = 'the ledger has not loaded yet'; return; }
     btn.disabled = true; out.textContent = 'running…';
     const t0 = performance.now();
     try {
-      const r = await fetch('/api/decisions/dbd7727f5a25/replay');
+      const r = await fetch(`/api/decisions/${verifyId}/replay`);
       const d = await r.json();
       const ms = Math.round(performance.now() - t0);
       out.innerHTML = d.identical

@@ -56,7 +56,10 @@ def _degraded(r: Receipt) -> bool:
 
 def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:
     return {
+        # pack_hash travels with the summary so a caller can draw or cite the evidence identity
+        # without a second request - the landing page draws its marks from it.
         "id": r.id, "symbol": r.symbol, "created_at": r.created_at, "headline": r.headline, "source": r.source,
+        "pack_hash": r.pack_hash,
         "model": r.model, "action": r.verdict.action, "p_up_7d": r.verdict.p_up_7d, "rationale": r.verdict.rationale,
         "trade_kind": r.trade.kind, "degraded": _degraded(r), "resolved": led.get_outcome(r.id) is not None,
     }
