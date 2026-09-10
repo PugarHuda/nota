@@ -235,6 +235,13 @@ text, and as `structuredContent` for clients that parse.
 - **Open practice positions** against the latest evidence price, with distance-to-stop.
 - **Agent leaderboard** by Brier score with the judge weights currently in force, and a judge
   calibration table (stated `p_up_7d` bucket vs realised hit rate) once decisions resolve.
+- **Which sources helped** (`sources` in `/api/scores`): for every evidence section, the judge's
+  mean Brier on decisions where that section answered against decisions where it did not, and the
+  difference between them. It answers a question the agent leaderboard cannot - not "which agent is
+  right" but "does having this feed make the call better". An empty bucket scores `null`, and the
+  table carries `enough_to_read`, false until 20 decisions are scored: the gap between two
+  three-sample means is noise, and printing it as a finding would be the same offence as turning a
+  null into a zero.
 - **Verify replay** from the page (cached outputs only, never spends), share to X, exports.
 - **Works for everyone**: skip link, real buttons, visible focus, `aria-live` updates,
   keyboard `j`/`k` move, `Enter` open, `p` previous receipt, `/` filter, `?` help.

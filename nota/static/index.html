@@ -384,8 +384,26 @@ async function loadSide() {
       <h2>Judge calibration (stated p_up vs hit rate)</h2>
       <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
       ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
-      <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved at the 7-day horizon${sc.reliability.excluded_before_horizon ? `, ${sc.reliability.excluded_before_horizon} closed earlier and left out` : ''}</div>`
+      <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved at the 7-day horizon${sc.reliability.excluded_before_horizon ? `, ${sc.reliability.excluded_before_horizon} closed earlier and left out` : ''}</div>
+      ${sourcesTable(sc.sources)}`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
+}
+
+// Which sources earned their place: the judge's Brier when a section answered against when it did
+// not. Shown with its own health warning, because a difference between two tiny means is noise and
+// this page does not print noise as a finding.
+function sourcesTable(s) {
+  const rows = Object.entries(s?.sources || {});
+  if (!rows.length) return '';
+  return `<h2>Which sources helped</h2>
+    <table><tr><th>section</th><th class="num">with, brier</th><th class="num">without, brier</th><th class="num">helps by</th></tr>
+    ${rows.map(([name, v]) => `<tr><td>${esc(name)}</td>
+      <td class="num">${v.answered.brier_mean ?? '—'} <span class="muted small">n=${v.answered.n}</span></td>
+      <td class="num">${v.missing.brier_mean ?? '—'} <span class="muted small">n=${v.missing.n}</span></td>
+      <td class="num">${v.helps_by === null ? '—' : (v.helps_by > 0 ? '+' : '') + v.helps_by}</td></tr>`).join('')}</table>
+    <div class="small muted">Lower Brier is better, so a positive "helps by" means the decision went better with that
+      source. ${s.enough_to_read ? `${s.scored_decisions} scored decisions.` :
+      `Only ${s.scored_decisions} scored decision${s.scored_decisions === 1 ? '' : 's'} so far — read nothing into this until there are ${s.meaningful_at}.`}</div>`;
 }
 
 let skillDefs = [];

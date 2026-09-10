@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from pydantic import BaseModel, Field
 
 from nota import paths
-from nota.calibration import due, reliability, role_scores, role_weights
+from nota.calibration import due, reliability, role_scores, role_weights, source_scores
 from nota.card import render_card
 from nota.evidence import EvidencePack, first_present
 from nota.ledger import Ledger
@@ -224,7 +224,7 @@ def scores() -> dict[str, Any]:
     led = _ledger()
     s = role_scores(led)
     return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()),
-            "reliability": reliability(led)}
+            "reliability": reliability(led), "sources": source_scores(led)}
 
 
 @app.get("/api/health")

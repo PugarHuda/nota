@@ -157,6 +157,51 @@ def role_scores(ledger: Ledger) -> dict[str, dict[str, float]]:
     return {r: {"n": float(len(v)), "brier_mean": round(sum(v) / len(v), 4)} for r, v in sums.items()}
 
 
+MEANINGFUL_N = 20
+
+
+def source_scores(ledger: Ledger) -> dict[str, Any]:
+    """Which sources actually help, rather than which agents are right.
+
+    For every scored decision, the judge's Brier score is filed under each evidence section twice
+    over: once by whether that section answered (`ok` or `partial` - a partial answer is still an
+    answer), once by whether it did not. A source that earns its place should show a lower mean
+    Brier in the answered bucket than in the missing one, and `helps_by` is that difference.
+
+    Two rules keep this from becoming a claim it cannot support. A bucket with nothing in it scores
+    None, never 0. And the whole table carries `enough_to_read`, which is false until enough
+    decisions have been scored to mean anything - the difference between two three-sample means is
+    noise, and presenting it as a finding would be the same offence as turning a null into a zero.
+    """
+    buckets: dict[str, dict[str, list[float]]] = {}
+    scored = 0
+    for raw in ledger.list_outcomes():
+        o = json.loads(raw)
+        brier = (o.get("brier") or {}).get("judge")
+        stored = ledger.get_decision(o["decision_id"])
+        if brier is None or stored is None:
+            continue
+        scored += 1
+        for section, status in Receipt.model_validate_json(stored).availability.items():
+            b = buckets.setdefault(section, {"answered": [], "missing": []})
+            b["answered" if status in ("ok", "partial") else "missing"].append(brier)
+
+    def mean(values: list[float]) -> float | None:
+        return round(sum(values) / len(values), 4) if values else None
+
+    sources = {}
+    for section, b in sorted(buckets.items()):
+        answered, missing = mean(b["answered"]), mean(b["missing"])
+        sources[section] = {
+            "answered": {"n": len(b["answered"]), "brier_mean": answered},
+            "missing": {"n": len(b["missing"]), "brier_mean": missing},
+            # lower Brier is better, so a positive number means the decision went better with it
+            "helps_by": round(missing - answered, 4) if answered is not None and missing is not None else None,
+        }
+    return {"scored_decisions": scored, "enough_to_read": scored >= MEANINGFUL_N,
+            "meaningful_at": MEANINGFUL_N, "sources": sources}
+
+
 def reliability(ledger: Ledger, bins: int = 5) -> dict[str, Any]:
     """Reliability (calibration) table for the judge: outcomes bucketed by stated p_up_7d.
     A well-calibrated judge has hit_rate close to mean_p in every bucket. Empty buckets stay empty.
