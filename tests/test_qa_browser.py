@@ -31,6 +31,12 @@ NEWEST = json.loads(sqlite3.connect(DEMO).execute(
     "SELECT receipt_json FROM decisions ORDER BY created_at DESC LIMIT 1").fetchone()[0])
 
 
+def _receipts():
+    """Newest first, the order the API answers in."""
+    rows = sqlite3.connect(DEMO).execute("SELECT receipt_json FROM decisions ORDER BY created_at DESC").fetchall()
+    return [json.loads(r[0]) for r in rows]
+
+
 @pytest.fixture(scope="module")
 def server():
     # scoped, not global: leaking these would point every later test at the read-only snapshot
@@ -103,6 +109,16 @@ def test_landing_renders_draws_its_mark_and_verifies_a_receipt_for_real(server, 
     assert page.locator("#mark line.tick").count() == 64
     assert page.locator("#mark path.arc").count() == 1
     assert page.locator("#mark text.p").text_content() == f"{NEWEST['verdict']['p_up_7d']:.2f}"  # SVG text, not an HTMLElement
+
+    # the failure panel is the ledger's own record of a source going down, not a description of one
+    page.wait_for_selector("#broken-panel .bad")
+    shown = [c.inner_text() for c in page.locator("#broken-panel > div").all()]
+    degraded = next(r for r in _receipts() if any(v != "ok" for v in r["availability"].values()))
+    assert degraded["id"] in page.locator("#broken-verdict").inner_text()
+    assert page.locator("#broken-panel .bad").count() == sum(
+        1 for v in degraded["availability"].values() if v != "ok")
+    for warning in degraded["warnings"]:
+        assert warning in shown, f"the page dropped a warning the receipt holds: {warning}"
 
     # the CTA is reachable without scrolling
     cta = page.locator("a.btn").first.bounding_box()
@@ -213,9 +229,10 @@ def test_keyboard_alone_reaches_the_receipt_the_diff_and_the_replay_check(server
     page.keyboard.press("/")
     assert page.evaluate("document.activeElement.id") == "filter"
     page.keyboard.type("eth")
-    page.wait_for_function(f"document.querySelectorAll('#list .row').length === {SHIPPED_ETH}")
+    playwright.expect(page.locator("#list .row")).to_have_count(SHIPPED_ETH)
     page.locator("#filter").fill("")          # fill() refocuses the input, so blur before the next key
-    page.wait_for_function(f"document.querySelectorAll('#list .row').length === {SHIPPED}")
+    # expect() over wait_for_function: same retry, but a failure names the count it actually saw
+    playwright.expect(page.locator("#list .row")).to_have_count(SHIPPED)
     page.keyboard.press("Escape")
     assert page.evaluate("document.activeElement.id") != "filter"
 

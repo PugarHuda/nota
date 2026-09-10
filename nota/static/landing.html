@@ -16,7 +16,7 @@
     --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
     --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
     --accent:light-dark(#1b4b8f,#82a9e6);
-    --long:light-dark(#2c6a4e,#61a482);
+    --long:light-dark(#2c6a4e,#61a482); --short:light-dark(#a83a2c,#e0806d);
     --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     --measure:66ch; --pad:clamp(20px,5vw,64px);
@@ -114,6 +114,16 @@
   .audit .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
   .audit .n { text-align:right; font-variant-numeric:tabular-nums }
   .audit .agree { text-align:right; color:var(--long) }
+  /* the same ledger table, two columns: what was asked for, and what came back */
+  .broken-grid { display:grid; grid-template-columns:1fr auto; gap:0; margin-top:26px;
+                 font:14px/1 var(--mono); max-width:640px }
+  .broken-grid > * { padding:11px 14px 11px 0; border-bottom:1px solid var(--rule); min-width:0 }
+  .broken-grid .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
+  .broken-grid .ok { text-align:right; color:var(--long) }
+  .broken-grid .bad { text-align:right; color:var(--short) }
+  .broken-grid .warn { grid-column:1 / -1; font-size:13px; line-height:1.6; color:var(--ink-2);
+                       white-space:pre-wrap; overflow-wrap:anywhere }
+  .note { margin-top:22px; font:14px/1.7 var(--mono); color:var(--ink-2) }
 
   /* the sequence: this content really is ordered, so it is numbered */
   ol.steps { list-style:none; margin:0; padding:0; counter-reset:s;
@@ -175,6 +185,7 @@
     <b>Nota</b>
     <div class="right">
       <a href="#proof">Verification</a>
+      <a href="#broken">When a source fails</a>
       <a href="#how">How it works</a>
       <a href="https://github.com/PugarHuda/nota">Source</a>
       <a class="cta" href="/app">Open the dashboard</a>
@@ -221,6 +232,19 @@
       <div>RSI(14)</div><div class="n">64.84</div><div class="n">68.70</div><div class="agree">3.9 pts</div>
       <div>Price, USD</div><div class="n">105.05</div><div class="n">104.946</div><div class="agree">0.10%</div>
     </div>
+  </div>
+</section>
+
+<section id="broken">
+  <div class="wrap">
+    <h2>And when it is not given at all.</h2>
+    <p class="lede">A market tool is judged on the day its data source fails, not on the day it works. Below is
+      the most recent receipt in this deployment where something did fail, read from the ledger as you load the
+      page - not an illustration of what would happen. Each section carries the status its source returned, a
+      value that could not be fetched stays null instead of becoming zero, and the judge is told what it does
+      not have.</p>
+    <div id="broken-panel" class="broken-grid"><div>reading the ledger…</div></div>
+    <p id="broken-verdict" class="note"></p>
   </div>
 </section>
 
@@ -428,22 +452,59 @@
     }
   };
 
+  // The most recent receipt in which something actually failed, rendered as it was stored. Reading
+  // it from the ledger rather than describing it means this section cannot become a claim about
+  // behaviour the code no longer has.
+  const drawBroken = async (summaries) => {
+    const panel = document.getElementById('broken-panel'), note = document.getElementById('broken-verdict');
+    if (!panel) return;
+    const hit = summaries.find(d => d.degraded);
+    if (!hit) { panel.textContent = `None of the ${WINDOW} most recent receipts met a failing source.`; return; }
+    const res = await fetch(`/api/decisions/${hit.id}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const {receipt} = await res.json();
+    const cells = [['Evidence section', 'h'], ['status', 'h']];
+    for (const [name, status] of Object.entries(receipt.availability)) {
+      cells.push([name, ''], [status, status === 'ok' ? 'ok' : 'bad']);
+    }
+    panel.replaceChildren(...cells.map(([text, cls]) => {
+      const el = document.createElement('div');
+      el.textContent = text;
+      if (cls) el.className = cls;
+      return el;
+    }));
+    for (const w of receipt.warnings) {
+      const el = document.createElement('div');
+      el.className = 'warn';
+      el.textContent = w;                       // the source's own words, not a summary of them
+      panel.appendChild(el);
+    }
+    const t = receipt.trade;
+    note.textContent = `Receipt ${receipt.id}, ${receipt.created_at.slice(0, 10)}: the judge answered `
+      + `${receipt.verdict.action.replace('_', ' ')} at p_up_7d ${receipt.verdict.p_up_7d.toFixed(2)}, and `
+      + (t.kind === 'blocked' ? `no position was sized - ${t.reason}.` : 'sized a practice position on what was left.');
+  };
+
   // The newest receipts, drawn from what the API answers right now. A failure says so rather than
   // leaving an empty shape the reader has to interpret.
   let verifyId = null;
-  fetch('/api/decisions?limit=5')
+  const WINDOW = 50;   // marks are drawn from the newest few; the failure panel searches the window
+  fetch(`/api/decisions?limit=${WINDOW}`)
     .then(res => res.ok ? res.json() : Promise.reject(new Error('HTTP ' + res.status)))
     .then(rows => {
-      const ledger = rows.map(d => ({id: d.id, symbol: d.symbol, p: d.p_up_7d, source: d.source,
-                                     action: d.action.replace('_', ' '), hash: d.pack_hash}));
+      const ledger = rows.slice(0, 5).map(d => ({id: d.id, symbol: d.symbol, p: d.p_up_7d, source: d.source,
+                                                 action: d.action.replace('_', ' '), hash: d.pack_hash}));
       if (!ledger.length) throw new Error('the ledger is empty');
       verifyId = ledger[0].id;
       drawHero(ledger[0]);
       drawLedger(ledger);
+      return drawBroken(rows);
     })
     .catch(err => {
-      const host = document.getElementById('ledger');
-      if (host) host.textContent = `The ledger could not be read: ${err.message}`;
+      for (const id of ['ledger', 'broken-panel']) {
+        const host = document.getElementById(id);
+        if (host) host.textContent = `The ledger could not be read: ${err.message}`;
+      }
     });
 
   const out = document.getElementById('verify-out'), btn = document.getElementById('verify');
