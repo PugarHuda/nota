@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.PugarHuda/nota",
   "title": "Nota",
-  "description": "Four read-only crypto research skills that return RYO's public envelope, plus every decision receipt as a resource. Recomputes RSI(14) and ATR(14) from public candles with Wilder's method, checks a price against three exchanges, reads Telegram, Bluesky and X voices for narrative convergence, and corroborates a claim against dated headlines. A value that could not be fetched stays null and is never replaced with zero.",
+  "description": "Read-only crypto research skills that check a price, RSI and ATR against independent sources.",
   "version": "0.1.0",
   "repository": {
     "url": "https://github.com/PugarHuda/nota",

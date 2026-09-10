@@ -204,7 +204,9 @@ def test_server_json_matches_the_registry_schema_and_this_deployment():
     doc = _json.loads((Path(__file__).resolve().parents[1] / "server.json").read_text(encoding="utf-8"))
     assert doc["$schema"].endswith("server.schema.json")
     assert doc["name"] == "io.github.PugarHuda/nota" and "/" in doc["name"]   # namespaced, as required
-    assert doc["version"] and doc["title"] and len(doc["description"]) > 80
+    # ServerDetail.description is maxLength 100 in the published schema, and the registry rejects a
+    # longer one. The first version of this file carried 420 characters and would have been refused.
+    assert doc["version"] and doc["title"] and 1 <= len(doc["description"]) <= 100
     remote = doc["remotes"][0]
     assert remote["type"] == "streamable-http" and remote["url"].endswith("/mcp")
     assert remote["url"].startswith("https://")                              # the registry requires reachable
