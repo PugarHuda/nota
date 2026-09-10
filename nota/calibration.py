@@ -54,18 +54,22 @@ def _price_then(receipt: Receipt, ledger: Ledger) -> float | None:
     return price
 
 
-def _price_now(symbol: str, source: RyoSource) -> tuple[float | None, str | None, str]:
-    """RYO's analyze_token first; when it fails or carries no price, the exchange median from
-    `price_crosscheck`, labelled as such. Returns (price, as_of, source_label)."""
-    try:
-        env = source.call("analyze_token", {"symbol": symbol})
-        probe = EvidencePack(symbol=symbol, created_at=now_iso(), source=source.name,
-                             sections={"analyze_token": Section(tool="analyze_token", status=env.status, envelope=env)})
-        _, price = first_present(probe, [p for p in paths.PRICE_USD if p.startswith("analyze_token.")])
-        if price is not None:
-            return price, env.as_of, f"ryo:{source.name}"
-    except RyoError:
-        pass
+def _price_now(symbol: str, source: RyoSource | None) -> tuple[float | None, str | None, str]:
+    """RYO's analyze_token first; when there is no source at all, or it fails or carries no price, the
+    exchange median from `price_crosscheck`, labelled as such. Returns (price, as_of, source_label).
+
+    `source=None` is the keyless path: scoring a decision needs no builder key, the same way verifying
+    one needs no model key. The price it is scored against is then an independent one by construction."""
+    if source is not None:
+        try:
+            env = source.call("analyze_token", {"symbol": symbol})
+            probe = EvidencePack(symbol=symbol, created_at=now_iso(), source=source.name,
+                                 sections={"analyze_token": Section(tool="analyze_token", status=env.status, envelope=env)})
+            _, price = first_present(probe, [p for p in paths.PRICE_USD if p.startswith("analyze_token.")])
+            if price is not None:
+                return price, env.as_of, f"ryo:{source.name}"
+        except RyoError:
+            pass
     from nota.skills.price_check import price_crosscheck
 
     check = price_crosscheck(symbol)
@@ -106,7 +110,7 @@ def _build_outcome(receipt: Receipt, ledger: Ledger, price_now: float, as_of_now
     return out
 
 
-def resolve(decision_id: str, ledger: Ledger, source: RyoSource) -> Outcome:
+def resolve(decision_id: str, ledger: Ledger, source: RyoSource | None) -> Outcome:
     raw = ledger.get_decision(decision_id)
     if raw is None:
         raise KeyError(f"no decision {decision_id}")

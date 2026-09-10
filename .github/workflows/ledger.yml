@@ -1,0 +1,83 @@
+name: ledger
+
+# The judge weights each agent by that agent's own Brier score, and a Brier score only exists once a
+# decision has reached its seven-day horizon and been scored against a later price. Nothing on the
+# hosted deployment can write - a serverless filesystem is read-only - so the ledger grows here: one
+# cycle a day scores whatever came due, records a fresh decision when there is a key to make one
+# with, and commits the snapshot the site serves.
+#
+# Scoring needs no key at all. `nota resolve` falls back to the exchange median, so this keeps
+# calibrating even while the RYO builder key is expired or absent, which is the state it was written
+# in: the key issued for the hackathon started answering 401 on 2026-09-10.
+#
+# ponytail: the whole SQLite snapshot is re-committed each day it changes. At ~40 KB per decision
+# that is fine for months; if the repository gets heavy, keep the last N decisions in the snapshot
+# or move the ledger to Postgres.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ledger
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    # One place grows the ledger. On the mirror in the organiser's repository this would spend their
+    # Actions minutes to produce a commit that cannot be pushed anywhere useful.
+    if: github.repository == 'PugarHuda/nota'
+    runs-on: ubuntu-latest
+    env:
+      NOTA_DB: data/demo.db
+      NOTA_LLM: openai
+      NOTA_MAX_TOKENS: "8000"
+      NOTA_VOICES: tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social
+      RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      NOTA_MODEL: ${{ secrets.NOTA_MODEL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen --no-dev   # the browser test dependencies are not needed to run a cycle
+
+      - name: Score every decision that reached its horizon
+        # No key of any kind. A decision that cannot be priced is reported and left unresolved
+        # rather than scored against a guess.
+        run: uv run nota resolve --all
+
+      - name: Record today's decisions
+        if: env.RYO_MCP_KEY != '' && env.OPENAI_API_KEY != ''
+        run: |
+          for s in SOL BTC ETH; do
+            uv run nota decide "$s" || echo "::warning::decide $s failed; the cycle continues"
+          done
+
+      - name: Commit the snapshot if it moved
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          python -c "import sqlite3; sqlite3.connect('data/demo.db').execute('PRAGMA wal_checkpoint(TRUNCATE)')"
+          if git diff --quiet -- data/demo.db; then
+            echo "ledger unchanged: nothing came due and nothing was decided."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/demo.db
+          git commit -m "ledger: cycle $(date -u +%F)"
+          git pull --rebase --autostash
+          git push
+          # A push made with GITHUB_TOKEN deliberately does not trigger other workflows, so the
+          # deploy this needs is called here rather than left to deploy.yml.
+          if [ -n "$HOOK" ]; then
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$HOOK")
+            echo "deploy hook responded $code"
+          fi

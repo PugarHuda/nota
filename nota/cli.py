@@ -257,7 +257,11 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
     if not ids:
         typer.echo("nothing to resolve")
         raise typer.Exit()
-    src = _source(source)
+    # Scoring needs a price, not RYO's price: with no builder key the exchange median stands in, which
+    # is what `_price_now` already falls back to when RYO answers without one.
+    src = _source(source) if source != "live" or os.environ.get("RYO_MCP_KEY") else None
+    if src is None:
+        typer.echo("no RYO key: scoring against the independent exchange median")
     for i in ids:
         try:
             out = resolve(i, led, src)
