@@ -14,7 +14,8 @@ class Out(BaseModel):
 
 
 def _reply(content: str, finish: str = "stop"):
-    return Response(200, json={"choices": [{"message": {"content": content}, "finish_reason": finish}], "cost": {"usd": 0.0003}})
+    return Response(200, json={"choices": [{"message": {"content": content}, "finish_reason": finish}],
+                               "cost": {"usd": 0.0003}, "usage": {"prompt_tokens": 900, "completion_tokens": 120}})
 
 
 @respx.mock
@@ -22,7 +23,8 @@ def test_sends_schema_and_parses():
     route = respx.post("https://api.venice.ai/api/v1/chat/completions").mock(return_value=_reply('{"city":"Paris","n":1}'))
     llm = OpenAICompatLLM(model="m", base_url="https://api.venice.ai/api/v1", api_key="k")
     out = llm.complete_json("[role:macro] sys", "user", Out)
-    assert out == Out(city="Paris", n=1) and llm.last_cost_usd == 0.0003
+    assert out == Out(city="Paris", n=1)
+    assert llm.last_usage == {"prompt_tokens": 900, "completion_tokens": 120, "usd": 0.0003}
     body = json.loads(route.calls[0].request.content)
     assert body["response_format"]["json_schema"]["name"] == "Out"
     assert body["venice_parameters"]["include_venice_system_prompt"] is False
@@ -51,3 +53,14 @@ def test_truncation_and_http_errors_are_explicit():
         llm.complete_json("s", "u", Out)
     with pytest.raises(RuntimeError, match="HTTP 402"):
         llm.complete_json("s", "u", Out)
+
+
+@respx.mock
+def test_a_provider_that_reports_no_usage_leaves_it_none_rather_than_zero():
+    """A token count nobody sent us is unknown, and unknown is None. Zero would read as free."""
+    respx.post("https://api.venice.ai/api/v1/chat/completions").mock(
+        return_value=Response(200, json={"choices": [{"message": {"content": '{"city":"Paris","n":1}'},
+                                                      "finish_reason": "stop"}]}))
+    llm = OpenAICompatLLM(model="m", base_url="https://api.venice.ai/api/v1", api_key="k")
+    llm.complete_json("sys", "user", Out)
+    assert llm.last_usage == {"prompt_tokens": None, "completion_tokens": None, "usd": None}

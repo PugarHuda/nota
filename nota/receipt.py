@@ -33,6 +33,9 @@ class Receipt(BaseModel):
     verdict: Verdict
     trade: PracticeTrade | Blocked = Field(discriminator="kind")
     cache_hits: int = 0
+    # What this decision cost to produce, as the provider reported it. Not compared on replay - a
+    # cached rebuild spends nothing - so it carries no reproducibility claim, only a measurement.
+    spend: dict[str, Any] | None = None
 
 
 def receipt_id(pack_hash: str, model: str, prompt_version: str) -> str:
@@ -60,6 +63,7 @@ def build_receipt(pack: EvidencePack, council: CouncilResult, trade: PracticeTra
         verdict=council.verdict,
         trade=trade,
         cache_hits=council.cache_hits,
+        spend=council.spend,
     )
 
 
@@ -105,5 +109,14 @@ def render_markdown(r: Receipt) -> str:
                 f"{v.get('stop_diff_pct')}% and the target {v.get('target_diff_pct')}% of entry away, {agree}.")
     else:
         lines.append(f"- Blocked: {t.reason}")
+    if r.spend:
+        s = r.spend
+        parts = [f"{s['model_calls']} model call{'' if s['model_calls'] == 1 else 's'}"]
+        if s["cached_calls"]:
+            parts.append(f"{s['cached_calls']} served from cache")
+        for label, key in (("prompt tokens", "prompt_tokens"), ("completion tokens", "completion_tokens")):
+            parts.append(f"{s[key]:,} {label}" if s[key] is not None else f"{label} not reported")
+        parts.append(f"{s['usd']} USD as the provider billed it" if s["usd"] is not None else "cost not reported")
+        lines += ["", "## What this cost", "", f"- {', '.join(parts)}, in {s['ms']} ms."]
     lines += ["", "_Research on read-only RYO evidence. No order was placed. Not financial advice._"]
     return "\n".join(lines)

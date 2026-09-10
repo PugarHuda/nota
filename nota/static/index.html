@@ -221,6 +221,7 @@ async function open(id, push = true) {
     <div class="meta"><span>receipt <a href="/r/${r.id}">${r.id}</a></span><span>${esc(r.created_at)}</span>
       <span>source ${esc(r.source)}</span><span>model ${esc(r.model)} (${esc(r.prompt_version)})</span>
       <span>evidence ${r.pack_hash.slice(0, 16)}</span>
+      ${spendLine(r.spend)}
       ${d.previous_id ? `<span>previous <a href="/r/${d.previous_id}" data-open="${d.previous_id}">${d.previous_id}</a></span>` : ''}</div>
 
     <h2>What changed${d.previous_id ? ` since ${d.previous_id}` : ''}</h2>
@@ -314,6 +315,19 @@ setInterval(async () => {  // the ledger is written by the CLI / watch loop; pic
     if (JSON.stringify(fresh) !== JSON.stringify(all)) { all = fresh; renderList(); loadSide(); }
   } catch (_) { /* keep the last good list */ }
 }, 30000);
+
+// What the decision cost, as the provider reported it. A figure nobody reported is named as
+// unreported rather than shown as zero, and an older receipt has no spend at all.
+function spendLine(s) {
+  if (!s) return '';
+  const bits = [`${s.model_calls} model call${s.model_calls === 1 ? '' : 's'}`];
+  if (s.cached_calls) bits.push(`${s.cached_calls} cached`);
+  bits.push(s.prompt_tokens === null ? 'tokens unreported'
+            : `${(s.prompt_tokens + s.completion_tokens).toLocaleString()} tokens`);
+  if (s.usd !== null) bits.push(`${s.usd} USD`);
+  bits.push(`${(s.ms / 1000).toFixed(1)} s`);
+  return `<span>${esc(bits.join(' · '))}</span>`;
+}
 
 function nextStep(r) {
   const due = new Date(new Date(r.created_at).getTime() + 7 * 864e5), days = Math.ceil((due - Date.now()) / 864e5);

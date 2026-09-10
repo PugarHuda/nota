@@ -97,6 +97,12 @@ strangers:
   `source: recorded`. Synthetic test fixtures live only under `tests/fixtures/` and are
   labelled `source: fixture`; receipts print the label. There is no fake-LLM mode in the CLI.
 - The RYO surface is read-only; practice trades exist only in `nota.db`.
+- A receipt says what it cost: model calls, cache hits, prompt and completion tokens, the provider's
+  own billed figure, and wall time. Every one of those is what the provider reported, never derived
+  from a price table this repository would have to keep correct - a figure that was not reported
+  reads "not reported", and one silent call makes the whole total unknown rather than smaller.
+  `spend` is deliberately outside the replay comparison: a cached rebuild spends nothing, so the
+  field is a measurement, not a reproducibility claim.
 - External sources say what they cannot do: Venice web search carries no dates, the X mirror
   is unofficial, RSS feeds that fail are listed, exchange prices never replace RYO's value.
 
@@ -139,11 +145,12 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
   cease-and-desist letters in August 2026 and its public mirrors went dark, so that reader was
   advertising a source that could not answer; syndication is keyless, dated and still open, and
   every failure is reported as `unavailable` rather than guessed. One measured limit worth knowing
-  before you try it: syndication throttles data-centre addresses hardest, so from the hosted demo an
-  `x:` voice usually comes back `unavailable` with `syndication HTTP 429` in the warnings while `tg:`
-  and `bs:` answer normally. It reads fine from an ordinary connection. Setting `TAVILY_API_KEY` on
-  the deployment turns that into a search-backed fallback, which the envelope then labels as
-  undated.
+  before you try it: syndication throttles hard, and it has tightened. It hit data-centre addresses
+  first, so `x:` came back `unavailable` from the hosted demo while reading fine from an ordinary
+  connection; as of 2026-09-10 an ordinary connection gets `syndication HTTP 429` too. Treat `x:` as
+  best effort and `tg:` / `bs:` as the dependable readers - those two answer from both. Setting
+  `TAVILY_API_KEY` turns the throttle into a search-backed fallback, which the envelope then labels
+  as undated; without that key the warning says so in as many words.
 - `news_verify`: dated headlines from CoinDesk, Cointelegraph, The Block and Decrypt RSS,
   plus Tavily or Venice web search for breadth; counts independent domains and attaches RYO
   `analyze_token` context.

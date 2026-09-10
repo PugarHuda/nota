@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -60,6 +61,7 @@ class CouncilResult(BaseModel):
     cache_hits: int = 0
     model: str
     prompt_version: str = PROMPT_VERSION
+    spend: dict[str, Any] | None = None
 
 
 COMMON_RULES = """
@@ -171,15 +173,51 @@ def validate_citations(opinion: Opinion, allowed: set[str] | Mapping[str, Any]) 
 
 def _cached_call(ledger: Ledger, llm: LLM, pack_hash: str, role: str, system: str, user: str, schema, use_cache: bool,
                  prompt_version: str = PROMPT_VERSION):
+    """Returns (output, was_cached, milliseconds, usage). A cache hit costs no tokens and its time is
+    still measured, because reading the ledger is part of what a replay actually costs."""
     key = cache_key(pack_hash, role, llm.model, prompt_version)
+    t0 = time.perf_counter()
     if use_cache:
         hit = ledger.get_cached(key)
         if hit is not None:
-            return schema.model_validate_json(hit), True
+            return schema.model_validate_json(hit), True, (time.perf_counter() - t0) * 1000, None
     out = llm.complete_json(system=system, user=user, schema=schema)
+    usage = getattr(llm, "last_usage", None)
     if use_cache:  # a fresh (cache-bypassing) run must not overwrite the original decision's outputs
         ledger.put_cached(key, pack_hash, role, prompt_version, llm.model, out.model_dump_json())
-    return out, False
+    return out, False, (time.perf_counter() - t0) * 1000, usage
+
+
+class _Spend:
+    """Adds up what a council actually cost. A total is reported only when every model call that ran
+    reported that figure; one silent provider makes the sum unknown, and unknown is None, not a
+    smaller number that looks precise."""
+
+    def __init__(self) -> None:
+        self.calls = self.cached = 0
+        self.ms = 0.0
+        self._totals: dict[str, float] = {"prompt_tokens": 0.0, "completion_tokens": 0.0, "usd": 0.0}
+        self._known: dict[str, bool] = {k: True for k in self._totals}
+
+    def add(self, cached: bool, ms: float, usage: dict[str, float | None] | None) -> None:
+        self.ms += ms
+        if cached:
+            self.cached += 1
+            return
+        self.calls += 1
+        for k in self._totals:
+            value = (usage or {}).get(k)
+            if value is None:
+                self._known[k] = False
+            else:
+                self._totals[k] += float(value)
+
+    def as_dict(self) -> dict[str, float | int | None]:
+        out: dict[str, float | int | None] = {"model_calls": self.calls, "cached_calls": self.cached,
+                                              "ms": round(self.ms)}
+        for k, total in self._totals.items():
+            out[k] = (round(total, 6) if k == "usd" else int(total)) if self._known[k] and self.calls else None
+        return out
 
 
 def run_council(
@@ -192,13 +230,17 @@ def run_council(
     pack_hash = pack.pack_hash()
     allowed = pack.available_paths()
     hits = 0
+    spend = _Spend()
     opinions: list[Opinion] = []
     for role in ROLES:
-        raw, hit = _cached_call(ledger, llm, pack_hash, role, ROLE_SYSTEM[role], _role_prompt(pack, role), Opinion, use_cache, prompt_version)
+        raw, hit, ms, usage = _cached_call(ledger, llm, pack_hash, role, ROLE_SYSTEM[role], _role_prompt(pack, role), Opinion, use_cache, prompt_version)
         hits += hit
+        spend.add(hit, ms, usage)
         opinions.append(validate_citations(raw.model_copy(update={"role": role}), allowed))
-    verdict, hit = _cached_call(
+    verdict, hit, ms, usage = _cached_call(
         ledger, llm, pack_hash, "judge", ROLE_SYSTEM["judge"], _judge_prompt(pack, opinions, weights), Verdict, use_cache, prompt_version
     )
     hits += hit
-    return CouncilResult(opinions=opinions, verdict=verdict, cache_hits=hits, model=llm.model, prompt_version=prompt_version)
+    spend.add(hit, ms, usage)
+    return CouncilResult(opinions=opinions, verdict=verdict, cache_hits=hits, model=llm.model,
+                         prompt_version=prompt_version, spend=spend.as_dict())

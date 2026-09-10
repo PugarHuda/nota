@@ -57,6 +57,10 @@ class AnthropicLLM:
         parsed = response.parsed_output
         if parsed is None:
             raise RuntimeError("model returned no parsed output")
+        # Anthropic reports tokens but not money, so `usd` stays None rather than being derived from
+        # a price table this repository would have to keep correct.
+        self.last_usage = {"prompt_tokens": response.usage.input_tokens,
+                           "completion_tokens": response.usage.output_tokens, "usd": None}
         return parsed
 
 
@@ -74,7 +78,9 @@ class OpenAICompatLLM:
         self.model = model or os.environ.get("NOTA_MODEL", "qwen3-235b-a22b-instruct-2507")
         self.max_tokens = max_tokens or int(os.environ.get("NOTA_MAX_TOKENS", "4000"))
         self.http = httpx.Client(timeout=httpx.Timeout(180.0, connect=20.0), headers={"Authorization": f"Bearer {self.api_key}"})
-        self.last_cost_usd: float | None = None
+        # What the provider itself reported for the last call. Never estimated: a token count we
+        # did not receive stays None, the same rule the evidence envelope follows.
+        self.last_usage: dict[str, float | None] | None = None
         self.sleep = time.sleep
 
     def complete_json(self, system: str, user: str, schema: type[T]) -> T:
@@ -104,7 +110,10 @@ class OpenAICompatLLM:
         if r.status_code >= 400:
             raise RuntimeError(f"LLM HTTP {r.status_code}: {r.text[:300]}")
         data = r.json()
-        self.last_cost_usd = (data.get("cost") or {}).get("usd")
+        usage = data.get("usage") or {}
+        self.last_usage = {"prompt_tokens": usage.get("prompt_tokens"),
+                           "completion_tokens": usage.get("completion_tokens"),
+                           "usd": (data.get("cost") or {}).get("usd")}
         choice = data["choices"][0]
         content = choice["message"]["content"] or ""
         if choice.get("finish_reason") == "length":
