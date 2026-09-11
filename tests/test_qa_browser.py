@@ -426,3 +426,23 @@ def test_the_mcp_server_serves_all_four_primitives_over_the_wire(server, browser
     assert reg["remotes"][0]["url"].endswith("/mcp")
     assert problems == [], problems
     page.close()
+
+
+def test_the_japanese_landing_is_the_same_page_in_another_language(server, browser):
+    """Everything the shared script does must work on the translation too - and the page it draws
+    must be the same page: same marks, same failure panel, same receipt, no sideways scroll."""
+    page, problems = page_with_log(browser, viewport={"width": 390, "height": 844})
+    page.goto(server + "/ja", wait_until="networkidle")
+
+    assert page.locator("html").get_attribute("lang") == "ja"
+    assert page.locator("#mark line.tick").count() == 64
+    assert page.locator("#mark text.p").text_content() == f"{NEWEST['verdict']['p_up_7d']:.2f}"
+    assert page.locator("#ledger figure").count() == SHIPPED
+    page.wait_for_selector("#broken-panel .bad")
+    assert NEWEST["id"] in page.locator(".seal figcaption").inner_text()   # caption follows the mark
+
+    # the stylesheet really arrived: an unstyled page has no serif body and no rules
+    assert "serif" in page.evaluate("getComputedStyle(document.body).fontFamily")
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "sideways scroll at 390px"
+    assert problems == [], problems
+    page.close()

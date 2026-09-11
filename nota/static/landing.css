@@ -1,0 +1,169 @@
+/* The landing's whole appearance, shared by every language of it. One system with the dashboard:
+   same tokens, same two families, same 2px corner. Native CSS, no framework, so it works offline. */
+:root { color-scheme: light dark;
+  --paper:light-dark(#f5f4f0,#121316); --panel:light-dark(#ffffff,#191a1e);
+  --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
+  --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
+  --accent:light-dark(#1b4b8f,#82a9e6);
+  --long:light-dark(#2c6a4e,#61a482); --short:light-dark(#a83a2c,#e0806d);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",
+          "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --measure:66ch; --pad:clamp(20px,5vw,64px);
+}
+* { box-sizing:border-box }
+body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.6 var(--serif);
+       -webkit-font-smoothing:antialiased }
+code, .mono, kbd, .num { font-family:var(--mono); font-variant-numeric:tabular-nums }
+a { color:var(--accent); text-underline-offset:3px }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px }
+img { max-width:100%; display:block }
+.wrap { max-width:1120px; margin:0 auto; padding:0 var(--pad) }
+
+/* navigation: one line, 62px */
+nav { height:62px; display:flex; align-items:center; gap:26px; border-bottom:1px solid var(--rule);
+      background:var(--panel); position:sticky; top:0; z-index:10 }
+nav .wrap { display:flex; align-items:center; gap:26px; width:100% }
+nav b { font-size:19px; letter-spacing:-.01em }
+nav a { font:13px/1 var(--mono); color:var(--ink-2); text-decoration:none }
+nav a:hover { color:var(--ink) }
+nav .right { margin-left:auto; display:flex; align-items:center; gap:20px }
+nav .cta { color:var(--accent) }
+@media (max-width:640px) { nav .right a:not(.cta) { display:none } }
+
+/* hero: headline, subtext, two actions on the left; the working product on the right, tilted and
+   running past the edge so it reads as a window into something real rather than a picture of one.
+   The substrate is a ledger rule, not a gradient: nota means the slip a transaction leaves. */
+header { padding:clamp(40px,7vh,68px) 0 clamp(40px,7vh,60px); overflow:hidden; position:relative }
+header::before { content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, transparent 0 31px,
+    light-dark(rgba(23,23,27,.05), rgba(232,231,226,.05)) 31px 32px);
+  mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 62%, transparent) }
+header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);
+               gap:clamp(24px,4vw,52px); align-items:center; position:relative }
+.seal { display:flex; flex-direction:column; align-items:center; gap:16px }
+.seal svg { width:min(420px,86%); height:auto; overflow:visible }
+.seal figcaption { max-width:40ch; text-align:center; margin:0; line-height:1.75 }
+.seal .tick, .ledger .tick { stroke:var(--ink); stroke-width:1.4; opacity:.5 }
+.seal .ring, .ledger .ring { fill:none; stroke:var(--rule-2) }
+.seal .arc, .ledger .arc { fill:none; stroke:var(--accent); stroke-width:9; stroke-linecap:butt }
+.seal .arc-track, .ledger .arc-track { fill:none; stroke:var(--rule); stroke-width:9 }
+.seal .petal { fill:none; stroke:var(--ink); stroke-width:1; opacity:.32 }
+.seal .core, .ledger .core { fill:var(--panel); stroke:var(--rule-2) }
+.seal .p, .ledger .p { font:600 46px/1 var(--serif); fill:var(--ink); text-anchor:middle }
+.seal .plabel { font:11px/1 var(--mono); fill:var(--ink-2); text-anchor:middle }
+@media (prefers-reduced-motion: no-preference) {
+  .seal .tick, .seal .petal { animation:ink .7s both } .seal .arc { animation:sweep .9s .15s both }
+  @keyframes ink { from { opacity:0 } }
+  @keyframes sweep { from { stroke-dasharray:0 9999 } }
+}
+.stage .frame { border:1px solid var(--rule-2); border-radius:3px; overflow:hidden; aspect-ratio:16/10.6;
+  transform:rotateY(-9deg) rotateX(2deg) translateZ(0); transform-origin:left center;
+  box-shadow:0 30px 60px -28px light-dark(rgba(23,23,27,.34), rgba(0,0,0,.72)),
+             0 2px 8px light-dark(rgba(23,23,27,.06), rgba(0,0,0,.4)) }
+/* zoom into the receipt column: a legible detail beats a whole page shrunk to a smudge */
+.stage .frame img { width:196%; height:auto; display:block; margin:-1.5% 0 0 -25% }
+@media (max-width:960px) { .stage .frame img { width:150%; margin:0 0 0 -14% } }
+@media (max-width:960px) {
+  header .wrap { grid-template-columns:1fr }
+  .stage { margin-right:0; perspective:none }
+  .stage .frame { transform:none }
+}
+
+/* the hero's own proof, run against the deployed API on click */
+.verify { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:26px;
+          font:13px/1.6 var(--mono); color:var(--ink-2) }
+.verify button { font:13px/1 var(--mono); padding:10px 14px; border:1px solid var(--rule-2);
+                 border-radius:2px; background:var(--panel); color:var(--ink); cursor:pointer }
+.verify button:hover { border-color:var(--accent); color:var(--accent) }
+.verify output { font-variant-numeric:tabular-nums }
+.verify .yes { color:var(--long) } .verify .no { color:var(--short) }
+h1 { font:600 clamp(34px,3.7vw,45px)/1.1 var(--serif); letter-spacing:-.028em; margin:0; max-width:19ch; hyphens:none }
+.sub { font-size:clamp(17px,1.6vw,20px); color:var(--ink-2); margin:18px 0 0; max-width:46ch }
+.actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px }
+.btn { font:13px/1 var(--mono); padding:12px 16px; white-space:nowrap; border-radius:2px; text-decoration:none;
+       border:1px solid var(--accent); color:var(--paper); background:var(--accent) }
+.btn.ghost { background:none; color:var(--accent) }
+.btn:hover { filter:brightness(1.08) }
+
+section { padding:clamp(44px,7vh,76px) 0; border-top:1px solid var(--rule) }
+h2 { font:600 clamp(26px,3.4vw,36px)/1.18 var(--serif); letter-spacing:-.02em; margin:0 0 14px; max-width:22ch }
+h3 { font:600 18px/1.35 var(--serif); margin:0 0 4px }
+p { max-width:var(--measure) }
+.lede { color:var(--ink-2); margin:0 0 32px }
+
+/* the proof: a real terminal transcript, not a styled div pretending to be one */
+figure { margin:0 }
+pre.proof { margin:0; background:light-dark(#1a1b1f,#0d0e11); color:#e8e7e2; border-radius:2px; white-space:pre;
+         padding:20px 22px; font:13px/1.8 var(--mono); overflow-x:auto }
+.proof .p { color:#8fa3c4 } .proof .ok { color:#7fc9a3 } .proof .c { color:#9298a6 }
+figcaption { font:13px/1.6 var(--mono); color:var(--ink-2); margin-top:12px }
+.audit { display:grid; grid-template-columns:1fr auto auto auto; gap:0; margin-top:26px;
+         font:14px/1 var(--mono); max-width:640px }
+.audit > * { padding:11px 14px 11px 0; border-bottom:1px solid var(--rule) }
+.audit .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
+.audit .n { text-align:right; font-variant-numeric:tabular-nums }
+.audit .agree { text-align:right; color:var(--long) }
+/* the same ledger table, two columns: what was asked for, and what came back */
+.broken-grid { display:grid; grid-template-columns:1fr auto; gap:0; margin-top:26px;
+               font:14px/1 var(--mono); max-width:640px }
+.broken-grid > * { padding:11px 14px 11px 0; border-bottom:1px solid var(--rule); min-width:0 }
+.broken-grid .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
+.broken-grid .ok { text-align:right; color:var(--long) }
+.broken-grid .bad { text-align:right; color:var(--short) }
+.broken-grid .warn { grid-column:1 / -1; font-size:13px; line-height:1.6; color:var(--ink-2);
+                     white-space:pre-wrap; overflow-wrap:anywhere }
+.note { margin-top:22px; font:14px/1.7 var(--mono); color:var(--ink-2) }
+
+/* the sequence: this content really is ordered, so it is numbered */
+ol.steps { list-style:none; margin:0; padding:0; counter-reset:s;
+           display:grid; gap:0; border-top:1px solid var(--rule) }
+ol.steps li { counter-increment:s; display:grid; grid-template-columns:52px 1fr;
+              gap:20px; padding:20px 0; border-bottom:1px solid var(--rule) }
+ol.steps li::before { content:counter(s,decimal-leading-zero); font:13px/1.7 var(--mono); color:var(--ink-2) }
+ol.steps p { margin:0; color:var(--ink-2); max-width:60ch }
+
+/* asymmetric image and text, used once */
+.shot { display:grid; grid-template-columns:1.55fr 1fr; gap:40px; align-items:start }
+.shot img { border:1px solid var(--rule-2); border-radius:2px }
+@media (max-width:900px) { .shot { grid-template-columns:1fr } }
+
+dl.rules { display:grid; grid-template-columns:minmax(200px,1fr) 2fr; gap:0; margin:0;
+           border-top:1px solid var(--rule) }
+dl.rules dt { font:13px/1.7 var(--mono); padding:16px 20px 16px 0; border-bottom:1px solid var(--rule) }
+dl.rules dd { margin:0; padding:16px 0; border-bottom:1px solid var(--rule); color:var(--ink-2) }
+@media (max-width:760px) { dl.rules { grid-template-columns:1fr } dl.rules dt { border:0; padding-bottom:2px } }
+
+.ledger { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:clamp(14px,3vw,34px) }
+.ledger figure { text-align:center }
+.ledger svg { width:100%; height:auto; overflow:visible }
+.ledger figcaption { font-size:12px; line-height:1.7; color:var(--ink-2); margin-top:10px }
+.ledger b { font-family:var(--mono); font-size:13px; color:var(--ink) }
+.ledger a { text-decoration:none }
+@media (max-width:760px) { .ledger { grid-template-columns:repeat(2,1fr) } }
+
+.social { display:grid; grid-template-columns:1fr minmax(0,1.15fr); gap:44px; align-items:center }
+.social > *, .social figure { min-width:0 }   /* a grid item defaults to min-width:auto, which lets a
+                                                 pre with long lines widen the page instead of scrolling */
+.social p { margin:0 0 14px; color:var(--ink-2); max-width:52ch }
+.social img { border:1px solid var(--rule-2); border-radius:2px }
+@media (max-width:900px) { .social { grid-template-columns:1fr; gap:24px } }
+
+.tracks { border-top:1px solid var(--rule) }
+.tracks article { display:grid; grid-template-columns:120px 1fr; gap:24px;
+                  padding:24px 0; border-bottom:1px solid var(--rule) }
+.tracks .no { font:13px/1.7 var(--mono); color:var(--ink-2) }
+.tracks p { margin:0; color:var(--ink-2) }
+@media (max-width:700px) { .tracks article { grid-template-columns:1fr; gap:6px } }
+
+footer { border-top:1px solid var(--rule-2); padding:34px 0 46px; background:var(--panel) }
+footer .cols code { color:var(--ink) }
+footer .cols { display:flex; flex-wrap:wrap; gap:14px 34px; font:13px/1.9 var(--mono) }
+footer .fine { color:var(--ink-2); font-size:13px; margin:20px 0 0; max-width:70ch }
+
+/* one orchestrated moment: the hero settles once on load, then the page is still */
+@media (prefers-reduced-motion: no-preference) {
+  header > .wrap > * { animation:rise .5s both cubic-bezier(.2,.7,.3,1) }
+  header h1 { animation-delay:.02s } .sub { animation-delay:.10s } .actions { animation-delay:.18s }
+  @keyframes rise { from { opacity:0; transform:translateY(9px) } to { opacity:1; transform:none } }
+}

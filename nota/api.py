@@ -532,6 +532,24 @@ def landing() -> FileResponse:
     return FileResponse(STATIC / "landing.html")
 
 
+@app.get("/ja")
+def landing_ja() -> FileResponse:
+    """The same reading room in Japanese. Same script, same ids, translated prose only."""
+    return FileResponse(STATIC / "landing.ja.html")
+
+
+@app.get("/landing.js", include_in_schema=False)
+def landing_script() -> FileResponse:
+    # One behaviour and one appearance shared by every language of the landing, so a translation
+    # cannot drift into being a different page.
+    return FileResponse(STATIC / "landing.js", media_type="application/javascript")
+
+
+@app.get("/landing.css", include_in_schema=False)
+def landing_style() -> FileResponse:
+    return FileResponse(STATIC / "landing.css", media_type="text/css")
+
+
 @app.get("/app")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")

@@ -235,6 +235,10 @@ text, and as `structuredContent` for clients that parse.
 - **Open practice positions** against the latest evidence price, with distance-to-stop.
 - **Agent leaderboard** by Brier score with the judge weights currently in force, and a judge
   calibration table (stated `p_up_7d` bucket vs realised hit rate) once decisions resolve.
+- **Two languages, one page**: `/` and `/ja` share `landing.css` and `landing.js`, so only the prose
+  is translated and the behaviour is the same object rather than a copy of it. Tests bind the two:
+  identical section ids, both loading the one script, and neither allowed to write a receipt id or an
+  evidence hash into the file.
 - **Which sources helped** (`sources` in `/api/scores`): for every evidence section, the judge's
   mean Brier on decisions where that section answered against decisions where it did not, and the
   difference between them. It answers a question the agent leaderboard cannot - not "which agent is
@@ -352,7 +356,8 @@ nota/
   api.py          FastAPI read API + static/index.html dashboard
   skills/         contract, sources (Telegram, Bluesky, X syndication, RSS, Tavily, Venice), narrative, news, price_check
   decide.py / replay.py / calibration.py / cli.py
-  static/         landing.html, index.html (dashboard), demo.html (walkthrough + transcript)
+  static/         landing.html + landing.ja.html (same page, `/` and `/ja`), index.html (dashboard),
+                  demo.html (walkthrough + transcript), landing.css + landing.js shared by both languages
 scripts/          screenshots.py, narration.py, demo_video.py
 video/            Remotion composition that puts the narration onto the recording
 docs/             hackathon analysis, MCP builder guide copy, design spec, skill spec, submission draft

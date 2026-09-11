@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nota</title>
+<meta name="description" content="AIの評議会がRYOの市場エビデンスを読み、すべての判断を「同じ結果で再実行できる領収書」として保存します。鍵もネットワークも不要です。">
+<meta property="og:title" content="Nota: 再実行できるトレード判断">
+<meta property="og:description" content="判断はすべて領収書です。台帳から再実行すれば同じ答えが返り、数値はどれも出所のRYOパスまで辿れます。">
+<meta property="og:type" content="website">
+<link rel="alternate" hreflang="en" href="/">
+<link rel="stylesheet" href="/landing.css">
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <b>Nota</b>
+    <div class="right">
+      <a href="#proof">検証</a>
+      <a href="#broken">データ源が落ちたとき</a>
+      <a href="#how">仕組み</a>
+      <a href="https://github.com/PugarHuda/nota">ソース</a>
+      <a href="/" hreflang="en" lang="en">English</a>
+      <a class="cta" href="/app">ダッシュボードを開く</a>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div>
+    <h1>再実行できるトレード判断。</h1>
+    <p class="sub">エージェントの評議会がRYOのライブ市場エビデンスをめぐって議論し、その判断を寸分たがわず再現できる領収書として保存します。</p>
+    <div class="actions">
+      <a class="btn" href="/app">ダッシュボードを開く</a>
+      <a class="btn ghost" href="/demo">デモを見る</a>
+    </div>
+    <p class="verify">
+      <button type="button" id="verify">いま領収書を検証する</button>
+      <output id="verify-out" aria-live="polite" data-idle="このサイトのAPIを呼び、領収書 %s を再実行します。">このサイトのAPIを呼び、最新の領収書を再実行します。</output>
+    </p>
+    </div>
+    <figure class="seal">
+      <svg id="mark" viewBox="0 0 420 420" role="img"
+           data-label="領収書 %s から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率 %p です。"
+           aria-label="最新の領収書から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率です。"></svg>
+      <figcaption data-caption="領収書 %a。目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。">目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。</figcaption>
+    </figure>
+  </div>
+</header>
+
+<section id="proof">
+  <div class="wrap">
+    <h2>Notaは与えられたデータ自体を検算します。</h2>
+    <p class="lede">RYOはATRとRSIを公開しています。Notaはその両方を公開ローソク足からワイルダー式で計算し直して突き合わせ、さらにRYOの価格を3取引所の中央値と照合します。両者が食い違えば、判定役はポジションのサイズ決定そのものを拒みます。以下の数値は2026年9月7日のライブ領収書のものです。台帳にあるすべての領収書は同一に再実行されます。9月10日に記録されたもの、つまりビルダー鍵が401を返しはじめてRYOの5セクションが一斉にエラーへ落ちた日の領収書も含めてです。そのための小細工は一切していません。評議会は残ったものだけを読み、判定役はトレードを拒み、差分はその崩壊をページ最上段に置きました。</p>
+    <div class="audit">
+      <div class="h">項目</div><div class="h n">Nota</div><div class="h n">RYO</div><div class="h n">差</div>
+      <div>ATR(14), USD</div><div class="n">4.347</div><div class="n">4.3762</div><div class="agree">0.67%</div>
+      <div>RSI(14)</div><div class="n">64.84</div><div class="n">68.70</div><div class="agree">3.9 pts</div>
+      <div>価格, USD</div><div class="n">105.05</div><div class="n">104.946</div><div class="agree">0.10%</div>
+    </div>
+  </div>
+</section>
+
+<section id="broken">
+  <div class="wrap">
+    <h2>そして、そもそも与えられなかったとき。</h2>
+    <p class="lede">市場ツールの真価が問われるのは、データ源が動いている日ではなく落ちた日です。下に出ているのは、この環境で実際に何かが失敗した直近の領収書を、ページ読み込み時に台帳から読んだものです。「こうなるはず」という説明図ではありません。各セクションはデータ源が返したステータスをそのまま持ち、取得できなかった値はゼロにならずnullのまま残り、判定役には「何が欠けているか」が伝えられます。</p>
+    <div id="broken-panel" class="broken-grid"><div>台帳を読んでいます…</div></div>
+    <p id="broken-verdict" class="note"></p>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>1件の判断ができるまで</h2>
+    <ol class="steps">
+      <li><div><h3>収集</h3><p>RYOの5つのツールを1つのエビデンスパックに読み込みます。失敗したツールはエラーが付いたセクションになり、パック自体は作られます。</p></div></li>
+      <li><div><h3>議論</h3><p>マクロ・テクニカル・ナラティブの3エージェントが、それぞれ立場・確率・ドット記法のパスによる引用を返します。存在しないエビデンスを指す引用はコード側で破棄され、その意見は格下げされます。</p></div></li>
+      <li><div><h3>判定</h3><p>4人目のエージェントが、過去の判断から算出した各自のブライアスコアで3者に重みを付け、ロング・ショート・見送りを決めます。</p></div></li>
+      <li><div><h3>サイズ決定</h3><p>モデルは一切関与しない純粋な算術です。損切りはATRの2倍、目標は3倍、数量は口座の1%から。価格やATRが欠けていれば、数字を仮定せずトレードを止めます。</p></div></li>
+      <li><div><h3>記録</h3><p>すべてが領収書に収まります。数値ごとのRYOパス、as_of、data_mode、トレースIDまで。だから判断は再実行でき、後日その価格が実際にどう動いたかで採点できます。</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>領収書は自らを描く</h2>
+    <p class="lede">これらは同梱された台帳にある判断です。印はどれもその領収書自身のエビデンスハッシュから生成され、弧は判定役が示した確率です。ゆえに2つの領収書が同じ図を描くことはなく、同じ領収書が違う図を描くこともありません。</p>
+    <div class="ledger" id="ledger"></div>
+    <p style="margin-top:26px">ダッシュボードは30秒でつかめる要約から始まります。何を判断したか、その銘柄の前回領収書から何が最も変わったか、練習ポジションはいまどこにあるか、次に何が起きるか。すべての領収書は直前のものと差分を取って影響度順に並び、劣化したエビデンスは埋もれさせず最上段で告知され、ページ全体がキーボードだけで操作できます。<a href="/app">ダッシュボードを開く</a>。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>コードが強制する規則</h2>
+    <dl class="rules">
+      <dt>nullはnullのまま</dt><dd>欠損値をゼロに置き換えることは、パイプラインのどこでもしません。</dd>
+      <dt>値はエビデンスから来る</dt><dd>引用された数値はエビデンスパックから読み戻したものです。モデルが打ち直すことはありません。</dd>
+      <dt>simulatedでは決してトレードしない</dt><dd>RYOが主要エビデンスをsimulatedと記していれば、サイズ決定は止められ、領収書にそう書かれます。</dd>
+      <dt>注文は一度も出さない</dt><dd>ここで使うRYOの面は読み取り専用です。ポジションは紙上のもので、紙上のものとして明記されます。</dd>
+      <dt>ラベルは領収書に載る</dt><dd>live・recorded・fixtureの各エビデンスは自分のソースラベルを持ち、それが領収書に印字されます。</dd>
+      <dt>エージェントは重みを稼ぐ</dt><dd>判断が7日の期限で確定すると、各エージェントのブライアスコアが、次に判定役がどれだけ耳を傾けるかを変えます。</dd>
+    </dl>
+  </div>
+</section>
+
+<section id="social">
+  <div class="wrap">
+    <h2>公開された論拠を、公開の場で採点する</h2>
+    <div class="social">
+      <div>
+        <p>本人にしか見えない判断には何のコストもありません。すべての領収書には恒久リンクがあり、共有すればカードとして描画されるので、数値だけでなく論拠ごと伝わります。</p>
+        <p>誰でもハンドル名で領収書を支持、あるいは反対できます。1人1スタンス、結果が判明する前だけです。7日の期限で判断は新しい価格に対して採点され、支持した人それぞれの的中率もそれに連動して動きます。見送りは採点されません。</p>
+        <p>エージェントも同じ土俵にいます。各自が過去の判断からのブライアスコアを持ち、そのスコアが次に判定役がどれだけ耳を傾けるかを決めます。</p>
+      </div>
+      <figure>
+        <pre class="proof"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
+<span class="p">og:title</span>       ETH: LONG practice trade, 1377 USD, stop 2312.57
+<span class="p">og:description</span> long (p_up_7d 0.68). All three council members are
+               bullish with medium to high confidence...
+<span class="p">og:image</span>       /r/dbd7727f5a25.png
+<span class="p">twitter:card</span>   summary_large_image</pre>
+        <figcaption>領収書ごとに配信されます。カード画像そのものは <code>/r/&lt;id&gt;.png</code> で描かれます。</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>3つのトラック、1つのシステム</h2>
+    <div class="tracks">
+      <article>
+        <div class="no">トラック1</div>
+        <div><h3>自律エージェント</h3><p>評議会、領収書、そして定期的に判断し、練習ポジションを損切りや目標で手仕舞い、期限が来たものを採点し、TelegramやDiscordへ配信するwatchループ。</p></div>
+      </article>
+      <article>
+        <div class="no">トラック2</div>
+        <div><h3>ダッシュボード</h3><p>差分優先・キーボード優先。再実行による検証、Open Graphの領収書カード、そして判断確定時に採点される公開の支持ランキング付き。</p></div>
+      </article>
+      <article>
+        <div class="no">トラック3</div>
+        <div><h3>スキル</h3><p>4つのリサーチスキルを、RYO自身の /api/skills パス上にRYOのエンベロープで提供します。つまりRYOへの追加は移植ではなくルート登録で済みます。ナラティブ収束、ニュース検証、価格クロスチェック、テクニカルクロスチェック。</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <a href="/app">ダッシュボード</a>
+      <a href="/demo">ウォークスルー動画</a>
+      <a href="/api/skills/">スキル一覧</a>
+      <a href="/llms.txt">llms.txt</a>
+      <span class="muted">MCPエンドポイント: <code>POST /mcp</code></span>
+      <a href="/api/health">ヘルス</a>
+      <a href="https://github.com/PugarHuda/nota">ソース</a>
+    </div>
+    <p class="fine">RYO-CHAN Virtual Hackathon 2026 のために制作。読み取り専用の市場エビデンスに対するリサーチであり、
+      練習トレードのみ、投資助言ではありません。</p>
+  </div>
+</footer>
+<script src="/landing.js" defer></script>
+</body>
+</html>

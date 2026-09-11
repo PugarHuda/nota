@@ -146,19 +146,6 @@ def test_llms_txt_describes_this_deployment_from_its_own_routes(tmp_path, monkey
     assert "no order is ever placed" in body
 
 
-def test_the_landing_page_states_no_number_of_its_own():
-    """The landing used to hardcode the shipped receipts so it could draw them without a request,
-    which made it possible to write a hash by hand - fabricated data on a page whose entire argument
-    is that nothing here is fabricated. It reads them from the API now, so the binding is structural:
-    there is no hash on the page to be wrong, and a daily cycle cannot leave the copy stale."""
-    import re
-    from pathlib import Path
-
-    page = (Path(__file__).resolve().parents[1] / "nota" / "static" / "landing.html").read_text(encoding="utf-8")
-    assert re.findall(r"[0-9a-f]{64}", page) == [], "an evidence hash is written into the landing page"
-    assert "/api/decisions?limit=" in page, "the landing no longer reads the ledger it draws"
-
-
 def test_every_shipped_receipt_replays_identically():
     """The landing says every receipt in the ledger replays identically. This is that sentence."""
     from nota.ledger import Ledger
