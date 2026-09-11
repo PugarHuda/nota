@@ -36,6 +36,12 @@ class BackingStore(Protocol):
     def all_backings(self) -> list[dict[str, Any]]: ...
 
 
+# Which DSNs this process has already created the table on. It belongs to the process, not to an
+# instance: `store_for` builds a new object per request, so an instance flag would have meant a
+# CREATE TABLE round trip on every receipt anyone opened.
+_SCHEMA_READY: set[str] = set()
+
+
 class PostgresBackings:
     """One connection per call. A serverless function is not a long-lived process, and Neon's
     pooled URL is built for exactly this; holding a socket open between requests would only give
@@ -43,18 +49,17 @@ class PostgresBackings:
 
     def __init__(self, dsn: str) -> None:
         self.dsn = dsn
-        self._ready = False
 
     def _connect(self):
         import psycopg
         from psycopg.rows import dict_row
 
         conn = psycopg.connect(self.dsn, row_factory=dict_row, connect_timeout=10)
-        if not self._ready:
+        if self.dsn not in _SCHEMA_READY:
             with conn.cursor() as cur:
                 cur.execute(SCHEMA)
             conn.commit()
-            self._ready = True
+            _SCHEMA_READY.add(self.dsn)
         return conn
 
     @staticmethod

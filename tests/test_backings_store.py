@@ -87,3 +87,46 @@ def test_the_upsert_is_one_statement_so_a_simultaneous_backer_cannot_be_lost():
     assert "ON CONFLICT (decision_id, handle) DO UPDATE" in source
     assert "SELECT" not in source.upper().replace("SELECT EXCLUDED", ""), "a read before the write is a lost update"
     assert sql == sql  # doc is optional here; the statement is the contract
+
+
+def test_the_table_is_created_once_per_process_not_once_per_request(monkeypatch):
+    """`store_for` builds a new object per request. A per-instance flag would have put a CREATE
+    TABLE round trip in front of every receipt anyone opened."""
+    import psycopg
+
+    from nota import backings
+
+    backings._SCHEMA_READY.clear()
+    verbs: list[str] = []
+
+    class Cursor:
+        def execute(self, sql, params=None):
+            verbs.append(sql.split()[0].upper())
+
+        def fetchall(self):
+            return []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class Conn:
+        def cursor(self):
+            return Cursor()
+
+        def commit(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **kw: Conn())
+    for _ in range(3):
+        backings.PostgresBackings("postgresql://x/y").all_backings()
+
+    assert verbs.count("CREATE") == 1 and verbs.count("SELECT") == 3
