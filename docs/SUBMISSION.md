@@ -104,7 +104,7 @@ cd video && npx remotion render                      # Remotion places every lin
 a visible cursor to that element, frames it, dims the rest, and captions the line, so a viewer always
 knows which part is being explained. It writes down the second each beat actually began - a page load
 costs time the narration does not - and both the composition and `/demo`'s clickable transcript read
-that same file, so they cannot drift from the video. Result: 1:47, 1280x720, h264 + AAC, 5.8 MB,
+that same file, so they cannot drift from the video. Result: 2:18, 1280x720, h264 + AAC, 12.5 MB,
 bundled at `nota/static/demo.mp4`. Nothing is staged: the verify button is pressed on camera and the
 "identical: true" it shows is whatever the API returned.
 
@@ -183,7 +183,7 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       percentage and in dollars - see the commit for why that distinction matters on BTC.
 - [x] Four live receipts (SOL / BTC / ETH, 2026-09-07) replace the fixture snapshot in
       `data/demo.db`; all four replay `identical: True`.
-- [x] Narrated demo video (1:47, AI voice, on-screen cursor and highlight box) bundled at
+- [x] Narrated demo video (2:18, AI voice, on-screen cursor and highlight box) bundled at
       `nota/static/demo.mp4`, served at `/demo.mp4` and at `/demo` with a clickable transcript
       generated from the recorder's own offsets; `demo_video_url` filled in both files and live
 - [ ] Optional: mirror the same file on YouTube if the judges prefer a player

@@ -41,8 +41,16 @@ BEATS: list[tuple[str, str | None, str]] = [
      "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles "
      "with Wilder's method. Four point three four seven against RYO's four point three seven six: "
      "zero point six seven percent apart."),
+    ("broken", "#broken-panel",
+     "And here is the day it broke. On the tenth of September the builder key started answering "
+     "unauthenticated, and all five RYO sections failed at once. Nothing was patched for it. The "
+     "three independent skills kept answering, a value that could not be fetched stayed null rather "
+     "than becoming zero, and the judge refused to size anything without primary evidence. This "
+     "panel is read from the ledger as the page loads. It is a record, not an illustration."),
     ("ledger", "#ledger",
-     "Four receipts ship with the repository, each drawing itself from its own hash."),
+     "The ledger's receipts are drawn here, each one from its own hash. Nothing on this page is "
+     "typed in: the marks, this caption and the button you just watched all come from the "
+     "deployment's own API."),
     ("dashboard", None,
      "Now the instrument itself."),
     ("summary", "#summary",

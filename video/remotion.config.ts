@@ -9,6 +9,9 @@ import {Config} from '@remotion/cli/config';
 Config.setPublicDir('../docs/demo');
 Config.setVideoImageFormat('jpeg');
 Config.setCodec('h264');
+// Screen capture compresses well, and this file ships in the repository and is served to every
+// visitor. Remotion's default CRF of 18 spent 19 MB on 138 seconds of mostly static text.
+Config.setCrf(26);
 Config.setOverwriteOutput(true);
 
 // Remotion's own Chrome download does not resolve on this machine, and the recorder already

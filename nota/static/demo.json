@@ -1,75 +1,81 @@
 {
- "seconds": 106.839,
+ "seconds": 137.919,
  "chapters": [
   {
    "id": "open",
-   "start": 0.623,
+   "start": 0.71,
    "seconds": 6.384,
    "text": "This is Nota. It turns an AI trading opinion into something you can check, instead of something you have to trust."
   },
   {
    "id": "mark",
-   "start": 7.388,
+   "start": 7.464,
    "seconds": 10.728,
    "text": "The mark is not decoration. Its ticks are the evidence hash of a real receipt, and the arc is the probability that receipt's judge stated. The same evidence always draws the same figure."
   },
   {
    "id": "verify",
-   "start": 18.48,
+   "start": 18.557,
    "seconds": 5.232,
    "text": "The headline claims a decision can be re-run. So let's press the button and check it, live."
   },
   {
    "id": "verified",
-   "start": 24.152,
+   "start": 24.216,
    "seconds": 8.592,
    "text": "Identical, true. That rebuilt the decision from the stored evidence and the model output cached beside it. No key, no network call to any model."
   },
   {
    "id": "audit",
-   "start": 33.108,
+   "start": 33.176,
    "seconds": 14.928,
    "text": "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles with Wilder's method. Four point three four seven against RYO's four point three seven six: zero point six seven percent apart."
   },
   {
+   "id": "broken",
+   "start": 48.484,
+   "seconds": 25.104,
+   "text": "And here is the day it broke. On the tenth of September the builder key started answering unauthenticated, and all five RYO sections failed at once. Nothing was patched for it. The three independent skills kept answering, a value that could not be fetched stayed null rather than becoming zero, and the judge refused to size anything without primary evidence. This panel is read from the ledger as the page loads. It is a record, not an illustration."
+  },
+  {
    "id": "ledger",
-   "start": 48.404,
-   "seconds": 4.704,
-   "text": "Four receipts ship with the repository, each drawing itself from its own hash."
+   "start": 73.964,
+   "seconds": 10.92,
+   "text": "The ledger's receipts are drawn here, each one from its own hash. Nothing on this page is typed in: the marks, this caption and the button you just watched all come from the deployment's own API."
   },
   {
    "id": "dashboard",
-   "start": 56.906,
+   "start": 87.985,
    "seconds": 1.656,
    "text": "Now the instrument itself."
   },
   {
    "id": "summary",
-   "start": 58.92,
+   "start": 90.009,
    "seconds": 9.792,
    "text": "Every receipt opens on a thirty second summary. What was decided, what changed most since the previous receipt, where the practice position stands, and what happens next."
   },
   {
    "id": "changed",
-   "start": 69.081,
+   "start": 100.174,
    "seconds": 7.272,
    "text": "Each receipt is diffed against the one before it for the same symbol, and ranked by impact, so the row that mattered is the row on top."
   },
   {
    "id": "council",
-   "start": 76.749,
+   "start": 107.847,
    "seconds": 14.352,
    "text": "Three specialists argue. Each cites dotted paths into the evidence, and the value shown is read back out of that evidence rather than retyped by the model. A citation pointing at something absent is dropped in code, and the opinion is downgraded for it."
   },
   {
    "id": "skills",
-   "start": 91.468,
+   "start": 122.558,
    "seconds": 8.472,
    "text": "Four research skills run from this panel, and the same four are served over the Model Context Protocol, so Claude Desktop or Cursor can call them directly."
   },
   {
    "id": "close",
-   "start": 100.308,
+   "start": 131.396,
    "seconds": 5.568,
    "text": "Read-only research on RYO evidence. No order is ever placed. Not financial advice."
   }

@@ -138,7 +138,9 @@ def main() -> None:
                                timeout=30000)
         beat("verified")
         beat("audit")
-        beat("ledger")
+        # page order: the audit table, then the failure panel, then the row of marks
+        beat("broken", before=lambda: page.locator("#broken-panel").scroll_into_view_if_needed())
+        beat("ledger", before=lambda: page.locator("#ledger").scroll_into_view_if_needed())
 
         page.goto(base + "/app", wait_until="networkidle")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')",
@@ -181,8 +183,14 @@ def main() -> None:
 
     if shutil_which("ffmpeg"):
         mp4 = final.with_suffix(".mp4")
+        # Playwright records variable frame rate, and Remotion's compositor seeks by timestamp: on a
+        # VFR source with sparse keyframes it gives up with "no frame found at position". Forcing a
+        # constant 30 fps and a keyframe every second makes every position seekable, and 30 is what
+        # the composition assumes anyway.
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(final),
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(mp4)],
+                        "-vf", "fps=30", "-fps_mode", "cfr", "-g", "30", "-keyint_min", "30",
+                        "-sc_threshold", "0", "-c:v", "libx264", "-crf", "20",
+                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(mp4)],
                        check=True)
         print(f"wrote {mp4}")
         latest = OUT / "walkthrough-latest.mp4"
