@@ -36,7 +36,10 @@
     </div>
     <p class="verify">
       <button type="button" id="verify">Verify a receipt now</button>
-      <output id="verify-out" aria-live="polite" data-idle="Calls this site's API and re-runs receipt %s.">Calls this site's API and re-runs the newest receipt.</output>
+      <output id="verify-out" aria-live="polite" data-idle="Calls this site's API and re-runs receipt %s."
+              data-running="running…" data-waiting="the ledger has not loaded yet"
+              data-ok="rebuilt from the stored evidence in %m ms" data-drift="%n field(s) differ"
+              data-unreachable="could not reach the API">Calls this site's API and re-runs the newest receipt.</output>
     </p>
     </div>
     <figure class="seal">
@@ -77,8 +80,12 @@
       page - not an illustration of what would happen. Each section carries the status its source returned, a
       value that could not be fetched stays null instead of becoming zero, and the judge is told what it does
       not have.</p>
-    <div id="broken-panel" class="broken-grid"><div>reading the ledger…</div></div>
-    <p id="broken-verdict" class="note"></p>
+    <div id="broken-panel" class="broken-grid" data-col-section="Evidence section" data-col-status="status"
+         data-none="None of the %n most recent receipts met a failing source."
+         data-error="The ledger could not be read: %e"><div>reading the ledger…</div></div>
+    <p id="broken-verdict" class="note"
+       data-blocked="Receipt %s, %d: the judge answered %v at p_up_7d %p, and no position was sized - %r."
+       data-sized="Receipt %s, %d: the judge answered %v at p_up_7d %p, and sized a practice position on what was left."></p>
   </div>
 </section>
 
@@ -107,7 +114,10 @@
     <p class="lede">These are the decisions in the shipped ledger. Every mark is generated from that
       receipt's own evidence hash, and its arc is the probability the judge stated, so two receipts
       can never draw the same figure and the same receipt can never draw a different one.</p>
-    <div class="ledger" id="ledger"></div>
+    <div class="ledger" id="ledger"
+         data-mark-label="Mark for receipt %s: %y %v, stated probability %p."
+         data-source-label="source %r"
+         data-error="The ledger could not be read: %e"></div>
     <p style="margin-top:26px">The dashboard opens on a thirty second summary: what was decided, what
       changed most since the previous receipt for that symbol, where the practice position stands,
       and what happens next. Every receipt is diffed against the one before it and ranked by impact,

@@ -37,7 +37,10 @@
     </div>
     <p class="verify">
       <button type="button" id="verify">いま領収書を検証する</button>
-      <output id="verify-out" aria-live="polite" data-idle="このサイトのAPIを呼び、領収書 %s を再実行します。">このサイトのAPIを呼び、最新の領収書を再実行します。</output>
+      <output id="verify-out" aria-live="polite" data-idle="このサイトのAPIを呼び、領収書 %s を再実行します。"
+              data-running="実行中…" data-waiting="台帳がまだ読み込まれていません"
+              data-ok="保存済みエビデンスから %m ミリ秒で再構築" data-drift="%n 個のフィールドが相違"
+              data-unreachable="APIに到達できませんでした">このサイトのAPIを呼び、最新の領収書を再実行します。</output>
     </p>
     </div>
     <figure class="seal">
@@ -66,8 +69,12 @@
   <div class="wrap">
     <h2>そして、そもそも与えられなかったとき。</h2>
     <p class="lede">市場ツールの真価が問われるのは、データ源が動いている日ではなく落ちた日です。下に出ているのは、この環境で実際に何かが失敗した直近の領収書を、ページ読み込み時に台帳から読んだものです。「こうなるはず」という説明図ではありません。各セクションはデータ源が返したステータスをそのまま持ち、取得できなかった値はゼロにならずnullのまま残り、判定役には「何が欠けているか」が伝えられます。</p>
-    <div id="broken-panel" class="broken-grid"><div>台帳を読んでいます…</div></div>
-    <p id="broken-verdict" class="note"></p>
+    <div id="broken-panel" class="broken-grid" data-col-section="エビデンスのセクション" data-col-status="ステータス"
+         data-none="直近 %n 件の領収書に、失敗したデータ源はありませんでした。"
+         data-error="台帳を読めませんでした：%e"><div>台帳を読んでいます…</div></div>
+    <p id="broken-verdict" class="note"
+       data-blocked="領収書 %s、%d：判定役は p_up_7d %p で「%v」と答え、ポジションは組まれませんでした（%r）。"
+       data-sized="領収書 %s、%d：判定役は p_up_7d %p で「%v」と答え、残ったエビデンスで練習ポジションを組みました。"></p>
   </div>
 </section>
 
@@ -88,7 +95,10 @@
   <div class="wrap">
     <h2>領収書は自らを描く</h2>
     <p class="lede">これらは同梱された台帳にある判断です。印はどれもその領収書自身のエビデンスハッシュから生成され、弧は判定役が示した確率です。ゆえに2つの領収書が同じ図を描くことはなく、同じ領収書が違う図を描くこともありません。</p>
-    <div class="ledger" id="ledger"></div>
+    <div class="ledger" id="ledger"
+         data-mark-label="領収書 %s の印：%y、%v、示された確率 %p。"
+         data-source-label="ソース %r"
+         data-error="台帳を読めませんでした：%e"></div>
     <p style="margin-top:26px">ダッシュボードは30秒でつかめる要約から始まります。何を判断したか、その銘柄の前回領収書から何が最も変わったか、練習ポジションはいまどこにあるか、次に何が起きるか。すべての領収書は直前のものと差分を取って影響度順に並び、劣化したエビデンスは埋もれさせず最上段で告知され、ページ全体がキーボードだけで操作できます。<a href="/app">ダッシュボードを開く</a>。</p>
   </div>
 </section>

@@ -76,13 +76,16 @@ const drawHero = (r) => {
 const drawLedger = (ledger) => {
   const NS = 'http://www.w3.org/2000/svg', host = document.getElementById('ledger');
   if (!host) return;
+  // Every sentence this file would otherwise write in English lives on the element instead, so the
+  // Japanese page reads as Japanese without owning a second copy of the drawing code.
+  const labelFor = (r) => (host.dataset.markLabel || 'Mark for receipt %s: %y %v, stated probability %p.')
+    .replace(/%s/g, r.id).replace(/%y/g, r.symbol).replace(/%v/g, r.action).replace(/%p/g, r.p.toFixed(2));
   for (const r of ledger) {
     const fig = document.createElement('figure');
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 200 200');
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label',
-      `Mark for receipt ${r.id}: ${r.symbol} ${r.action}, stated probability ${r.p.toFixed(2)}.`);
+    svg.setAttribute('aria-label', labelFor(r));
     const cx = 100, cy = 100;
     const pt = (rad, deg) => [cx + rad * Math.cos((deg - 90) * Math.PI / 180),
                               cy + rad * Math.sin((deg - 90) * Math.PI / 180)];
@@ -107,8 +110,14 @@ const drawLedger = (ledger) => {
     p.setAttribute('style', 'font-size:24px'); p.textContent = r.p.toFixed(2);
     fig.appendChild(svg);
     const cap = document.createElement('figcaption');
-    cap.innerHTML = `<b>${r.symbol}</b> ${r.action}<br>` +
-      `<a href="/r/${r.id}">${r.id}</a><br>source ${r.source}`;
+    const sym = document.createElement('b');
+    sym.textContent = r.symbol;
+    const link = document.createElement('a');
+    link.href = `/r/${encodeURIComponent(r.id)}`;
+    link.textContent = r.id;
+    cap.append(sym, document.createTextNode(` ${r.action}`), document.createElement('br'),
+               link, document.createElement('br'),
+               document.createTextNode((host.dataset.sourceLabel || 'source %r').replace(/%r/g, r.source)));
     fig.appendChild(cap);
     host.appendChild(fig);
   }
@@ -121,11 +130,18 @@ const drawBroken = async (summaries) => {
   const panel = document.getElementById('broken-panel'), note = document.getElementById('broken-verdict');
   if (!panel) return;
   const hit = summaries.find(d => d.degraded);
-  if (!hit) { panel.textContent = `None of the ${WINDOW} most recent receipts met a failing source.`; return; }
+  if (!hit) {
+    panel.textContent = (panel.dataset.none || 'None of the %n most recent receipts met a failing source.')
+      .replace(/%n/g, WINDOW);
+    return;
+  }
   const res = await fetch(`/api/decisions/${hit.id}`);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const {receipt} = await res.json();
-  const cells = [['Evidence section', 'h'], ['status', 'h']];
+  // Headers and the sentence below the table are prose, so each page supplies its own; only the
+  // receipt's own values travel through. An action or a block reason stays in the words the receipt
+  // stored, in every language: those are data, not copy.
+  const cells = [[panel.dataset.colSection || 'Evidence section', 'h'], [panel.dataset.colStatus || 'status', 'h']];
   for (const [name, status] of Object.entries(receipt.availability)) {
     cells.push([name, ''], [status, status === 'ok' ? 'ok' : 'bad']);
   }
@@ -142,9 +158,15 @@ const drawBroken = async (summaries) => {
     panel.appendChild(el);
   }
   const t = receipt.trade;
-  note.textContent = `Receipt ${receipt.id}, ${receipt.created_at.slice(0, 10)}: the judge answered `
-    + `${receipt.verdict.action.replace('_', ' ')} at p_up_7d ${receipt.verdict.p_up_7d.toFixed(2)}, and `
-    + (t.kind === 'blocked' ? `no position was sized - ${t.reason}.` : 'sized a practice position on what was left.');
+  const template = t.kind === 'blocked'
+    ? note.dataset.blocked || 'Receipt %s, %d: the judge answered %v at p_up_7d %p, and no position was sized - %r.'
+    : note.dataset.sized || 'Receipt %s, %d: the judge answered %v at p_up_7d %p, and sized a practice position on what was left.';
+  note.textContent = template
+    .replace(/%s/g, receipt.id)
+    .replace(/%d/g, receipt.created_at.slice(0, 10))
+    .replace(/%v/g, receipt.verdict.action.replace('_', ' '))
+    .replace(/%p/g, receipt.verdict.p_up_7d.toFixed(2))
+    .replace(/%r/g, t.reason || '');
 };
 
 // The newest receipts, drawn from what the API answers right now. A failure says so rather than
@@ -170,18 +192,31 @@ fetch(`/api/decisions?limit=${WINDOW}`)
   });
 
 const out = document.getElementById('verify-out'), btn = document.getElementById('verify');
+// `identical: true` is the API's own word for it and stays in English on every page: it is the
+// value, not the sentence around it. The sentence comes from the page, as nodes rather than markup.
+const verdictLine = (cls, verdict, tail) => {
+  const mark = document.createElement('span');
+  mark.className = cls;
+  mark.textContent = verdict;
+  out.replaceChildren(mark, document.createTextNode(' ' + tail));
+};
+
 btn.addEventListener('click', async () => {
-  if (!verifyId) { out.textContent = 'the ledger has not loaded yet'; return; }
-  btn.disabled = true; out.textContent = 'running…';
+  if (!verifyId) { out.textContent = out.dataset.waiting || 'the ledger has not loaded yet'; return; }
+  btn.disabled = true; out.textContent = out.dataset.running || 'running…';
   const t0 = performance.now();
   try {
     const r = await fetch(`/api/decisions/${verifyId}/replay`);
     const d = await r.json();
     const ms = Math.round(performance.now() - t0);
-    out.innerHTML = d.identical
-      ? `<span class="yes">identical: true</span> rebuilt from the stored evidence in ${ms} ms`
-      : `<span class="no">identical: false</span> ${d.diff.length} field(s) differ`;
+    if (d.identical) {
+      verdictLine('yes', 'identical: true',
+                  (out.dataset.ok || 'rebuilt from the stored evidence in %m ms').replace(/%m/g, ms));
+    } else {
+      verdictLine('no', 'identical: false',
+                  (out.dataset.drift || '%n field(s) differ').replace(/%n/g, d.diff.length));
+    }
   } catch (e) {
-    out.innerHTML = `<span class="no">could not reach the API</span> ${e.message}`;
+    verdictLine('no', out.dataset.unreachable || 'could not reach the API', e.message);
   } finally { btn.disabled = false; }
 });
