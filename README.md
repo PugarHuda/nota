@@ -85,8 +85,15 @@ strangers:
   nothing outside the process.
 - A JSON-RPC batch is capped at 25 messages, and `Origin` is validated on every MCP request as the
   transport spec's security section requires.
-- Backing is capped at 30 an hour per address, and on the read-only deployment it answers 503 with
-  an explanation rather than pretending to have written.
+- Backing is capped at 30 an hour per address. It used to answer 503 on the hosted deployment, which
+  meant the one place anyone could try it was the one place it did not work: a serverless filesystem
+  cannot be written, and the ledger there is a snapshot. Backings now go to Postgres when
+  `DATABASE_URL` is set (`nota/backings.py`) and to the ledger's own table otherwise, so nothing
+  local needs a database to run or to test. The write is a single `INSERT ... ON CONFLICT
+  (decision_id, handle) DO UPDATE`: reading a map of handles, changing one and writing it back would
+  drop a stance whenever two people backed at the same moment, and a public record that silently
+  loses someone's vote is worse than no public record. The 503 is still there for the case it was
+  written for - nowhere to write at all.
 
 ## Honesty rules this code enforces
 

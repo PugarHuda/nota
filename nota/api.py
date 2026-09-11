@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from pydantic import BaseModel, Field
 
 from nota import paths
+from nota.backings import store_for
 from nota.calibration import due, reliability, role_scores, role_weights, source_scores
 from nota.card import render_card
 from nota.evidence import EvidencePack, first_present
@@ -450,7 +451,7 @@ class BackingIn(BaseModel):
 
 
 def _backing_counts(led: Ledger, id: str) -> dict[str, Any]:
-    rows = led.backings(id)
+    rows = store_for(led).backings(id)
     return {"agree": sum(r["stance"] == "agree" for r in rows), "disagree": sum(r["stance"] == "disagree" for r in rows),
             "handles": [{"handle": r["handle"], "stance": r["stance"]} for r in rows[-20:]]}
 
@@ -475,10 +476,12 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
         raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ @ . -")
     _throttle(request.client.host if request.client else "unknown")
     led = _ledger()
-    if led.readonly:
-        raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot; backing works on a writable `nota serve`")
+    store = store_for(led)
+    if store is led and led.readonly:
+        raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot and no DATABASE_URL is set; "
+                                 "backing works on a writable `nota serve`")
     _receipt(led, id)
-    led.add_backing(id, body.handle, body.stance)
+    store.add_backing(id, body.handle, body.stance)
     return _backing_counts(led, id)
 
 
@@ -496,7 +499,7 @@ def backers() -> list[dict[str, Any]]:
     outcomes = {o["decision_id"]: o for o in (json.loads(raw) for raw in led.list_outcomes())}
     actions: dict[str, str] = {}
     table: dict[str, dict[str, Any]] = {}
-    for b in led.all_backings():
+    for b in store_for(led).all_backings():
         row = table.setdefault(b["handle"], {"handle": b["handle"], "backed": 0, "scored": 0, "correct": 0})
         row["backed"] += 1
         o = outcomes.get(b["decision_id"])

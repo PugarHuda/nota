@@ -60,6 +60,10 @@ mdurl==0.1.2
     # via markdown-it-py
 pillow==12.3.0
     # via nota
+psycopg==3.3.5
+    # via nota
+psycopg-binary==3.3.5 ; implementation_name != 'pypy'
+    # via psycopg
 pydantic==2.13.5
     # via
     #   anthropic
@@ -93,6 +97,7 @@ typing-extensions==4.16.0
     #   anyio
     #   fastapi
     #   httpx2
+    #   psycopg
     #   pydantic
     #   pydantic-core
     #   starlette
@@ -101,6 +106,8 @@ typing-inspection==0.4.4
     # via
     #   fastapi
     #   pydantic
+tzdata==2026.3 ; sys_platform == 'win32'
+    # via psycopg
 urllib3==2.7.0
     # via requests
 uvicorn==0.52.4
