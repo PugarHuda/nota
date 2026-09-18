@@ -51,7 +51,7 @@ def _source(kind: str):
     raise typer.BadParameter("source must be live, recorded or fixture")
 
 
-KEYLESS = ("Without one you can still run `nota health`, the five skills (`nota skill run ...`), "
+KEYLESS = ("Without one you can still run `nota health`, the six skills (`nota skill run ...`), "
            "`nota serve`, `nota positions`, and `nota replay <id>` - a cached replay reads the "
            "ledger only, so verifying a receipt needs no key at all.")
 

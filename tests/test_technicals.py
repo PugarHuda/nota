@@ -40,3 +40,10 @@ def test_skill_reports_reference_deviation_and_unavailable():
     respx.get("https://api.coingecko.com/api/v3/coins/solana/ohlc").mock(return_value=Response(429))
     env = technicals_crosscheck("SOL", http=httpx.Client())
     assert env.status == "unavailable" and env.data["rsi_14"] is None and "HTTP 429" in env.warnings[0]
+
+
+def test_atr_keeps_significant_digits_for_a_sub_cent_token():
+    from nota.skills.technicals import atr
+
+    daily = [{"high": 4.0e-6, "low": 3.8e-6, "close": 3.9e-6} for _ in range(15)]
+    assert atr(daily) == 2.0e-7  # six decimals used to round this to 0.0

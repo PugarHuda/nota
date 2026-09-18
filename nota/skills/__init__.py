@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from nota.envelope import Envelope
-from nota.skills import narrative, news, positioning, price_check, technicals
+from nota.skills import base_rate, narrative, news, positioning, price_check, technicals
 from nota.skills.contract import SkillDefinition
 
 SKILLS: dict[str, tuple[SkillDefinition, Callable[..., Envelope]]] = {
@@ -14,6 +14,7 @@ SKILLS: dict[str, tuple[SkillDefinition, Callable[..., Envelope]]] = {
     price_check.DEFINITION.name: (price_check.DEFINITION, price_check.price_crosscheck),
     technicals.DEFINITION.name: (technicals.DEFINITION, technicals.technicals_crosscheck),
     positioning.DEFINITION.name: (positioning.DEFINITION, positioning.positioning_check),
+    base_rate.DEFINITION.name: (base_rate.DEFINITION, base_rate.move_base_rate),
 }
 
 

@@ -263,7 +263,7 @@ def replay_check(id: str) -> dict[str, Any]:
     return {"identical": res.identical, "diff": res.diff, "error": None}
 
 
-# --- Nota as an MCP server: the same five skills, over the Streamable HTTP transport ------------
+# --- Nota as an MCP server: the same six skills, over the Streamable HTTP transport ------------
 MCP_BATCH_MAX = 25
 ALLOWED_ORIGIN_HOSTS = {"nota-ryo.vercel.app", "ryo-arena.vercel.app", "localhost", "127.0.0.1", "testserver"}
 
@@ -356,7 +356,7 @@ judge refuses to size a trade when they disagree.
 POST {base}/mcp speaks the Model Context Protocol over Streamable HTTP (stateless; versions
 2026-07-28, 2025-06-18, 2025-03-26 and 2024-11-05 are all accepted).
 
-- `tools/list`, `tools/call` for the five research skills below
+- `tools/list`, `tools/call` for the six research skills below
 - `resources/list`, `resources/read` for every receipt, addressed as `nota://receipt/<id>`
 
 ```

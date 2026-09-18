@@ -105,7 +105,7 @@ def atr(daily: list[dict[str, float]], period: int = PERIOD) -> float | None:
     value = sum(trs[:period]) / period
     for tr in trs[period:]:
         value = (value * (period - 1) + tr) / period
-    return round(value, 6)
+    return float(f"{value:.6g}")  # significant digits: six decimals rounded a PEPE-sized ATR to 0
 
 
 def technicals_crosscheck(symbol: str, reference_rsi_14: float | None = None, reference_atr_14: float | None = None,
