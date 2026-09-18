@@ -117,3 +117,24 @@ def test_the_scorecard_api_and_page_are_served_and_refuse_an_unknown_horizon(mon
     assert c.get("/api/scorecard?horizon=12").status_code == 422
     page = c.get("/scorecard")
     assert page.status_code == 200 and "/api/scorecard?horizon=" in page.text and "Does RYO's verdict change" in page.text
+
+
+def test_track_record_reads_the_settled_record_back_in_ryos_envelope():
+    import json as _json
+
+    from nota.skills.track_record import verdict_track_record
+
+    led = Ledger(":memory:")
+    for i, (sym, verdict, state, result) in enumerate([("SOL", "constructive", "CONFIRMED", "target"), ("SOL", "cautious", "MIXED", "stop"),
+                                                       ("ETH", "neutral", "MIXED", "target")]):
+        row = {"id": f"l{i}", "symbol": sym, "inst": f"{sym}-USDT", "locked_at": f"2026-09-1{i}T09:00:00+00:00", "status": "locked",
+               "verdict": verdict, "confluence_state": state, "confluence_score": 1, "okx_price": 100.0, "trace_id": f"t{i}",
+               "plan": {"entry": 100.0, "stop": 94.0, "targets": [106.0], "atr_14_pct": 4.0}}
+        led.save_lock(row["id"], sym, row["locked_at"], "locked", _json.dumps(row))
+        led.save_settlement(row["id"], 24, _json.dumps({"status": "settled", "result": result, "hours_to_touch": 3, "return_at_horizon_pct": 1.0}))
+    env = verdict_track_record("sol", ledger=led)
+    assert env.data["target_first"] == {"hits": 1, "of_decided": 2} and env.data["verdict_against_plan"] == 1
+    assert env.data["by_confluence_state"]["CONFIRMED"]["target"] == 1 and env.data["latest"]["trace_id"] == "t1"
+    assert "1 of 2 decided RYO plans" in env.summary.headline
+    empty = verdict_track_record("BTC", ledger=led)
+    assert empty.status == "partial" and empty.data["target_first"]["of_decided"] == 0 and "none decided" in empty.summary.headline

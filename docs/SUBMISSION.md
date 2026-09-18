@@ -32,7 +32,7 @@ retyped by the model; citations pointing at absent evidence are dropped in code;
 turned into 0. Independent sources audit RYO itself - exchange medians check its price, Wilder
 RSI/ATR recomputed from public OHLC check its indicators - and the judge refuses to size a trade
 when they disagree. Three specialists (macro, technician, narrative) debate the five tools a
-decision reads; the sixth, scan_market, drives the `nota scan` funnel. Track 3: six skills on
+decision reads; the sixth, scan_market, drives the `nota scan` funnel. Track 3: seven skills on
 RYO's own /api/skills paths. Track 2: a dashboard that diffs each receipt against the last, ranked
 by impact. Read-only; no orders.
 
@@ -41,7 +41,7 @@ by impact. Read-only; no orders.
 > Built Nota for the @ryodigital #RYOCHAN hackathon: an AI council over live RYO market
 > evidence where every call is a receipt you can re-run and get identical output - and it audits
 > RYO's own price and RSI against independent sources, refusing to trade when they disagree.
-> Diff-first dashboard + 6 skills. https://nota-ryo.vercel.app/demo
+> Diff-first dashboard + 7 skills. https://nota-ryo.vercel.app/demo
 
 
 (264 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
@@ -63,7 +63,7 @@ link then points at `/demo`, where the same file sits beside its transcript.
 >
 > → It audits RYO itself. RSI(14) and ATR(14) recomputed from public candles with Wilder's method: 4.347 against RYO's 4.3762, 0.67% apart. Price checked against three exchanges. When sources disagree, the judge refuses to size anything. A value that couldn't be fetched stays null — it never quietly becomes zero.
 >
-> It's also an MCP server, so Claude Desktop or Cursor can call all six research skills directly.
+> It's also an MCP server, so Claude Desktop or Cursor can call all seven research skills directly.
 >
 > Read-only research on RYO evidence. No order is ever placed. Not financial advice.
 >

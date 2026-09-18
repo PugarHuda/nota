@@ -253,7 +253,7 @@ def test_the_skill_runner_lists_and_runs_every_skill(server, browser):
     page.wait_for_selector("#skill-name option", state="attached")
 
     names = page.eval_on_selector_all("#skill-name option", "els => els.map(e => e.value)")
-    assert names == ["narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck", "positioning_check", "move_base_rate"]
+    assert names == ["narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck", "positioning_check", "move_base_rate", "verdict_track_record"]
 
     for skill, args in (("price_crosscheck", {"symbol": "SOL"}), ("technicals_crosscheck", {"symbol": "SOL"}), ("positioning_check", {"symbol": "SOL"}), ("move_base_rate", {"symbol": "SOL"})):
         page.select_option("#skill-name", skill)
@@ -338,7 +338,7 @@ def test_mcp_and_llms_txt_answer_over_the_wire_not_just_through_the_test_client(
     assert {"tools", "resources"} <= set(result["capabilities"])
 
     tools = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).json()
-    assert len(tools["result"]["tools"]) == 6
+    assert len(tools["result"]["tools"]) == 7
 
     resources = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 3, "method": "resources/list"}).json()
     uris = [r["uri"] for r in resources["result"]["resources"]]

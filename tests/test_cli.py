@@ -60,7 +60,7 @@ def test_watch_one_cycle_survives_failures(tmp_path, monkeypatch):
 def test_skill_spec_lists_the_read_only_skills():
     res = runner.invoke(cli.app, ["skill", "spec"])
     names = {d["name"] for d in json.loads(res.output)}
-    assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck", "positioning_check", "move_base_rate"}
+    assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck", "positioning_check", "move_base_rate", "verdict_track_record"}
 
 
 def test_decide_without_an_llm_key_says_so_instead_of_raising_from_the_sdk(monkeypatch):
