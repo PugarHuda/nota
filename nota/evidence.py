@@ -107,6 +107,13 @@ class EvidencePack(BaseModel):
                 walk(f"{key}.data", sec.envelope.data)
         return out
 
+    def withheld(self) -> dict[str, str]:
+        """Paths the `positioning_check` gate ruled not citable, mapped to its verdict. The council neither
+        shows their values nor accepts citations of them."""
+        sec = self.sections.get("positioning_check")
+        gate = sec.envelope.get("gate") if sec and sec.envelope else None
+        return {g["path"]: g["verdict"] for g in gate or [] if g["path"] in (sec.envelope.get("withheld_paths") or [])}
+
     @property
     def primary_ok(self) -> bool:
         sec = self.sections.get(PRIMARY)

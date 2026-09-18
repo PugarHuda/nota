@@ -172,7 +172,7 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
 ## Nota is also an MCP server (Track 3)
 
 Nota is an MCP client of RYO. It is also an MCP server, so RYO, Claude Desktop, Cursor or any other
-MCP host can call the four skills directly with no wrapper:
+MCP host can call the five skills directly with no wrapper:
 
 ```jsonc
 // claude_desktop_config.json, or any MCP client that speaks Streamable HTTP
@@ -187,7 +187,7 @@ curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d
 
 It serves all four MCP primitives, not just the easy one:
 
-- **tools**: `tools/list` and `tools/call` for the four skills, each `inputSchema` generated from the
+- **tools**: `tools/list` and `tools/call` for the five skills, each `inputSchema` generated from the
   same definition the REST route and the dashboard form use.
 - **resources**: `resources/list`, `resources/templates/list` (`nota://receipt/{id}`) and
   `resources/read`, which returns a receipt as markdown plus its own JSON. A client that never

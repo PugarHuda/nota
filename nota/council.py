@@ -24,7 +24,7 @@ from nota.evidence import EvidencePack
 from nota.ledger import Ledger
 from nota.llm import LLM
 
-PROMPT_VERSION = "v2"  # v2: explicit list-index path syntax + cite-only-existing instruction
+PROMPT_VERSION = "v3"  # v2: explicit list-index path syntax + cite-only-existing; v3: derivatives gated by positioning_check
 ROLES: tuple[str, ...] = ("macro", "technician", "narrative")
 Confidence = Literal["low", "medium", "high"]
 
@@ -80,8 +80,10 @@ ROLE_SYSTEM: dict[str, str] = {
     "and judge whether broad conditions and relative strength favour or oppose a position in this token." + COMMON_RULES,
     "technician": "[role:technician] You are the Technician. You read price, multi-window performance, RSI(14), ATR(14), "
     "confluence, derivatives and the tool's own verdict, plus `compare` (peers) and `price_check` (independent exchange prices "
-    "and how far RYO's price deviates from them; a large deviation is a data-quality risk, not a trade signal) and `technicals_check` (RSI/ATR recomputed independently from public OHLC; a large gap means the indicator inputs disagree), and judge trend, "
-    "momentum and volatility for this token." + COMMON_RULES,
+    "and how far RYO's price deviates from them; a large deviation is a data-quality risk, not a trade signal) and `technicals_check` (RSI/ATR recomputed independently from public OHLC; a large gap means the indicator inputs disagree), "
+    "and `positioning_check` (which of the derivatives fields may be cited as evidence about this token, and OKX's own perp premium, "
+    "coin-terms open interest and long/short percentile; a field shown as `withheld: ...` is not evidence and must not be argued from), "
+    "and judge trend, momentum and volatility for this token." + COMMON_RULES,
     "narrative": "[role:narrative] You are the Narrative agent. You read catalysts, risks, the token profile and intelligence "
     "narrative, plus, when present, `narrative_signal` (what selected voices say, lexicon-scored) and `news_check` "
     "(how many independent sources corroborate a story). Judge whether the story supports or undermines the price. "
@@ -94,7 +96,7 @@ ROLE_SYSTEM: dict[str, str] = {
 # Which sections each role sees. ponytail: everyone gets availability/warnings; slices keep prompts small.
 ROLE_SECTIONS: dict[str, tuple[str, ...]] = {
     "macro": ("market_overview", "sentiment_shift", "compare"),
-    "technician": ("deep_analysis", "analyze_token", "compare", "price_check", "technicals_check"),
+    "technician": ("deep_analysis", "analyze_token", "compare", "price_check", "technicals_check", "positioning_check"),
     "narrative": ("deep_analysis", "analyze_token", "narrative_signal", "news_check"),
 }
 
@@ -105,6 +107,7 @@ def cache_key(pack_hash: str, role: str, model: str, prompt_version: str = PROMP
 
 def _section_view(pack: EvidencePack, keys: tuple[str, ...]) -> dict[str, Any]:
     view: dict[str, Any] = {}
+    withheld = pack.withheld()
     for k in keys:
         sec = pack.sections.get(k)
         if sec is None:
@@ -113,8 +116,12 @@ def _section_view(pack: EvidencePack, keys: tuple[str, ...]) -> dict[str, Any]:
             view[k] = {"status": sec.status, "error": sec.error}
         else:
             e = sec.envelope
+            data = e.data
+            gated = {p.split(".")[-1]: v for p, v in withheld.items() if p.startswith(f"{k}.data.derivatives.")}
+            if gated and isinstance(data.get("derivatives"), dict):
+                data = {**data, "derivatives": {f: (f"withheld: {gated[f]}" if f in gated else x) for f, x in data["derivatives"].items()}}
             view[k] = {"status": e.status, "data_mode": e.data_mode, "as_of": e.as_of, "availability": e.availability,
-                       "warnings": e.warnings, "summary": e.summary.model_dump(), "data": e.data}
+                       "warnings": e.warnings, "summary": e.summary.model_dump(), "data": data}
     return view
 
 
@@ -228,7 +235,8 @@ def run_council(
     receipt made under an older prompt still replays from its own cached outputs after a prompt bump."""
     weights = weights or {r: 1.0 for r in ROLES}
     pack_hash = pack.pack_hash()
-    allowed = pack.available_paths()
+    withheld = pack.withheld()
+    allowed = {p: v for p, v in pack.available_paths().items() if p not in withheld}
     hits = 0
     spend = _Spend()
     opinions: list[Opinion] = []

@@ -1,4 +1,4 @@
-"""Nota as an MCP server: the four skills, callable by any MCP client over Streamable HTTP.
+"""Nota as an MCP server: the five skills, callable by any MCP client over Streamable HTTP.
 
 Nota is already an MCP *client* of RYO. This is the other direction, and it is the point of Track 3:
 RYO, Claude Desktop, Cursor or any other MCP client can point at `https://<host>/mcp` and call

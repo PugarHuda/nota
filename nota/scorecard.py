@@ -199,6 +199,18 @@ def settle_all(ledger: Ledger, http: httpx.Client | None = None, now: datetime |
     return out
 
 
+def peer_derivatives(ledger: Ledger, day: str) -> list[dict[str, Any]]:
+    """RYO's derivatives blocks from the day's locks: the cross-section `positioning_check` needs to
+    tell a token-specific number from one that is the same for every token."""
+    out = []
+    for _, j in ledger.list_locks():
+        row = json.loads(j)
+        d = (row.get("envelope") or {}).get("data", {}).get("derivatives")
+        if row["locked_at"][:10] == day and isinstance(d, dict):
+            out.append({"symbol": row["symbol"], **{k: d.get(k) for k in ("funding_rate_bps", "open_interest_change_24h_pct")}})
+    return out
+
+
 # -- read ---------------------------------------------------------------------------------------
 
 BOOTSTRAP_N = 2000

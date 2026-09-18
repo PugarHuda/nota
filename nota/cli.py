@@ -24,6 +24,7 @@ from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 from nota.skills.narrative import narrative_convergence
 from nota.skills.news import news_verify
+from nota.skills.positioning import positioning_check
 from nota.skills.price_check import price_crosscheck
 from nota.skills.technicals import technicals_crosscheck
 
@@ -50,7 +51,7 @@ def _source(kind: str):
     raise typer.BadParameter("source must be live, recorded or fixture")
 
 
-KEYLESS = ("Without one you can still run `nota health`, the four skills (`nota skill run ...`), "
+KEYLESS = ("Without one you can still run `nota health`, the five skills (`nota skill run ...`), "
            "`nota serve`, `nota positions`, and `nota replay <id>` - a cached replay reads the "
            "ledger only, so verifying a receipt needs no key at all.")
 
@@ -140,6 +141,15 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
             _, atr_ref = risk_atr_usd(pack, ref_price) if ref_price else (None, None)
             return technicals_crosscheck(sym, reference_rsi_14=rsi_ref, reference_atr_14=atr_ref)
         extras["technicals_check"] = _tech
+
+        def _positioning(sym, pack):
+            from nota.scorecard import peer_derivatives
+
+            fund = pack.get("sentiment_shift.data.evidence.funding.latest_bps")
+            return positioning_check(sym, reference_derivatives=pack.get("deep_analysis.data.derivatives"),
+                                     peer_derivatives=peer_derivatives(_ledger(), now_iso()[:10]),
+                                     ryo_btc_funding_bps=fund if isinstance(fund, (int, float)) and not isinstance(fund, bool) else None)
+        extras["positioning_check"] = _positioning
     return extras or None
 
 
