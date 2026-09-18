@@ -1,0 +1,113 @@
+{
+ "receipt": "cd5ada18b179",
+ "symbol": "ETH",
+ "model": "qwen3-235b-a22b-instruct-2507",
+ "prompt_version": "v3",
+ "withheld": {
+  "deep_analysis.data.derivatives.funding_rate_bps": "not_token_specific"
+ },
+ "gated_pack_hash": "fa5d228173cf9f3853a64caffb323f7245056b3476c9cbf5b0ac40e5865821f6",
+ "ungated_pack_hash": "6e41e98059dc4531f506e022d4134f872780b1ff72bc762720c43bc54f80e5cb",
+ "with_gate": {
+  "verdict": {
+   "action": "no_trade",
+   "p_up_7d": 0.5
+  },
+  "opinions": {
+   "macro": {
+    "stance": "neutral",
+    "p_up_7d": 0.5,
+    "confidence": "medium",
+    "cited": [
+     "market_overview.data.regime = risk_on",
+     "market_overview.data.sentiment.fear_greed_index = 73",
+     "market_overview.data.market.breadth = 0.913",
+     "sentiment_shift.data.evidence.sentiment_regime = mixed_sentiment",
+     "compare.data.factors.0.scores.SOL = 9.05489",
+     "compare.data.factors.1.scores.SOL = 0.084151",
+     "compare.data.factors.1.scores.ETH = 0.056012",
+     "compare.data.conclusion.pick = SOL"
+    ]
+   },
+   "technician": {
+    "stance": "neutral",
+    "p_up_7d": 0.5,
+    "confidence": "medium",
+    "cited": [
+     "deep_analysis.data.technical_analysis.trend = sideways",
+     "deep_analysis.data.performance.d30 = 23.775",
+     "technicals_check.data.rsi_14 = 66.64",
+     "technicals_check.data.atr_pct = 3.992",
+     "positioning_check.data.okx.oi_change_24h_pct_coin = 1.7",
+     "positioning_check.data.okx.long_short_percentile_100h = 2",
+     "positioning_check.data.gate.0.verdict = not_token_specific",
+     "price_check.data.reference.deviation_pct = 0.095"
+    ]
+   },
+   "narrative": {
+    "stance": "neutral",
+    "p_up_7d": 0.5,
+    "confidence": "high",
+    "cited": [
+     "deep_analysis.data.performance.d30 = 23.775",
+     "deep_analysis.data.technical_analysis.trend = sideways",
+     "deep_analysis.data.technical_analysis.rsi_14 = 55.4",
+     "deep_analysis.data.market.volume_24h_usd = 1.77211e+10",
+     "deep_analysis.data.confluence.score = 0.67",
+     "deep_analysis.data.derivatives.open_interest_change_24h_pct = -6.33"
+    ]
+   }
+  }
+ },
+ "without_gate": {
+  "verdict": {
+   "action": "no_trade",
+   "p_up_7d": 0.52
+  },
+  "opinions": {
+   "macro": {
+    "stance": "neutral",
+    "p_up_7d": 0.55,
+    "confidence": "medium",
+    "cited": [
+     "market_overview.data.regime = risk_on",
+     "market_overview.data.sentiment.fear_greed_index = 73",
+     "market_overview.data.market.breadth = 0.913",
+     "sentiment_shift.data.evidence.sentiment_regime = mixed_sentiment",
+     "compare.data.factors.0.scores.ETH = 0.889998",
+     "compare.data.factors.1.scores.ETH = 0.056012",
+     "compare.data.factors.2.scores.ETH = -3.9",
+     "compare.data.conclusion.pick = SOL"
+    ]
+   },
+   "technician": {
+    "stance": "neutral",
+    "p_up_7d": 0.5,
+    "confidence": "medium",
+    "cited": [
+     "deep_analysis.data.technical_analysis.trend = sideways",
+     "deep_analysis.data.technical_analysis.rsi_14 = 55.4",
+     "technicals_check.data.rsi_14 = 66.64",
+     "technicals_check.data.reference.rsi_diff_points = -11.24",
+     "deep_analysis.data.technical_analysis.atr_14_pct = 3.9",
+     "deep_analysis.data.confluence.gates.1.passed = True",
+     "deep_analysis.data.derivatives.veto = False",
+     "price_check.data.reference.deviation_pct = 0.095"
+    ]
+   },
+   "narrative": {
+    "stance": "neutral",
+    "p_up_7d": 0.5,
+    "confidence": "high",
+    "cited": [
+     "deep_analysis.data.performance.d30 = 23.775",
+     "deep_analysis.data.market.volume_24h_usd = 1.77211e+10",
+     "deep_analysis.data.technical_analysis.trend = sideways",
+     "deep_analysis.data.technical_analysis.rsi_14 = 55.4",
+     "analyze_token.data.intelligence.catalysts.0 = Top-2 asset — deep liquidity",
+     "deep_analysis.data.derivatives.open_interest_change_24h_pct = -6.33"
+    ]
+   }
+  }
+ }
+}
