@@ -437,7 +437,7 @@ def test_the_japanese_landing_is_the_same_page_in_another_language(server, brows
     assert page.locator("html").get_attribute("lang") == "ja"
     assert page.locator("#mark line.tick").count() == 64
     assert page.locator("#mark text.p").text_content() == f"{NEWEST['verdict']['p_up_7d']:.2f}"
-    assert page.locator("#ledger figure").count() == SHIPPED
+    assert page.locator("#ledger figure").count() == min(SHIPPED, 5)  # the landing shows the five newest (landing.js)
     page.wait_for_selector("#broken-panel .bad")
     assert NEWEST["id"] in page.locator(".seal figcaption").inner_text()   # caption follows the mark
 
