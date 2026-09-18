@@ -32,6 +32,7 @@ def test_lock_stores_ryo_plan_okx_price_and_basis():
     [row] = sc.lock_all(RecordedRyoClient(FIXTURES, name="fixture"), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
     assert row["status"] == "locked" and row["basis_pct"] == 1.0 and row["plan"]["entry"] and row["envelope"]["tool"] == "deep_analysis"
     assert [i for i, _ in led.unsettled_locks()] == [row["id"]]
+    assert sc.lock_all(RecordedRyoClient(FIXTURES, name="fixture"), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None) == []  # once a day
 
 
 @respx.mock
@@ -39,7 +40,7 @@ def test_lock_refuses_to_settle_across_a_basis_gap_and_records_failures():
     respx.get(TICKER).mock(return_value=Response(200, json={"code": "0", "data": [{"last": str(_ryo_price() * 1.05), "ts": "1789700000000"}]}))
     led = Ledger(":memory:")
     [gap] = sc.lock_all(RecordedRyoClient(FIXTURES, name="fixture"), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
-    [down] = sc.lock_all(Down(), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
+    [down] = sc.lock_all(Down(), led, ["ETH"], http=httpx.Client(), sleep=lambda s: None)
     assert gap["status"] == "basis_mismatch" and down["status"] == "ryo_unavailable" and "UNAUTHENTICATED" in down["error"]
     assert led.unsettled_locks() == [] and len(led.list_locks()) == 2  # both kept, neither settles
 

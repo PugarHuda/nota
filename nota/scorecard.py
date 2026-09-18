@@ -117,12 +117,18 @@ def lock_one(symbol: str, source: RyoSource, http: httpx.Client) -> dict[str, An
 
 def lock_all(source: RyoSource, ledger: Ledger, symbols: list[str] | None = None, http: httpx.Client | None = None,
              sleep: Callable[[float], None] = time.sleep, pace_s: float = PACE_S) -> list[dict[str, Any]]:
+    """One lock per symbol per UTC day: a re-run the same day skips what it already has, or the contrast
+    would count that day's plans twice. A failed lock does not count as had, so a re-run retries it."""
     http = http or httpx.Client(timeout=20.0)
+    today = now_iso()[:10]
+    have = {json.loads(j)["symbol"] for _, j in ledger.list_locks() if json.loads(j)["locked_at"][:10] == today
+            and json.loads(j)["status"] in ("locked", "basis_mismatch", "no_plan")}
     rows = []
-    for i, s in enumerate(symbols or list(UNIVERSE)):
+    todo = [s.upper() for s in (symbols or list(UNIVERSE)) if s.upper() not in have]
+    for i, s in enumerate(todo):
         if i:
             sleep(pace_s)
-        row = lock_one(s.upper(), source, http)
+        row = lock_one(s, source, http)
         ledger.save_lock(row["id"], row["symbol"], row["locked_at"], row["status"], json.dumps(row))
         rows.append(row)
     return rows
