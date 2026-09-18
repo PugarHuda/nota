@@ -42,7 +42,7 @@ def test_btc_funding_of_exactly_zero_contradicts_ryos_own_market_tool():
     assert gate("ETH", {"funding_rate_bps": 0.0}, [], {}, ryo_btc_funding_bps=0.6801)[0]["verdict"] == "unverified"
 
 
-def _okx(premium="-0.00023", oi_now=110.0, oi_then=100.0, ratios=(1.35, 1.44, 1.47, 1.2)):
+def _okx(premium="-0.00023", oi_now=110.0, oi_then=100.0, ratios=(1.35, 1.44, 1.47, 1.2), hl_premium="-0.00018"):
     base = "https://www.okx.com/api/v5"
     respx.get(f"{base}/public/funding-rate").mock(return_value=Response(200, json={"code": "0", "data": [
         {"premium": premium, "fundingRate": "0.0001", "interestRate": "0.0001"}]}))
@@ -50,6 +50,8 @@ def _okx(premium="-0.00023", oi_now=110.0, oi_then=100.0, ratios=(1.35, 1.44, 1.
     respx.get(f"{base}/rubik/stat/contracts/open-interest-history").mock(return_value=Response(200, json={"code": "0", "data": oi}))
     respx.get(f"{base}/rubik/stat/contracts/long-short-account-ratio-contract").mock(
         return_value=Response(200, json={"code": "0", "data": [["t", str(r)] for r in ratios]}))
+    respx.post("https://api.hyperliquid.xyz/info").mock(return_value=Response(200, json=[
+        {"universe": [{"name": "SOL"}, {"name": "kPEPE"}]}, [{"premium": hl_premium}, {"premium": "0.0013"}]]))
 
 
 @respx.mock
@@ -61,14 +63,27 @@ def test_okx_positioning_reads_premium_not_the_default_funding_rate():
     assert okx["oi_change_24h_pct_coin"] == 10.0 and okx["long_short_percentile_100h"] == 50.0
     assert env.data["withheld_paths"] == ["deep_analysis.data.derivatives.funding_rate_bps", "deep_analysis.data.derivatives.open_interest_change_24h_pct"]
     assert env.status == "ok" and "2 of 3 RYO derivatives fields withheld" in env.summary.headline
+    assert env.data["hyperliquid"]["premium_bps"] == -1.8 and env.data["premium_consensus"] == "below_spot_2_venues"
+    assert env.data["plain"]["en"] == ("SOL open interest rose 10% in a day (OKX, in coins) and perps trade below spot on every venue "
+                                       "checked, so the short side is the more eager one.")
+    assert env.data["plain"]["ja"].startswith("SOLの建玉は1日で10%増加")
+
+
+@respx.mock
+def test_venues_that_disagree_are_reported_as_disagreeing_not_averaged():
+    _okx(premium="0.0004", hl_premium="-0.0003")
+    env = positioning_check("SOL", http=httpx.Client())
+    assert env.data["premium_consensus"] == "venues_disagree" and "no side is called eager" in env.data["plain"]["en"]
 
 
 @respx.mock
 def test_an_unlisted_perp_is_reported_and_the_definition_free_gate_still_runs():
     respx.get(url__regex=r"https://www\.okx\.com/.*").mock(return_value=Response(200, json={"code": "51001", "msg": "Instrument ID doesn't exist.", "data": []}))
+    respx.post("https://api.hyperliquid.xyz/info").mock(return_value=Response(200, json=[{"universe": [{"name": "SOL"}]}, [{"premium": "0"}]]))
     env = positioning_check("DGAI", reference_derivatives=RYO_SOL, peer_derivatives=PEERS, http=httpx.Client())
     assert env.status == "unavailable" and env.data["okx"]["premium_bps"] is None
     assert env.data["withheld_paths"][0].endswith("funding_rate_bps")  # the cross-section needs no venue
+    assert env.data["premium_consensus"] == "unavailable" and "no perp for DGAI" in " ".join(env.warnings)
 
 
 def test_the_council_never_sees_or_cites_a_withheld_field():

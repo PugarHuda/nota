@@ -110,6 +110,64 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
     return out, availability, warnings
 
 
+HL = "https://api.hyperliquid.xyz/info"
+HL_NAMES = {"PEPE": "kPEPE", "SHIB": "kSHIB", "BONK": "kBONK", "FLOKI": "kFLOKI"}  # Hyperliquid lists these per 1000 tokens
+
+
+def hl_premium(symbol: str, http: httpx.Client) -> float:
+    """Hyperliquid's perp premium over its oracle, in bps. A second venue for the one field two venues
+    can be compared on: which side of spot the perp trades."""
+    try:
+        resp = http.post(HL, json={"type": "metaAndAssetCtxs"})
+    except httpx.HTTPError as exc:
+        raise SourceUnavailable(f"hyperliquid: network error {type(exc).__name__}") from exc
+    if resp.status_code != 200:
+        raise SourceUnavailable(f"hyperliquid: HTTP {resp.status_code}")
+    meta, ctxs = resp.json()
+    names = [a["name"] for a in meta["universe"]]
+    name = HL_NAMES.get(symbol, symbol)
+    if name not in names:
+        raise SourceUnavailable(f"hyperliquid: no perp for {symbol}")
+    p = ctxs[names.index(name)].get("premium")
+    if p is None:
+        raise SourceUnavailable(f"hyperliquid: {name} has no premium (inactive market)")
+    return round(float(p) * 1e4, 3)
+
+
+def _state(bps: float | None) -> str | None:
+    return None if bps is None else "at_default" if abs(bps) < AT_DEFAULT_BPS else ("above_spot" if bps > 0 else "below_spot")
+
+
+def premium_consensus(states: dict[str, str | None]) -> str:
+    seen = {v for v in states.values() if v}
+    if not seen:
+        return "unavailable"
+    if len(seen) > 1:
+        return "venues_disagree"
+    return next(iter(seen)) + (f"_{len([v for v in states.values() if v])}_venues")
+
+
+def plain_lines(symbol: str, okx: dict[str, Any], consensus: str) -> dict[str, str]:
+    """One sentence a beginner can act on, in English and Japanese, built only from the numbers above."""
+    oi = okx.get("oi_change_24h_pct_coin")
+    en, ja = [], []
+    if oi is not None:
+        en.append(f"{symbol} open interest {'rose' if oi > 0 else 'fell'} {abs(oi):g}% in a day (OKX, in coins)")
+        ja.append(f"{symbol}の建玉は1日で{abs(oi):g}%{'増加' if oi > 0 else '減少'}（OKX、枚数ベース）")
+    side = consensus.split("_")[0] if consensus not in ("unavailable", "venues_disagree") else consensus
+    en.append({"above": "and perps trade above spot on every venue checked, so the long side is the more eager one",
+               "below": "and perps trade below spot on every venue checked, so the short side is the more eager one",
+               "at": "and perps trade at spot, so neither side is crowding in",
+               "venues_disagree": "but the venues disagree on whether perps trade above or below spot, so no side is called eager",
+               "unavailable": "and no venue reported a premium"}[side])
+    ja.append({"above": "、確認した全取引所で先物が現物より高く、ロング側が積極的です",
+               "below": "、確認した全取引所で先物が現物より安く、ショート側が積極的です",
+               "at": "、先物は現物とほぼ同じで、どちらの側にも偏りはありません",
+               "venues_disagree": "、ただし先物が現物より高いか安いかで取引所の見方が分かれるため、どちらの側とも判断しません",
+               "unavailable": "、プレミアムを報告した取引所はありません"}[side])
+    return {"en": " ".join(en).strip() + ".", "ja": "".join(ja).strip("、") + "。"}
+
+
 def _sign(x: float) -> int:
     return (x > 0) - (x < 0)
 
@@ -149,11 +207,22 @@ def positioning_check(symbol: str, reference_derivatives: dict[str, Any] | None 
     symbol = symbol.upper()
     http = http or httpx.Client(timeout=20.0, headers={"User-Agent": UA})
     okx, availability, warnings = okx_positioning(symbol, http)
+    hl: dict[str, Any] = {"venue": "hyperliquid", "premium_bps": None, "premium_state": None}
+    try:
+        hl["premium_bps"] = hl_premium(symbol, http)
+        hl["premium_state"] = _state(hl["premium_bps"])
+        availability["hyperliquid_premium"] = "ok"
+    except (SourceUnavailable, KeyError, ValueError, TypeError) as exc:
+        availability["hyperliquid_premium"] = "unavailable"
+        warnings.append(f"hyperliquid premium: {exc}")
+    consensus = premium_consensus({"okx": okx["premium_state"], "hyperliquid": hl["premium_state"]})
     verdicts = gate(symbol, reference_derivatives, peer_derivatives or [], okx, ryo_btc_funding_bps)
     withheld = [v for v in verdicts if v["verdict"] in ("not_token_specific", "conflicts_with_venue", "conflicts_with_ryo")]
     for v in withheld:
         warnings.append(f"withheld {v['path']}: {v['verdict']} ({v['why']})")
-    data = {"symbol": symbol, "gate": verdicts, "withheld_paths": [v["path"] for v in withheld], "okx": okx,
+    data = {"symbol": symbol, "gate": verdicts, "withheld_paths": [v["path"] for v in withheld], "okx": okx, "hyperliquid": hl,
+            # premium is the one field two venues can be compared on; OI change and long/short come from OKX alone
+            "premium_consensus": consensus, "plain": plain_lines(symbol, okx, consensus),
             "peers_compared": sorted({str(p.get("symbol", "")).upper() for p in (peer_derivatives or [])} - {symbol}),
             "thresholds": {"sign_min_pct": SIGN_MIN_PCT, "premium_at_default_bps": AT_DEFAULT_BPS}}
     bits = []
