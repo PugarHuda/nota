@@ -92,7 +92,7 @@ def _build_outcome(receipt: Receipt, ledger: Ledger, price_now: float, as_of_now
     outcome_val = 1.0 if went_up else 0.0
     brier = {o.role: round((o.p_up_7d - outcome_val) ** 2, 4) for o in receipt.opinions}
     brier["judge"] = round((receipt.verdict.p_up_7d - outcome_val) ** 2, 4)
-    decided_as_of = receipt.provenance.get("deep_analysis", {}).get("as_of")
+    decided_as_of = receipt.provenance.get("deep_analysis", {}).get("as_of") or receipt.created_at
     horizon = False
     if decided_as_of:
         try:

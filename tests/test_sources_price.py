@@ -160,4 +160,4 @@ def test_resolve_prices_then_from_the_exchange_median_when_ryo_answered_nothing(
     db = tmp_path / "demo.db"
     shutil.copy(Path(__file__).parent.parent / "data" / "demo.db", db)
     out = resolve("2ae531ec2c9b", Ledger(str(db)), None)
-    assert out.price_then == 101.0 and out.price_now == 151.0 and out.went_up
+    assert out.price_then == 101.0 and out.price_now == 151.0 and out.went_up and out.horizon_reached
