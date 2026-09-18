@@ -11,6 +11,7 @@ import json
 import os
 from urllib.parse import urlparse
 import re
+import sqlite3
 import time
 from pathlib import Path
 from typing import Any, Literal
@@ -226,6 +227,25 @@ def scores() -> dict[str, Any]:
     s = role_scores(led)
     return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()),
             "reliability": reliability(led), "sources": source_scores(led), "vs_base_rate": skill_vs_base(led)}
+
+
+@app.get("/api/scorecard")
+def scorecard(horizon: int = 24) -> dict[str, Any]:
+    """RYO's own plans, locked daily and settled on OKX (nota.scorecard). A snapshot from before the
+    scorecard existed has no tables yet, which is an empty scorecard, not an error."""
+    from nota.scorecard import HORIZONS_H, summary
+
+    if horizon not in HORIZONS_H:
+        raise HTTPException(422, f"horizon must be one of {list(HORIZONS_H)}")
+    try:
+        return summary(_ledger(), horizon)
+    except sqlite3.OperationalError:
+        return summary(Ledger(":memory:"), horizon)
+
+
+@app.get("/scorecard")
+def scorecard_page() -> FileResponse:
+    return FileResponse(STATIC / "scorecard.html")
 
 
 @app.get("/api/health")

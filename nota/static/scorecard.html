@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RYO Verdict Scorecard</title>
+<meta name="description" content="RYO issues a trade plan with every deep_analysis verdict and never reports what became of it. This page locks those plans daily and settles them on OKX's candles.">
+<meta property="og:title" content="RYO Verdict Scorecard">
+<meta property="og:description" content="Does RYO's verdict change how often RYO's own plan works? Locked daily, settled on independent candles, every failure counted.">
+<link rel="stylesheet" href="/landing.css">
+<style>
+  main { padding:clamp(28px,5vh,48px) 0 64px }
+  h1 { font-size:clamp(28px,4.2vw,42px); line-height:1.15; letter-spacing:-.015em; margin:0 0 14px; max-width:26ch }
+  h2 { font-size:21px; margin:44px 0 6px; letter-spacing:-.01em }
+  .hint { color:var(--ink-2); margin:0 0 14px; max-width:var(--measure); font-size:15px }
+  #answer { font-size:clamp(18px,2.2vw,21px); max-width:var(--measure); margin:0 0 18px }
+  #answer strong { font-weight:600 }
+  .horizon { display:flex; gap:8px; align-items:center; font:13px/1 var(--mono); color:var(--ink-2) }
+  .horizon button { font:13px/1 var(--mono); padding:8px 12px; border:1px solid var(--rule-2); background:var(--panel);
+                    color:var(--ink); border-radius:2px; cursor:pointer }
+  .horizon button[aria-pressed="true"] { background:var(--ink); color:var(--paper); border-color:var(--ink) }
+  .scroll { overflow-x:auto; border:1px solid var(--rule); border-radius:2px; background:var(--panel) }
+  table { border-collapse:collapse; width:100%; font:14px/1.45 var(--mono); font-variant-numeric:tabular-nums }
+  caption { text-align:left; padding:10px 12px; color:var(--ink-2); font-size:13px; border-bottom:1px solid var(--rule) }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--rule); white-space:nowrap }
+  th { font-weight:600; color:var(--ink-2); font-size:12px; text-transform:uppercase; letter-spacing:.04em }
+  tr:last-child td { border-bottom:0 }
+  td.r, th.r { text-align:right }
+  .target { color:var(--long) } .stop { color:var(--short) } .muted { color:var(--ink-2) }
+  .flag { color:var(--short); font-weight:600 }
+  .contrast { border:1px solid var(--rule); background:var(--panel); padding:16px 18px; border-radius:2px; margin:0 0 12px; max-width:760px }
+  .contrast p { margin:0 0 12px }
+  .axis { position:relative; height:34px; margin:4px 0 0 }
+  .axis .zero { position:absolute; top:0; bottom:12px; width:1px; background:var(--ink-2) }
+  .axis .ci { position:absolute; top:8px; height:6px; background:var(--accent); opacity:.35; border-radius:1px }
+  .axis .pt { position:absolute; top:4px; width:2px; height:14px; background:var(--accent) }
+  .axis .lbl { position:absolute; bottom:0; font:11px/1 var(--mono); color:var(--ink-2); transform:translateX(-50%) }
+  dl.cov { display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; margin:0; max-width:var(--measure); font-size:15px }
+  dl.cov dt { font:14px/1.5 var(--mono); font-variant-numeric:tabular-nums; text-align:right }
+  dl.cov dd { margin:0; color:var(--ink-2) }
+  .method { max-width:var(--measure); font-size:15.5px }
+  .method li { margin-bottom:6px }
+  .empty { color:var(--ink-2); padding:14px 12px; font:14px/1.5 var(--serif) }
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <b><a href="/" style="color:inherit;text-decoration:none">Nota</a></b>
+    <div class="right">
+      <a href="#open">Settling next</a>
+      <a href="#matter">Does it matter</a>
+      <a href="#method">Method</a>
+      <a href="/api/scorecard">JSON</a>
+      <a class="cta" href="/app">Receipts dashboard</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+  <h1>Does RYO's verdict change how often RYO's own plan works?</h1>
+  <p id="answer" aria-live="polite">Reading the ledger…</p>
+  <div class="horizon" role="group" aria-label="Settlement horizon">
+    <span>Horizon</span>
+    <button type="button" data-h="24" aria-pressed="true">24 hours</button>
+    <button type="button" data-h="72" aria-pressed="false">72 hours</button>
+  </div>
+
+  <h2 id="open">Settling next</h2>
+  <p class="hint">Every <code>deep_analysis</code> answer carries a verdict and a bracket: a stop 1.5 ATR away and a target at +1R. These are today's, nearest to settling first. A red mark means the verdict leans against the direction of its own plan.</p>
+  <div class="scroll"><table id="open-t"></table></div>
+
+  <h2 id="settled">Settled</h2>
+  <p class="hint">Which level OKX's hourly candles touched first. <em>Neither</em> means the window closed between the two; <em>ambiguous</em> means both fell inside one hour, which an hourly candle cannot order.</p>
+  <div class="scroll"><table id="settled-t"></table></div>
+
+  <h2 id="matter">Does the verdict matter?</h2>
+  <p class="hint">Target-first rate of one confluence state minus another, on the same days only, so the market's mood that day cancels out. The interval is resampled over days, not plans: plans locked on one day move together and are not independent.</p>
+  <div id="contrasts"></div>
+
+  <h2 id="coverage">Coverage</h2>
+  <p class="hint">Every lock is a row, including the ones that failed. Nothing leaves this count quietly.</p>
+  <dl class="cov" id="cov"></dl>
+
+  <h2 id="method">Method</h2>
+  <ol class="method">
+    <li><strong>Lock.</strong> Once a day, <code>deep_analysis</code> is called for 25 majors and the whole answer is stored with its trace id: verdict, confluence state and score, the three gates, and the trade plan.</li>
+    <li><strong>Re-anchor.</strong> Settlement uses OKX, not RYO, so RYO does not grade itself. The stop and target keep their distance from RYO's entry in percent, applied to OKX's price at the moment of the lock. When the two prices differ by more than 2%, the lock is kept as <em>basis mismatch</em> and never settled.</li>
+    <li><strong>Settle.</strong> From the first full hour after the lock, OKX's closed hourly candles are walked forward until the stop or the target is touched, or the horizon ends.</li>
+    <li><strong>Compare.</strong> Rates are compared within days, and the 90% interval is a bootstrap over lock days with a fixed seed, so this page reads the same every time it loads.</li>
+  </ol>
+  <p class="hint">Source: <a href="https://github.com/PugarHuda/nota/blob/main/nota/scorecard.py">nota/scorecard.py</a>. Raw numbers: <a href="/api/scorecard">/api/scorecard</a>. Not financial advice, and no order is ever placed.</p>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "–";
+const when = iso => new Date(iso).toLocaleString(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"});
+const esc = s => String(s ?? "–").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const COVERAGE = {
+  locked: "plans locked and waiting or settled",
+  settled_target: "touched RYO's +1R target first",
+  settled_stop: "touched RYO's stop first",
+  settled_neither: "touched neither before the horizon",
+  settled_ambiguous: "touched both inside one hour",
+  basis_mismatch: "RYO and OKX more than 2% apart: kept, never settled",
+  ryo_unavailable: "RYO did not answer",
+  okx_unavailable: "OKX did not answer at the lock",
+  no_plan: "RYO answered without a trade plan",
+};
+
+function untilText(iso) {
+  const h = (new Date(iso) - Date.now()) / 3.6e6;
+  return h <= 0 ? "due now" : h < 1 ? "under an hour" : Math.round(h) + " h";
+}
+
+function answer(s) {
+  return verdictVsPlan(s) + settledAnswer(s);
+}
+
+function verdictVsPlan(s) {
+  const all = s.open.length + s.settled.length;
+  return s.contradictions ? `<strong>${s.contradictions} of ${all}</strong> plans point one way while RYO's own verdict leans the other (marked ✕). ` : "";
+}
+
+function settledAnswer(s) {
+  const [t, n] = s.target_first;
+  if (!s.lock_days) return "No plan has been locked yet. The first lock runs with the next daily cycle.";
+  if (!n) {
+    const next = s.open[0];
+    return `${s.open.length} plans are locked across ${s.lock_days} day${s.lock_days > 1 ? "s" : ""}; none has settled at ${s.horizon_h} h yet.` +
+      (next ? ` The first settles ${when(next.settles_at)}. Until then this page can only show what was locked.` : "");
+  }
+  let out = `Of <strong>${n}</strong> plans that touched a level within ${s.horizon_h} h, <strong>${t}</strong> reached RYO's +1R target before its stop (${pct(t, n)}).`;
+  const c = s.contrasts.find(x => x.ci90_pct) || s.contrasts[0];
+  if (c && c.diff_pct !== null) {
+    out += ` ${esc(c.a)} beat ${esc(c.b)} by ${c.diff_pct > 0 ? "+" : ""}${c.diff_pct} points on ${c.days} shared day${c.days > 1 ? "s" : ""}` +
+      (c.ci90_pct ? ` (90% interval ${c.ci90_pct[0]} to ${c.ci90_pct[1]}): <strong>${c.distinguishable ? "distinguishable" : "not yet distinguishable from no difference"}</strong>.`
+                  : ", too few days for an interval.");
+  } else {
+    out += " No day yet has decided plans in two different confluence states, so the verdict cannot be compared.";
+  }
+  return out;
+}
+
+function openTable(rows) {
+  if (!rows.length) return `<caption>Nothing open.</caption>`;
+  return `<caption>${rows.length} open plans, nearest to settling first</caption>
+    <thead><tr><th scope="col">Token</th><th scope="col">Verdict</th><th scope="col">Confluence</th><th scope="col">Plan</th>
+    <th scope="col" class="r">ATR</th><th scope="col">Settles in</th><th scope="col">Locked</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><th scope="row">${esc(r.symbol)}</th>
+      <td>${esc(r.verdict)}${r.verdict_contradicts_side ? ` <span class="flag" title="the verdict leans against its own plan">✕ vs ${esc(r.side)}</span>` : ""}</td>
+      <td>${esc(r.confluence_state)} <span class="muted">${r.confluence_score ?? ""}</span></td><td>${esc(r.side)}</td>
+      <td class="r">${r.atr_14_pct != null ? r.atr_14_pct + "%" : "–"}</td><td>${untilText(r.settles_at)}</td>
+      <td class="muted">${when(r.locked_at)}</td></tr>`).join("") + "</tbody>";
+}
+
+function settledTable(rows) {
+  if (!rows.length) return `<caption>Nothing has settled at this horizon yet.</caption>`;
+  return `<caption>${rows.length} settled, newest first</caption>
+    <thead><tr><th scope="col">Token</th><th scope="col">Locked</th><th scope="col">Verdict</th><th scope="col">Confluence</th>
+    <th scope="col">First touched</th><th scope="col" class="r">After</th><th scope="col" class="r">Close at horizon</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><th scope="row">${esc(r.symbol)}</th><td class="muted">${when(r.locked_at)}</td>
+      <td>${esc(r.verdict)}${r.verdict_contradicts_side ? ' <span class="flag">✕</span>' : ""}</td><td>${esc(r.confluence_state)}</td>
+      <td class="${r.result}">${esc(r.result)}</td><td class="r">${r.hours_to_touch != null ? r.hours_to_touch + " h" : "–"}</td>
+      <td class="r">${r.return_at_horizon_pct > 0 ? "+" : ""}${r.return_at_horizon_pct}%</td></tr>`).join("") + "</tbody>";
+}
+
+function contrastBlock(c) {
+  const head = `<p><strong>${esc(c.a)}</strong> ${c.a_rate[0]}/${c.a_rate[1]} (${pct(...c.a_rate)}) against <strong>${esc(c.b)}</strong> ${c.b_rate[0]}/${c.b_rate[1]} (${pct(...c.b_rate)}) on ${c.days} shared day${c.days === 1 ? "" : "s"}.</p>`;
+  if (!c.ci90_pct) return `<div class="contrast">${head}<p class="muted">Fewer than three shared days: no interval is drawn, because one would be decoration.</p></div>`;
+  const lo = Math.min(-100, c.ci90_pct[0]), hi = Math.max(100, c.ci90_pct[1]);
+  const x = v => ((v - lo) / (hi - lo) * 100).toFixed(2) + "%";
+  return `<div class="contrast">${head}
+    <div class="axis" role="img" aria-label="difference ${c.diff_pct} points, 90% interval ${c.ci90_pct[0]} to ${c.ci90_pct[1]}">
+      <span class="zero" style="left:${x(0)}"></span>
+      <span class="ci" style="left:${x(c.ci90_pct[0])};width:calc(${x(c.ci90_pct[1])} - ${x(c.ci90_pct[0])})"></span>
+      <span class="pt" style="left:${x(c.diff_pct)}"></span>
+      <span class="lbl" style="left:${x(-100)};transform:none">−100</span><span class="lbl" style="left:${x(0)}">0</span>
+      <span class="lbl" style="left:${x(100)};transform:translateX(-100%)">+100 pts</span>
+    </div>
+    <p class="muted" style="margin:10px 0 0">${c.distinguishable ? "The interval excludes zero." : "The interval includes zero: no difference yet."}</p></div>`;
+}
+
+async function load(h) {
+  document.querySelectorAll(".horizon button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.h === String(h))));
+  try {
+    const s = await (await fetch(`/api/scorecard?horizon=${h}`)).json();
+    $("#answer").innerHTML = answer(s);
+    $("#open-t").innerHTML = openTable(s.open);
+    $("#settled-t").innerHTML = settledTable(s.settled);
+    $("#contrasts").innerHTML = s.contrasts.length ? s.contrasts.map(contrastBlock).join("")
+      : `<p class="empty">Nothing to compare until plans in two different confluence states have settled on the same day.</p>`;
+    const cov = Object.entries(s.coverage).sort((a, b) => b[1] - a[1]);
+    $("#cov").innerHTML = cov.length ? cov.map(([k, v]) => `<dt>${v}</dt><dd>${esc(COVERAGE[k] || k)}</dd>`).join("")
+      : `<dt>0</dt><dd>locks so far</dd>`;
+  } catch (e) {
+    $("#answer").textContent = "The scorecard could not be read from this site's API: " + e.message;
+  }
+}
+document.querySelectorAll(".horizon button").forEach(b => b.addEventListener("click", () => load(b.dataset.h)));
+load(24);
+</script>
+</body>
+</html>

@@ -103,3 +103,17 @@ def test_contrast_compares_within_a_day_and_bootstraps_over_days_not_plans():
     assert out["days"] == 6 and out["a_rate"] == [12, 12] and out["b_rate"] == [6, 12] and out["diff_pct"] == 50.0
     assert out["ci90_pct"] == [50.0, 50.0] and out["distinguishable"]
     assert sc.contrast(rows[:8], "confluence_state", "CONFIRMED", "MIXED")["ci90_pct"] is None  # two days: no interval
+
+
+def test_the_scorecard_api_and_page_are_served_and_refuse_an_unknown_horizon(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from nota import api
+
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "s.db"))
+    c = TestClient(api.app)
+    s = c.get("/api/scorecard").json()
+    assert s["horizon_h"] == 24 and s["open"] == [] and len(s["universe"]) == 25
+    assert c.get("/api/scorecard?horizon=12").status_code == 422
+    page = c.get("/scorecard")
+    assert page.status_code == 200 and "/api/scorecard?horizon=" in page.text and "Does RYO's verdict change" in page.text

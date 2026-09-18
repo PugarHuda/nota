@@ -270,7 +270,10 @@ def summary(ledger: Ledger, horizon_h: int = 24) -> dict[str, Any]:
             continue
         s = ledger.get_settlement(r["id"], horizon_h)
         side = bracket(r)["side"]
+        start = (datetime.fromisoformat(r["locked_at"]) + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         base = {"id": r["id"], "symbol": r["symbol"], "day": r["locked_at"][:10], "locked_at": r["locked_at"],
+                "settles_at": (start + timedelta(hours=horizon_h)).isoformat(), "trace_id": r.get("trace_id"),
+                "confluence_score": r.get("confluence_score"), "atr_14_pct": (r.get("plan") or {}).get("atr_14_pct"),
                 "verdict": r["verdict"], "confluence_state": r["confluence_state"], "side": side,
                 "verdict_contradicts_side": side == "long" and (r["verdict"] or "").lower() in BEARISH}
         if s is None:
@@ -284,5 +287,5 @@ def summary(ledger: Ledger, horizon_h: int = 24) -> dict[str, Any]:
     t, n = _rate(settled)
     return {"horizon_h": horizon_h, "universe": list(UNIVERSE), "lock_days": len({r["locked_at"][:10] for r in locks}),
             "coverage": coverage, "target_first": [t, n], "contrasts": contrasts,
-            "open": sorted(open_plans, key=lambda r: r["locked_at"]), "settled": sorted(settled, key=lambda r: r["locked_at"], reverse=True),
+            "open": sorted(open_plans, key=lambda r: r["settles_at"]), "settled": sorted(settled, key=lambda r: r["locked_at"], reverse=True),
             "contradictions": sum(r["verdict_contradicts_side"] for r in open_plans + settled)}
