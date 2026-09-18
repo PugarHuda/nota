@@ -50,7 +50,11 @@ def _price_then(receipt: Receipt, ledger: Ledger) -> float | None:
     pack_json = ledger.get_pack(receipt.pack_hash)
     if pack_json is None:
         return None
-    _, price = first_present(EvidencePack.model_validate_json(pack_json), paths.PRICE_USD)
+    # The exchange median recorded beside RYO's evidence is the decision-time price when RYO answered
+    # nothing (the 401 day), the same fallback `_price_now` takes for the other end of the horizon.
+    # ponytail: then and now can come from different feeds when a key returns; the basis gap is a few
+    # tenths of a percent, record which one priced `then` on the Outcome if that ever matters.
+    _, price = first_present(EvidencePack.model_validate_json(pack_json), paths.PRICE_USD + ["price_check.data.median_usd"])
     return price
 
 

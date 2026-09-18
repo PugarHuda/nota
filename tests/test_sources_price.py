@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from pathlib import Path
 
 import httpx
@@ -19,9 +21,11 @@ from tests.test_decide_replay import make_llm
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
-RSS = """<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>
-<item><title>SEC approves spot Solana ETF</title><link>https://www.coindesk.com/a</link><description>&lt;p&gt;Approval for SOL fund&lt;/p&gt;</description><pubDate>Fri, 05 Sep 2026 10:00:00 +0000</pubDate></item>
-<item><title>Ethereum gas fees fall</title><link>https://www.coindesk.com/b</link><description>x</description><pubDate>Fri, 05 Sep 2026 09:00:00 +0000</pubDate></item>
+# Dated relative to today: fixed September dates aged out of the "week" filter and failed the suite.
+_NEW = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(days=1)
+RSS = f"""<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>
+<item><title>SEC approves spot Solana ETF</title><link>https://www.coindesk.com/a</link><description>&lt;p&gt;Approval for SOL fund&lt;/p&gt;</description><pubDate>{format_datetime(_NEW)}</pubDate></item>
+<item><title>Ethereum gas fees fall</title><link>https://www.coindesk.com/b</link><description>x</description><pubDate>{format_datetime(_NEW - timedelta(hours=1))}</pubDate></item>
 <item><title>Solana ETF filing from 2024</title><link>https://www.coindesk.com/old</link><description>old</description><pubDate>Mon, 01 Jan 2024 09:00:00 +0000</pubDate></item>
 </channel></rss>"""
 
@@ -33,7 +37,7 @@ def test_rss_scores_keywords_and_filters_dates():
     rss = RssNews(feeds={"coindesk.com": "https://www.coindesk.com/arc/outboundfeeds/rss/", "cointelegraph.com": "https://cointelegraph.com/rss"})
     hits = rss.search("SEC approves spot Solana ETF", time_range="week")
     assert [h.url for h in hits] == ["https://www.coindesk.com/a"] and hits[0].score == 1.0
-    assert hits[0].published_date == "2026-09-05T10:00:00+00:00" and hits[0].content == "Approval for SOL fund"
+    assert hits[0].published_date == _NEW.isoformat() and hits[0].content == "Approval for SOL fund"
     assert rss.failed == ["cointelegraph.com: rss cointelegraph.com: HTTP 503"]
     with pytest.raises(SourceUnavailable):
         rss.search("the of", time_range="week")
@@ -59,7 +63,7 @@ def test_news_verify_combines_rss_and_backend(monkeypatch):
     assert env.availability == {"headlines": "ok", "search": "ok"} and env.status == "ok"
     assert env.data["method"] == {"search": "tavily", "headlines": "rss_headlines"}
     assert [s["domain"] for s in env.data["sources"]] == ["coindesk.com", "theblock.co"]  # de-duplicated by url
-    assert env.data["sources"][0]["published_date"] == "2026-09-05T10:00:00+00:00" and env.data["verdict"] == "weak"
+    assert env.data["sources"][0]["published_date"] == _NEW.isoformat() and env.data["verdict"] == "weak"
 
 
 NITTER = """<div class="timeline-item "><a class="tweet-link" href="/WatcherGuru/status/1#m"></a><div class="tweet-body">
@@ -144,3 +148,16 @@ def test_resolve_needs_no_ryo_source_at_all():
     r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
     out = resolve(r.id, led, None)
     assert out.price_now == 151.0 and out.price_now_source == "exchange_median:3_sources"
+
+
+@respx.mock
+def test_resolve_prices_then_from_the_exchange_median_when_ryo_answered_nothing(tmp_path):
+    """The SOL call of 2026-09-10 was made while every RYO tool answered 401; its only price is the
+    exchange median recorded beside that evidence. It sat unscorable in the daily cycle until this."""
+    import shutil
+
+    _prices(kr=152.0)
+    db = tmp_path / "demo.db"
+    shutil.copy(Path(__file__).parent.parent / "data" / "demo.db", db)
+    out = resolve("2ae531ec2c9b", Ledger(str(db)), None)
+    assert out.price_then == 101.0 and out.price_now == 151.0 and out.went_up
