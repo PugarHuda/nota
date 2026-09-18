@@ -32,6 +32,7 @@ jobs:
     # Actions minutes to produce a commit that cannot be pushed anywhere useful.
     if: github.repository == 'PugarHuda/nota'
     runs-on: ubuntu-latest
+    timeout-minutes: 60   # 25 deep_analysis locks paced at 12 s each take ~20 minutes
     env:
       NOTA_DB: data/demo.db
       NOTA_LLM: openai
@@ -53,6 +54,15 @@ jobs:
         # rather than scored against a guess.
         run: uv run nota resolve --all
 
+      - name: Settle scorecard plans whose 24 h / 72 h window closed
+        # Keyless: OKX public candles. A failed fetch is retried on the next cycle, never guessed.
+        run: uv run nota settle
+
+      - name: Lock today's RYO verdicts and plans for the scorecard
+        # A day missed here is a sample lost for good, so this runs before the slower council.
+        if: env.RYO_MCP_KEY != ''
+        run: uv run nota lock || echo "::warning::lock failed; the cycle continues"
+
       - name: Record today's decisions
         if: env.RYO_MCP_KEY != '' && env.OPENAI_API_KEY != ''
         run: |
@@ -66,7 +76,7 @@ jobs:
         run: |
           python -c "import sqlite3; sqlite3.connect('data/demo.db').execute('PRAGMA wal_checkpoint(TRUNCATE)')"
           if git diff --quiet -- data/demo.db; then
-            echo "ledger unchanged: nothing came due and nothing was decided."
+            echo "ledger unchanged: nothing came due, locked or decided."
             exit 0
           fi
           git config user.name "github-actions[bot]"

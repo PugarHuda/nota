@@ -270,6 +270,30 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
             typer.echo(f"{i}: cannot resolve ({exc})")
 
 
+@app.command("lock")
+def lock_cmd(symbols: str = typer.Option("", help="Comma-separated; default is the scorecard universe")):
+    """Scorecard: lock today's deep_analysis verdict and trade plan for each symbol (one RYO call each,
+    paced for the builder fan-out limit). Every failure is stored as its own row."""
+    from nota.scorecard import lock_all
+
+    rows = lock_all(_source("live"), _ledger(), [s.strip() for s in symbols.split(",") if s.strip()] or None)
+    for r in rows:
+        typer.echo(f"{r['symbol']:5} {r['status']:16} {r['verdict'] or '-':12} {r['confluence_state'] or '-':10} "
+                   f"basis {r['basis_pct'] if r['basis_pct'] is not None else '-'}%" + (f"  ({r['error']})" if r["error"] else ""))
+
+
+@app.command("settle")
+def settle_cmd():
+    """Scorecard: settle every locked plan whose 24 h / 72 h window has closed, on OKX hourly candles. Keyless."""
+    from nota.scorecard import settle_all
+
+    out = settle_all(_ledger())
+    if not out:
+        typer.echo("nothing to settle")
+    for r in out:
+        typer.echo(f"{r['lock_id']} {r['symbol']:5} {r['horizon_h']}h {r['status']} {r.get('result', r.get('error', ''))}")
+
+
 
 @app.command()
 def scores():

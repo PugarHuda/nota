@@ -29,6 +29,11 @@ CREATE INDEX IF NOT EXISTS decisions_symbol ON decisions(symbol, created_at);
 CREATE TABLE IF NOT EXISTS backings (
   decision_id TEXT NOT NULL, handle TEXT NOT NULL, stance TEXT NOT NULL, created_at TEXT NOT NULL,
   PRIMARY KEY (decision_id, handle));
+CREATE TABLE IF NOT EXISTS locks (
+  id TEXT PRIMARY KEY, symbol TEXT NOT NULL, locked_at TEXT NOT NULL, status TEXT NOT NULL, row_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS settlements (
+  lock_id TEXT NOT NULL, horizon_h INTEGER NOT NULL, settled_at TEXT NOT NULL, result_json TEXT NOT NULL,
+  PRIMARY KEY (lock_id, horizon_h));
 """
 
 
@@ -117,3 +122,23 @@ class Ledger:
             "SELECT d.id FROM decisions d LEFT JOIN outcomes o ON o.decision_id=d.id WHERE o.decision_id IS NULL ORDER BY d.created_at"
         ).fetchall()
         return [r["id"] for r in rows]
+
+    # scorecard: RYO's own plans, locked daily and settled later (nota.scorecard) -----------
+    def save_lock(self, id: str, symbol: str, locked_at: str, status: str, row_json: str) -> None:
+        self.conn.execute("INSERT OR IGNORE INTO locks VALUES (?,?,?,?,?)", (id, symbol, locked_at, status, row_json))
+
+    def list_locks(self) -> list[tuple[str, str]]:
+        return [(r["id"], r["row_json"]) for r in self.conn.execute("SELECT id, row_json FROM locks ORDER BY locked_at").fetchall()]
+
+    def unsettled_locks(self) -> list[tuple[str, str]]:
+        rows = self.conn.execute(
+            "SELECT id, row_json FROM locks l WHERE status='locked' AND "
+            "(SELECT COUNT(*) FROM settlements s WHERE s.lock_id=l.id) < 2 ORDER BY locked_at").fetchall()  # 2 = len(scorecard.HORIZONS_H)
+        return [(r["id"], r["row_json"]) for r in rows]
+
+    def save_settlement(self, lock_id: str, horizon_h: int, result_json: str) -> None:
+        self.conn.execute("INSERT OR REPLACE INTO settlements VALUES (?,?,?,?)", (lock_id, horizon_h, now_iso(), result_json))
+
+    def get_settlement(self, lock_id: str, horizon_h: int) -> str | None:
+        row = self.conn.execute("SELECT result_json FROM settlements WHERE lock_id=? AND horizon_h=?", (lock_id, horizon_h)).fetchone()
+        return row["result_json"] if row else None
