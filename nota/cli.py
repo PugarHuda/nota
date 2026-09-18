@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 import time
 
-from nota.calibration import CannotResolve, close_position, due, resolve, role_scores, role_weights
+from nota.calibration import CannotResolve, close_position, due, fill_base_rates, resolve, role_scores, role_weights
 from nota.decide import decide
 from nota import paths
 from nota.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
@@ -266,7 +266,6 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
     ids = (led.unresolved() if early else due(led)) if all_ else ([decision_id] if decision_id else [])
     if not ids:
         typer.echo("nothing to resolve")
-        raise typer.Exit()
     # Scoring needs a price, not RYO's price: with no builder key the exchange median stands in, which
     # is what `_price_now` already falls back to when RYO answers without one.
     src = _source(source) if source != "live" or os.environ.get("RYO_MCP_KEY") else None
@@ -278,6 +277,8 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
             typer.echo(f"{i} {out.symbol}: {out.return_pct:+.2f}% went_up={out.went_up} horizon_reached={out.horizon_reached} brier={out.brier}")
         except CannotResolve as exc:
             typer.echo(f"{i}: cannot resolve ({exc})")
+    for did, p in fill_base_rates(led):  # keyless, and also catches up outcomes scored before base rates existed
+        typer.echo(f"{did}: base rate {p if p is not None else 'unavailable'}")
 
 
 @app.command("lock")

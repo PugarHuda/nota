@@ -42,6 +42,9 @@ class Outcome(BaseModel):
     brier: dict[str, float]
     trade_result_usd: float | None = None
     closed_reason: str | None = None  # 'stopped' | 'target' when a practice position was exited early
+    # How often this token closed higher 7 days later, counted on candles closed before the decision day
+    # (skill move_base_rate). The reference a p_up has to beat; None when it could not be counted.
+    base_rate_p: float | None = None
 
 
 def _price_then(receipt: Receipt, ledger: Ledger) -> float | None:
@@ -162,6 +165,54 @@ def role_scores(ledger: Ledger) -> dict[str, dict[str, float]]:
 
 
 MEANINGFUL_N = 20
+
+
+def base_rate_for(symbol: str, decided_day: str) -> float | None:
+    from nota.skills.base_rate import move_base_rate
+
+    env = move_base_rate(symbol, k=0, horizon_days=HORIZON_DAYS, direction="up", event="close", as_of=decided_day)
+    return env.data.get("p")
+
+
+def fill_base_rates(ledger: Ledger, rate=base_rate_for) -> list[tuple[str, float | None]]:
+    """Attach `base_rate_p` to every outcome that lacks one. Idempotent; a failed count stays None and
+    is tried again next time."""
+    out = []
+    for raw in ledger.list_outcomes():
+        o = json.loads(raw)
+        if o.get("base_rate_p") is not None:
+            continue
+        stored = ledger.get_decision(o["decision_id"])
+        if stored is None:
+            continue
+        p = rate(o["symbol"], Receipt.model_validate_json(stored).created_at[:10])
+        if p is not None:
+            o["base_rate_p"] = p
+            ledger.save_outcome(o["decision_id"], json.dumps(o))
+        out.append((o["decision_id"], p))
+    return out
+
+
+def skill_vs_base(ledger: Ledger) -> dict[str, Any]:
+    """Brier skill score of each role against the token's own base rate: 1 - Brier / Brier(base).
+    Above 0 the agent knew something the calendar did not; at or below 0 it did not. Only outcomes
+    that carry a base rate count, and `enough_to_read` stays false below MEANINGFUL_N."""
+    per: dict[str, list[tuple[float, float]]] = {}
+    for raw in ledger.list_outcomes():
+        o = json.loads(raw)
+        base = o.get("base_rate_p")
+        if base is None:
+            continue
+        ref = (base - (1.0 if o["went_up"] else 0.0)) ** 2
+        for role, b in o["brier"].items():
+            per.setdefault(role, []).append((b, ref))
+    roles = {}
+    for role, pairs in per.items():
+        b, r = sum(x for x, _ in pairs) / len(pairs), sum(y for _, y in pairs) / len(pairs)
+        roles[role] = {"n": len(pairs), "brier_mean": round(b, 4), "base_brier_mean": round(r, 4),
+                       "skill": round(1 - b / r, 4) if r else None}
+    n = max((v["n"] for v in roles.values()), default=0)
+    return {"roles": roles, "n": n, "enough_to_read": n >= MEANINGFUL_N, "meaningful_at": MEANINGFUL_N}
 
 
 def source_scores(ledger: Ledger) -> dict[str, Any]:

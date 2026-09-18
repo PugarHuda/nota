@@ -70,3 +70,29 @@ def test_scores_and_weights_favour_low_brier():
 
 def test_weights_default_to_one_without_outcomes():
     assert role_weights({}) == {"macro": 1.0, "technician": 1.0, "narrative": 1.0}
+
+
+def test_skill_against_the_base_rate_is_filled_once_and_scored_per_role():
+    from nota.calibration import fill_base_rates, skill_vs_base
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    resolve(r.id, led, PriceSource(165.0))  # went up
+    asked = []
+    rate = lambda sym, day: asked.append((sym, day)) or 0.6
+    assert fill_base_rates(led, rate) == [(r.id, 0.6)] and asked == [("SOL", r.created_at[:10])]
+    assert fill_base_rates(led, rate) == [] and len(asked) == 1  # already filled: not counted again
+    out = skill_vs_base(led)
+    # base Brier (0.6 - 1)^2 = 0.16; judge said 0.7 -> 0.09, so it beat the base rate; narrative 0.3 -> 0.49 did not
+    assert out["roles"]["judge"] == {"n": 1, "brier_mean": 0.09, "base_brier_mean": 0.16, "skill": 0.4375}
+    assert out["roles"]["narrative"]["skill"] < 0 and out["enough_to_read"] is False
+
+
+def test_a_base_rate_that_cannot_be_counted_stays_absent():
+    from nota.calibration import fill_base_rates, skill_vs_base
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    resolve(r.id, led, PriceSource(165.0))
+    assert fill_base_rates(led, lambda s, d: None) == [(r.id, None)]
+    assert json.loads(led.get_outcome(r.id)).get("base_rate_p") is None and skill_vs_base(led)["roles"] == {}
