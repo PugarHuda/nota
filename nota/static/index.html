@@ -385,7 +385,7 @@ async function loadSide() {
       <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
       ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
       <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved at the 7-day horizon${sc.reliability.excluded_before_horizon ? `, ${sc.reliability.excluded_before_horizon} closed earlier and left out` : ''}</div>
-      ${sourcesTable(sc.sources)}`
+      ${sourcesTable(sc.sources)}${baseRateTable(sc.vs_base_rate)}`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
 }
 
@@ -404,6 +404,19 @@ function sourcesTable(s) {
     <div class="small muted">Lower Brier is better, so a positive "helps by" means the decision went better with that
       source. ${s.enough_to_read ? `${s.scored_decisions} scored decisions.` :
       `Only ${s.scored_decisions} scored decision${s.scored_decisions === 1 ? '' : 's'} so far — read nothing into this until there are ${s.meaningful_at}.`}</div>`;
+}
+
+// Each agent against the token's own base rate (how often it closed higher 7 days later on
+// same-volatility days, counted before the decision). Above zero means it beat the calendar.
+function baseRateTable(v) {
+  const rows = Object.entries(v?.roles || {}).sort((a, b) => (b[1].skill ?? -9) - (a[1].skill ?? -9));
+  if (!rows.length) return '';
+  return `<h2>Against the base rate</h2>
+    <table><tr><th>role</th><th class="num">n</th><th class="num">brier</th><th class="num">base brier</th><th class="num">skill</th></tr>
+    ${rows.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td>
+      <td class="num">${s.base_brier_mean}</td><td class="num">${s.skill === null ? '—' : (s.skill > 0 ? '+' : '') + s.skill}</td></tr>`).join('')}</table>
+    <div class="small muted">Skill = 1 − Brier / base-rate Brier; above zero the agent beat how often the token rose anyway.
+      ${v.enough_to_read ? '' : `Only ${v.n} so far — read nothing into this until there are ${v.meaningful_at}.`}</div>`;
 }
 
 let skillDefs = [];

@@ -6,9 +6,38 @@ evidence and records the practice trade it would make as a **replayable decision
 number is read back out of the evidence rather than retyped by the model, and independent sources
 audit RYO's own price and indicators before anything is sized. Built for the RYO-CHAN Hackathon 2026.
 
-Tracks entered: **1 Autonomous Agents** (council, receipts, `watch` loop), **2 Dashboards**
-(diff-first receipt dashboard), **3 New Skills** (`narrative_convergence`, `news_verify`,
-`price_crosscheck`, `technicals_crosscheck`, all in RYO's envelope).
+Tracks entered: **1 Autonomous Agents** (council, receipts, `watch` loop, a derivatives gate the
+council cannot argue past), **2 Dashboards** (diff-first receipt dashboard, and the
+[RYO Verdict Scorecard](https://nota-ryo.vercel.app/scorecard)), **3 New Skills**
+(`narrative_convergence`, `news_verify`, `price_crosscheck`, `technicals_crosscheck`,
+`positioning_check`, `move_base_rate`, `verdict_track_record`, all in RYO's envelope).
+
+## RYO Verdict Scorecard
+
+Every `deep_analysis` answer carries a verdict and a trade plan (a stop 1.5 ATR away, a target at
++1R). RYO never reports what became of either. `nota lock` stores the whole answer for 25 majors
+once a day; `nota settle` later asks OKX's public hourly candles which level was touched first
+within 24 h and 72 h. RYO does not grade itself: the bracket is re-anchored to OKX's price at the
+lock, and a lock where the two prices are more than 2% apart is kept as `basis_mismatch` and never
+settled. Confluence states are compared only on days where both had a decided plan, with a 90%
+interval bootstrapped over days rather than plans. Every failed lock is a counted row.
+[/scorecard](https://nota-ryo.vercel.app/scorecard) shows it, most urgent first;
+`/api/scorecard?horizon=24|72` is the raw record.
+
+Day 0 (2026-09-18): 25 of 25 locked, 4 CONFIRMED and 21 MIXED, and **7 plans long while RYO's own
+verdict was `cautious`** (XRP, DOGE, ADA, LINK, SUI, BCH, WIF).
+
+## What the council may not cite
+
+`deep_analysis.data.derivatives` reported funding 0.0 and a null long/short ratio for every token
+probed on 2026-09-18, and one 24 h open-interest change repeated exactly across unrelated tokens
+(-10.44 for ETH, SOL, WIF and ONDO). `positioning_check` rules each field without guessing RYO's
+undocumented definitions: the same value on two other tokens locked that day is
+`not_token_specific`, an opposite sign to OKX's coin-terms OI change of 3% or more is
+`conflicts_with_venue`, BTC funding of exactly 0 while RYO's own sentiment tool reports BTC funding
+is `conflicts_with_ryo`. A withheld field reaches the prompt as `withheld: <reason>` and a
+citation of it is dropped. `scripts/gate_ab.py <id>` re-runs a receipt's council without the gate;
+the first run (`docs/gate-ab/cd5ada18b179.json`) changed nothing, and is published anyway.
 
 ![Dashboard: thirty-second summary, what changed ranked by impact, open positions, skills panel](docs/img/dashboard.png)
 
@@ -138,7 +167,7 @@ uv run pytest -q
 
 ## Skills (Track 3)
 
-All four return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
+All seven return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
 served on RYO's own skill paths, so plugging them into RYO is a route registration, not a port:
 `GET /api/skills/` (SkillDefinition list), `GET /api/skills/{name}`, and
 `POST /api/skills/{name}/invoke` taking `SkillCallRequest {name, args, conversation_id}` and
@@ -168,6 +197,19 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
   method from CoinGecko public OHLC (4-hour candles aggregated to UTC days), with the deviation
   of reference values (RYO's `technicals.rsi_14` / `atr_14`) from the independent calculation.
   The Technician sees it as `technicals_check` on every decision.
+- `positioning_check`: the derivatives gate above, plus OKX's perp premium (the funding rate sits at
+  the 1 bp interest component and says nothing), open-interest change in coins, the long/short
+  account ratio as a percentile of its last 100 hours, and Hyperliquid's premium as a second venue.
+  `premium_consensus` is one side of spot on every venue or `venues_disagree`, never an average,
+  with one plain sentence in English and Japanese.
+- `move_base_rate`: how often this token reached (or closed beyond) k ATRs within h days, counted on
+  ~400 days of OKX UTC candles restricted to days in today's volatility tercile, with the number of
+  independent days and a time-split holdout that warns when the rate has drifted. Given RYO's
+  `atr_14_pct` it measures in RYO's ATR (0.91-0.98 of a Wilder ATR from OKX, ratio printed). Every
+  scored decision also carries this base rate, and `/api/scores.vs_base_rate` gives each agent
+  1 - Brier / Brier(base rate): above zero it knew something the calendar did not.
+- `verdict_track_record`: the scorecard's settled record for a token, by verdict and confluence
+  state, with denominators and the latest locked verdict's trace id.
 
 ## Nota is also an MCP server (Track 3)
 
