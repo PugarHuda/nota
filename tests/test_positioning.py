@@ -1,4 +1,5 @@
 import json
+import json
 from pathlib import Path
 
 import httpx
@@ -154,10 +155,9 @@ def test_with_a_ryo_source_the_reference_is_fetched_and_peers_come_from_todays_l
     assert env.status == "ok"  # RYO, ledger and DVOL are context; the venues are the primary sections
 
 
-# Deribit's documented response shape for public/get_volatility_index_data: result.data rows of
-# [timestamp_ms, open, high, low, close], DVOL in annualised percent. Built here, inside the test.
-DVOL = {"jsonrpc": "2.0", "result": {"continuation": None, "data": [
-    [1758067200000, 47.1, 48.0, 46.2, 46.9], [1758153600000, 46.9, 47.5, 44.8, 45.2], [1758240000000, 45.2, 45.9, 44.1, 44.6]]}}
+# A real Deribit answer to public/get_volatility_index_data (BTC, 1D), captured by .github/workflows/probe.yml
+# on 2026-09-19 from a GitHub runner, since Deribit is DNS-blocked on the machine this is built on.
+DVOL = json.loads((Path(__file__).parent / "fixtures" / "market" / "deribit_dvol_btc.json").read_text(encoding="utf-8"))
 
 
 @respx.mock
@@ -170,9 +170,11 @@ def test_dvol_gives_the_implied_week_and_flags_a_stop_inside_it():
     q = route.calls[0].request.url.params
     assert q["currency"] == "BTC" and q["resolution"] == "1D"
     iv = env.data["implied_vol"]
-    assert iv["dvol"] == 44.6 and iv["implied_7d_move_pct"] == round(44.6 / 365 ** 0.5 * 7 ** 0.5, 2) == 6.18
-    assert iv["as_of"].startswith("2025-09-19") and env.availability["deribit_dvol"] == "available"
-    assert env.data["stop_check"] == {"atr_stop_pct": 2.0, "half_implied_7d_move_pct": 3.09, "inside_noise": True}
+    last = DVOL["result"]["data"][-1]                      # [ts, open, high, low, close]: the newest close is the reading
+    move = round(last[4] / 365 ** 0.5 * 7 ** 0.5, 2)
+    assert iv["dvol"] == last[4] == 36.3 and iv["implied_7d_move_pct"] == move == 5.03
+    assert iv["as_of"].startswith("2026-09-19") and env.availability["deribit_dvol"] == "available"
+    assert env.data["stop_check"] == {"atr_stop_pct": 2.0, "half_implied_7d_move_pct": round(move / 2, 2), "inside_noise": True}
     assert any(w.startswith("stop inside normal 7-day noise") for w in env.warnings)
     assert positioning_check("BTC", atr_stop_pct=4.0, http=httpx.Client()).data["stop_check"]["inside_noise"] is False
 
