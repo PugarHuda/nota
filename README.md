@@ -682,6 +682,8 @@ is synthetic, the script is not. The RYO envelopes under `tests/fixtures/` and `
 are real RYO responses captured with `nota record` and labelled `source: recorded`; `tests/fixtures/x/` holds one real payload captured from X's public syndication
 endpoint on 2026-09-07.
 
+The video toolchain under `video/` is build tooling only; none of it ships in the deployed app. Its `package.json` overrides `ws` (8.21+) and `webpack` (5.104.1+) to their patched releases. One advisory stays open: `extract-zip` 2.0.1, pulled in by `@remotion/renderer` to unpack the Chrome that Remotion would download. No patched release exists, and this project never runs that path, because the render reuses Playwright's Chromium (`video/remotion.config.ts`).
+
 No secret has ever been committed. Verified across the whole history, not just the working tree,
 most recently on 2026-09-20: the exact value of every key in the local `.env` and `.env.local`
 (builder key, LLM key, Neon connection strings and password, Vercel token) was searched for in every
