@@ -1,0 +1,11 @@
+[
+ {
+  "at": "2026-09-19T19:06:03+00:00",
+  "url": "https://github.com/PugarHuda/nota/attestations/48669737",
+  "commit": "392f9bd44482299e44443d63c6bf1480ffb64382",
+  "subjects": {
+   "data/demo.db": "53f29c2009b7201e28e3cac4e41365b2209dc12a784788dd7f25dc162d5ebd2c",
+   "data/snapshot.json": "8db9903c4b3a0f024201b165f987abe5001162190433c87f1e45a74c117554cb"
+  }
+ }
+]
