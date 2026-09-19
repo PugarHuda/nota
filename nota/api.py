@@ -33,7 +33,7 @@ from nota.backings import PostgresBackings, store_for
 from nota.calibration import (MEANINGFUL_N, due, reliability, role_scores, role_weights, scored_independent, skill_vs_base,
                               skill_vs_ryo, source_scores)
 from nota.card import render_card
-from nota.evidence import EvidencePack, first_present
+from nota.evidence import SECTIONS, EvidencePack, first_present
 from nota.ledger import Ledger
 from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
@@ -123,6 +123,12 @@ def _degraded(r: Receipt) -> bool:
     return any(s not in OK for s in r.availability.values())
 
 
+def _failed_sections(r: Receipt) -> int:
+    """RYO sections that came back error or unavailable: the landing's failure panel shows the receipt
+    where the most of RYO went dark, not one where a single cross-check was partial."""
+    return sum(1 for k in SECTIONS if r.availability.get(k) in ("error", "unavailable"))
+
+
 def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:
     return {
         # pack_hash travels with the summary so a caller can draw or cite the evidence identity
@@ -131,6 +137,7 @@ def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:
         "pack_hash": r.pack_hash,
         "model": r.model, "action": r.verdict.action, "p_up_7d": r.verdict.p_up_7d, "rationale": r.verdict.rationale,
         "trade_kind": r.trade.kind, "degraded": _degraded(r), "resolved": led.get_outcome(r.id) is not None,
+        "availability": r.availability, "failed_sections": _failed_sections(r),
     }
 
 
@@ -243,7 +250,36 @@ def get_decision(id: str) -> dict[str, Any]:
     out = led.get_outcome(id)
     return {"receipt": r.model_dump(mode="json"), "previous_id": prev.id if prev else None,
             "changes": what_changed(led, r, prev), "outcome": json.loads(out) if out else None, "degraded": _degraded(r),
-            "backing": _backing_counts(led, id)}
+            "backing": _backing_counts(led, id), **_pack_views(led, r)}
+
+
+def _finite(*vs: Any) -> bool:
+    return all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in vs)
+
+
+def _pack_views(led: Ledger, r: Receipt) -> dict[str, Any]:
+    """Two reads of the stored evidence the receipt itself does not carry.
+
+    `requests`: the exact arguments each section was called with, so the dashboard can offer a real
+    positioning_check input instead of an invented example. `audit`: Nota's recomputed ATR, RSI and
+    price beside RYO's, with the warning thresholds the skills applied, or null when this receipt
+    lacks any of them. The landing's audit table is filled from it, never typed by hand."""
+    raw = led.get_pack(r.pack_hash)
+    if not raw:
+        return {"requests": {}, "audit": None}
+    pack = EvidencePack.model_validate_json(raw)
+    envs = {k: s.envelope for k, s in pack.sections.items() if s.envelope}
+    audit = None
+    tech, price = envs.get("technicals_check"), envs.get("price_check")
+    if tech and price and "deep_analysis" in envs:
+        t, p = tech.data, price.data
+        tref, pref = t.get("reference") or {}, p.get("reference") or {}
+        rows = {"atr": (t.get("atr_14"), tref.get("atr_14"), (t.get("thresholds") or {}).get("atr_warn_pct")),
+                "rsi": (t.get("rsi_14"), tref.get("rsi_14"), (t.get("thresholds") or {}).get("rsi_warn_points")),
+                "price": (p.get("median_usd"), pref.get("price_usd"), (p.get("thresholds") or {}).get("deviation_warn_pct"))}
+        if all(_finite(*v) for v in rows.values()):
+            audit = {k: {"nota": n, "ryo": y, "warn": w} for k, (n, y, w) in rows.items()}
+    return {"requests": {k: e.request for k, e in envs.items()}, "audit": audit}
 
 
 @app.get("/api/positions")

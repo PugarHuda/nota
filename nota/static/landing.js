@@ -3,6 +3,23 @@
    One file, included by landing.html and landing.ja.html, so a translation cannot end up drawing a
    different page from the English one - the prose is translated, the machinery is the same object.
 */
+
+// The nav: section links live in a native <details> menu. Wide screens hold it open so the links
+// read as a row; narrow ones fold it under its summary. The theme is the one the dashboard stores.
+(() => {
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const fit = () => { if (menu) menu.open = wide.matches; };
+  wide.addEventListener('change', fit); fit();
+  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  const theme = document.getElementById('theme'), root = document.documentElement;
+  const paint = () => theme?.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  theme?.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('nota.theme', root.dataset.theme); } catch {}
+    paint();
+  });
+  paint();
+})();
 // The mark is drawn from the receipt itself, not decoration: every tick is a nibble of the
 // evidence hash and the arc is the probability the judge stated. Same receipt, same mark.
 // Where the receipts come from: this deployment's own API, never a copy pasted into this file.
@@ -46,7 +63,7 @@ const drawHero = (r) => {
 
   add('circle', {cx, cy, r: 96, 'stroke-width': 1}, 'core');
   add('text', {x: cx, y: cy + 6}, 'p').textContent = P_UP.toFixed(2);
-  add('text', {x: cx, y: cy + 40}, 'plabel').textContent = 'p_up_7d';
+  add('text', {x: cx, y: cy + 40}, 'plabel').textContent = svg.dataset.plabel || '7-day rise';
 
   // The prose around the mark names the receipt the mark is of. Before this it was written into the
   // page, which stopped being true the moment the mark started coming from the API: the caption
@@ -71,7 +88,7 @@ const drawHero = (r) => {
 
   // The slip's rows are the receipt's own fields, written as text: the values are the API's, the
   // row names are the page's, so each language labels the same numbers.
-  const field = {id: r.id, symbol: r.symbol, action: r.action, p: P_UP.toFixed(2), source: r.source, date: r.date,
+  const field = {id: r.id, symbol: r.symbol, action: r.action, p: `${Math.round(P_UP * 100)}%`, source: r.source, date: r.date,
                  stamp: r.date ? r.date.slice(2).replace(/-/g, '.') : undefined};
   document.querySelectorAll('.slip [data-f]').forEach(dd => {
     dd.textContent = field[dd.dataset.f] ?? '—';
@@ -138,7 +155,10 @@ const drawLedger = (ledger) => {
 const drawBroken = async (summaries) => {
   const panel = document.getElementById('broken-panel'), note = document.getElementById('broken-verdict');
   if (!panel) return;
-  const hit = summaries.find(d => d.degraded);
+  // the receipt where the most of RYO itself failed (newest first on a tie), not the newest one where a
+  // single cross-check came back partial: that is the day this section is about
+  const most = Math.max(0, ...summaries.map(d => d.failed_sections || 0));
+  const hit = most ? summaries.find(d => d.failed_sections === most) : summaries.find(d => d.degraded);
   if (!hit) {
     panel.textContent = (panel.dataset.none || 'None of the %n most recent receipts met a failing source.')
       .replace(/%n/g, WINDOW);
@@ -178,6 +198,37 @@ const drawBroken = async (summaries) => {
     .replace(/%r/g, t.reason || '');
 };
 
+// The audit table: Nota's recomputed ATR, RSI and price beside RYO's, from the newest receipt whose
+// evidence holds all three checks. The page carries no figure of its own; the API reads them out of the
+// stored evidence pack, with the threshold each skill warns at, and 'Apart' is computed here.
+const drawAudit = async (summaries) => {
+  const host = document.getElementById('audit'), note = document.getElementById('audit-note');
+  if (!host) return;
+  const has = d => ['technicals_check', 'price_check', 'deep_analysis']
+    .every(k => d.availability && d.availability[k] && !['error', 'unavailable'].includes(d.availability[k]));
+  for (const d of summaries.filter(has).slice(0, 5)) {
+    const res = await fetch(`/api/decisions/${encodeURIComponent(d.id)}`);
+    if (!res.ok) continue;
+    const {audit, receipt} = await res.json();
+    if (!audit) continue;
+    const show = v => String(+v.toFixed(4));
+    for (const key of ['atr', 'rsi', 'price']) {
+      const {nota, ryo, warn} = audit[key];
+      // RSI is already a percentage scale, so its gap is in points; ATR and price are relative to RYO
+      const apart = key === 'rsi' ? Math.abs(nota - ryo) : Math.abs(nota - ryo) / Math.abs(ryo) * 100;
+      const cell = f => host.querySelector(`[data-a="${key}.${f}"]`);
+      cell('nota').textContent = show(nota);
+      cell('ryo').textContent = show(ryo);
+      cell('apart').textContent = key === 'rsi' ? apart.toFixed(1) + (host.dataset.pts || ' pts') : apart.toFixed(2) + '%';
+      cell('apart').className = 'n ' + (Number.isFinite(warn) && apart >= warn ? 'far' : 'agree');
+    }
+    host.dataset.receipt = receipt.id;
+    note.textContent = note.dataset.note.replace(/%s/g, receipt.id).replace(/%d/g, receipt.created_at.slice(0, 10));
+    return;
+  }
+  note.textContent = note.dataset.missing.replace(/%n/g, summaries.length);
+};
+
 // The newest receipts, drawn from what the API answers right now. A failure says so rather than
 // leaving an empty shape the reader has to interpret.
 let verifyId = null;
@@ -192,10 +243,10 @@ fetch(`/api/decisions?limit=${WINDOW}`)
     verifyId = ledger[0].id;
     drawHero(ledger[0]);
     drawLedger(ledger);
-    return drawBroken(rows);
+    return Promise.all([drawBroken(rows), drawAudit(rows)]);
   })
   .catch(err => {
-    for (const id of ['ledger', 'broken-panel']) {
+    for (const id of ['ledger', 'broken-panel', 'audit-note']) {
       const host = document.getElementById(id);
       if (host) host.textContent = `The ledger could not be read: ${err.message}`;
     }
@@ -211,9 +262,12 @@ const verdictLine = (cls, verdict, tail) => {
   out.replaceChildren(mark, document.createTextNode(' ' + tail));
 };
 
+// aria-disabled rather than disabled while it runs: a disabled button drops keyboard focus to the body
 btn.addEventListener('click', async () => {
+  if (btn.getAttribute('aria-disabled') === 'true') return;
   if (!verifyId) { out.textContent = out.dataset.waiting || 'the ledger has not loaded yet'; return; }
-  btn.disabled = true; out.textContent = out.dataset.running || 'running…';
+  btn.setAttribute('aria-disabled', 'true'); out.setAttribute('aria-busy', 'true');
+  out.textContent = out.dataset.running || 'running…';
   const t0 = performance.now();
   try {
     const r = await fetch(`/api/decisions/${verifyId}/replay`);
@@ -231,7 +285,7 @@ btn.addEventListener('click', async () => {
   } catch (e) {
     document.querySelector('.slip')?.classList.remove('stamped');
     verdictLine('no', out.dataset.unreachable || 'could not reach the API', e.message);
-  } finally { btn.disabled = false; }
+  } finally { btn.removeAttribute('aria-disabled'); out.removeAttribute('aria-busy'); }
 });
 
 // The scorecard line: RYO's own plans, locked and settled. Numbers from /api/scorecard, words from the
@@ -245,8 +299,9 @@ btn.addEventListener('click', async () => {
     // only a window still ahead is announced as upcoming; a closed one waits for the hourly cycle to record it
     const next = s.open.find(r => !r.overdue && new Date(r.settles_at) > Date.now());
     const when = next && new Date(next.settles_at).toLocaleString(document.documentElement.lang,
-      {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
-    el.textContent = el.dataset.line.replace(/%n/g, s.open.length + s.settled.length).replace(/%d/g, s.lock_days)
+      {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'}) + ' UTC';
+    const line = s.lock_days === 1 ? el.dataset.lineOne : el.dataset.lineMany;
+    el.textContent = line.replace(/%n/g, s.open.length + s.settled.length).replace(/%d/g, s.lock_days)
       .replace(/%c/g, s.contradictions) + ' ' + (k ? el.dataset.settled.replace(/%t/g, hit).replace(/%k/g, k)
       : next ? el.dataset.none.replace(/%w/g, when) : el.dataset.closed);
   } catch (e) {

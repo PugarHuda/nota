@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RYO Verdict Scorecard</title>
+<title>RYO Verdict Scorecard · Nota</title>
+<script>try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}</script>
 <meta name="description" content="RYO issues a trade plan with every deep_analysis verdict and never reports what became of it. This page locks those plans daily and settles them on OKX's candles.">
 <meta property="og:title" content="RYO Verdict Scorecard">
 <meta property="og:description" content="Does RYO's verdict change how often RYO's own plan works? Locked daily, settled on independent candles, every failure counted.">
@@ -51,21 +52,25 @@
 </style>
 </head>
 <body>
-<nav>
+<a class="skip" href="#main">Skip to content</a>
+<nav aria-label="Site">
   <div class="wrap">
     <b><a href="/" style="color:inherit;text-decoration:none">Nota</a></b>
     <div class="right">
-      <a href="#open">Settling next</a>
-      <a href="#matter">Does it matter</a>
-      <a href="#lanes">RYO lanes</a>
-      <a href="#method">Method</a>
-      <a href="/api/scorecard">JSON</a>
-      <a class="cta" href="/app">Receipts dashboard</a>
+      <details class="menu"><summary>Menu</summary><div>
+        <a href="#open">Settling next</a>
+        <a href="#matter">Does it matter</a>
+        <a href="#lanes">RYO lanes</a>
+        <a href="#method">Method</a>
+        <a href="/api/scorecard">JSON</a>
+        <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
+      </div></details>
+      <a class="cta" href="/app"><span class="opt">Receipts </span>dashboard</a>
     </div>
   </div>
 </nav>
 
-<main class="wrap">
+<main class="wrap" id="main">
   <h1>Does RYO's verdict change how often RYO's own plan works?</h1>
   <p id="answer" aria-live="polite">Reading the ledger…</p>
   <div class="horizon" role="group" aria-label="Settlement horizon">
@@ -76,11 +81,11 @@
 
   <h2 id="open">Settling next</h2>
   <p class="hint">Every <code>deep_analysis</code> answer carries a verdict and a bracket: a stop 1.5 ATR away and a target at +1R. These are today's, nearest to settling first. A red mark means the verdict leans against the direction of its own plan.</p>
-  <div class="scroll"><table id="open-t"></table></div>
+  <div class="scroll" tabindex="0" role="region" aria-label="open plans"><table id="open-t"></table></div>
 
   <h2 id="settled">Settled</h2>
   <p class="hint">Which level OKX's candles touched first: 1-minute candles from the lock to the first full hour, hourly candles after. An hour that touched both levels is split on its 1-minute candles (marked 1m). <em>Neither</em> means the window closed between the two; <em>ambiguous</em> means both fell inside one minute.</p>
-  <div class="scroll"><table id="settled-t"></table></div>
+  <div class="scroll" tabindex="0" role="region" aria-label="settled plans"><table id="settled-t"></table></div>
 
   <h2 id="matter">Does the verdict matter?</h2>
   <p class="hint">Each pair of verdicts, of confluence states, and RYO's momentum gate passed against failed. Plans are compared within the same lock day and the days are combined with Mantel-Haenszel weights, so neither the market's mood that day nor a lopsided day can fake a difference. The p-value shuffles the labels within each cluster of overlapping windows; nothing is called distinguishable before 10 shared days and p below 0.10.</p>
@@ -93,7 +98,7 @@
   <h2 id="lanes">RYO lane reliability</h2>
   <p class="hint">How often each part of RYO's <code>deep_analysis</code> answer came back available, partial or missing, in RYO's own words, across every lock.</p>
   <p class="hint" id="lanes-note"></p>
-  <div class="scroll"><table id="lanes-t"></table></div>
+  <div class="scroll" tabindex="0" role="region" aria-label="RYO lane reliability"><table id="lanes-t"></table></div>
 
   <h2 id="method">Method</h2>
   <ol class="method">
@@ -110,10 +115,11 @@ const $ = s => document.querySelector(s);
 // Every number goes through num() and every word through esc(): the API is ours, but a row is built
 // from RYO's words and a malformed value must print as a dash, never as markup or "NaN".
 const num = (v, suffix = "") => Number.isFinite(v) ? String(v) + suffix : "–";
-const pct = (a, b) => Number.isFinite(a) && b ? Math.round(a / b * 100) + "%" : "–";
+const pct = (a, b) => Number.isFinite(a) && Number.isFinite(b) && b ? Math.round(a / b * 100) + "%" : "–";
 const signed = (v, suffix = "") => Number.isFinite(v) ? (v > 0 ? "+" : "") + v + suffix : "–";
-const when = iso => { const d = new Date(iso); return isNaN(d) ? "–" : d.toLocaleString(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"}); };
-const esc = s => String(s ?? "–").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+// in UTC and saying so: the locks run on a UTC day and a reader in Tokyo and one in Jakarta must read the same time
+const when = iso => { const d = new Date(iso); return isNaN(d) ? "–" : d.toLocaleString(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC"}) + " UTC"; };
+const esc = s => String(s ?? "–").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const CLOSED = "window closed, recorded by the next hourly cycle";
 const COVERAGE = {
   locked: "plans locked and waiting or settled",
@@ -141,7 +147,7 @@ function answer(s) {
 
 function verdictVsPlan(s) {
   const all = s.open.length + s.settled.length;
-  return s.contradictions ? `<strong>${num(s.contradictions)} of ${num(all)}</strong> plans point one way while RYO's own verdict leans the other (marked ✕). ` : "";
+  return Number.isFinite(s.contradictions) && s.contradictions ? `<strong>${num(s.contradictions)} of ${num(all)}</strong> plans point one way while RYO's own verdict leans the other (marked ✕). ` : "";
 }
 
 function daysText(x, min) {
@@ -188,7 +194,7 @@ function settledTable(rows) {
     <th scope="col">First touched</th><th scope="col" class="r">After</th><th scope="col" class="r">Close at horizon</th></tr></thead><tbody>` +
     rows.map(r => `<tr><th scope="row">${esc(r.symbol)}</th><td class="muted">${when(r.locked_at)}</td>
       <td>${esc(r.verdict)}${r.verdict_contradicts_side ? ' <span class="flag">✕</span>' : ""}</td><td>${esc(r.confluence_state)}</td>
-      <td class="${RESULT.has(r.result) ? r.result : ""}">${esc(r.result)}${r.resolved_by ? ` <span class="muted" title="both levels inside one hour; ordered on its 1-minute candles">(${esc(r.resolved_by)})</span>` : ""}</td>
+      <td class="${RESULT.has(r.result) ? esc(r.result) : ""}">${esc(r.result)}${r.resolved_by ? ` <span class="muted" title="both levels inside one hour; ordered on its 1-minute candles">(${esc(r.resolved_by)})</span>` : ""}</td>
       <td class="r">${num(r.hours_to_touch, " h")}</td>
       <td class="r">${signed(r.return_at_horizon_pct, "%")}</td></tr>`).join("") + "</tbody>";
 }
@@ -234,6 +240,7 @@ function lanesTable(s) {
 
 async function load(h) {
   document.querySelectorAll(".horizon button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.h === String(h))));
+  history.replaceState(null, "", `?h=${h}${location.hash}`);   // a shared link opens on the same horizon
   try {
     const s = await (await fetch(`/api/scorecard?horizon=${h}`)).json();
     $("#answer").innerHTML = answer(s);
@@ -250,7 +257,23 @@ async function load(h) {
   }
 }
 document.querySelectorAll(".horizon button").forEach(b => b.addEventListener("click", () => load(b.dataset.h)));
-load(24);
+const asked = new URLSearchParams(location.search).get("h");
+load(asked === "72" ? 72 : 24);
+// The nav, as on the landing: the section menu held open when wide, the theme the dashboard stores.
+(() => {
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const fit = () => { if (menu) menu.open = wide.matches; };
+  wide.addEventListener('change', fit); fit();
+  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  const theme = document.getElementById('theme'), root = document.documentElement;
+  const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  theme.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('nota.theme', root.dataset.theme); } catch {}
+    paint();
+  });
+  paint();
+})();
 </script>
 </body>
 </html>

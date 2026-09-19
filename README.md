@@ -374,7 +374,12 @@ text, and as `structuredContent` for clients that parse.
 
 `nota serve` exposes a read-only API over the ledger (`/api/decisions`, `/api/decisions/{id}`,
 `/api/decisions/{id}/replay`, `/api/positions`, `/api/scores`, `/api/health`, exports
-`/r/{id}.json` and `/r/{id}.md`, OpenAPI at `/docs`) and a single-page dashboard:
+`/r/{id}.json` and `/r/{id}.md`, OpenAPI at `/docs`) and a single-page dashboard. A receipt read
+from `/api/decisions/{id}` also carries `requests` (the exact arguments each evidence section was
+called with) and `audit` (Nota's ATR, RSI and price beside RYO's, with each skill's warning
+threshold), both read from the stored evidence pack; the landing's audit table is filled from it and
+holds no number of its own. List rows carry `availability` and `failed_sections` (RYO sections in
+error or unavailable), which is how the landing picks the receipt its failure panel shows.
 
 - **Thirty-second summary** at the top of every receipt: what to do now (trade or block reason),
   the single biggest change and why it matters, whether the open practice position would be
@@ -401,8 +406,15 @@ text, and as `structuredContent` for clients that parse.
   three-sample means is noise, and printing it as a finding would be the same offence as turning a
   null into a zero.
 - **Verify replay** from the page (cached outputs only, never spends), share to X, exports.
-- **Works for everyone**: skip link, real buttons, visible focus, `aria-live` updates,
-  keyboard `j`/`k` move, `Enter` open, `p` previous receipt, `/` filter, `?` help.
+- **Works for everyone**: skip links and a `<main>` landmark on every page, real buttons, visible
+  focus, keyboard `j`/`k` move, `Enter` open, `p` previous receipt, `/` filter, `Esc` back to the
+  list, `?` help. Opening a receipt moves focus to its title, names it in the tab title and announces
+  one sentence (the receipt itself is not a live region); on one column a tap scrolls the receipt into
+  view. Wide tables scroll in their own focusable region, every page reflows at 320 px, and the dark
+  theme chosen on any page holds on all of them. Everything third-party is escaped before it reaches
+  markup. `tests/test_a11y_axe.py` runs axe-core (via axe-playwright-python) over all five pages in
+  both themes at 1366 and 390 px and fails on any serious or critical rule, a missing landmark or an
+  unfocusable scroll region.
 - Polls the ledger every 30 s so a running `watch` loop shows up without a reload.
 
 The dashboard reads receipts only. It cannot show a number that has no receipt behind it.
@@ -534,7 +546,7 @@ tests/            pytest, no network (respx + the FakeLLM test double in tests/f
 ## Disclosed third-party libraries
 
 httpx, pydantic, anthropic, typer, python-dotenv, fastapi, uvicorn, vaderSentiment (MIT),
-defusedxml, pillow; dev: pytest, respx, playwright (browser end-to-end tests in
+defusedxml, pillow; dev: pytest, respx, playwright, axe-playwright-python (MPL-2.0 axe-core; browser end-to-end tests in
 `tests/test_dashboard_e2e.py` and QA in `tests/test_qa_browser.py`, run after
 `uv run playwright install chromium`), edge-tts and Remotion (walkthrough only, see below). Data sources:
 RYO MCP, t.me/s previews, Bluesky public AppView, X public syndication, CoinDesk /

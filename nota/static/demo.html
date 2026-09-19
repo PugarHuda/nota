@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nota — the walkthrough</title>
+<title>The walkthrough · Nota</title>
+<script>try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}</script>
 <meta name="description" content="A narrated three-minute walkthrough of Nota, recorded against the running app: a receipt is re-run live and stamped as checked, RYO's own verdicts are locked and scored, and the gate that keeps the council from citing RYO numbers that are not about the token is shown at work.">
 <meta property="og:title" content="Nota: the walkthrough">
 <meta property="og:description" content="Recorded against the running app. Nothing staged: the verify button is pressed and its answer is whatever the API returns.">
@@ -42,13 +43,17 @@
 </style>
 </head>
 <body>
-<nav><div class="wrap">
-  <b>Nota</b>
+<a class="skip" href="#main">Skip to content</a>
+<nav aria-label="Site"><div class="wrap">
+  <b><a href="/" style="color:inherit;text-decoration:none">Nota</a></b>
   <div class="right">
-    <a href="/">Home</a>
-    <a href="/r/dbd7727f5a25">A receipt</a>
-    <a href="https://github.com/PugarHuda/nota">Source</a>
-    <a class="cta" href="/app">Open the dashboard</a>
+    <details class="menu"><summary>Menu</summary><div>
+      <a href="/">Home</a>
+      <a href="/r/dbd7727f5a25">A receipt</a>
+      <a href="https://github.com/PugarHuda/nota">Source</a>
+      <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
+    </div></details>
+    <a class="cta" href="/app"><span class="opt">Open the </span>dashboard</a>
   </div>
 </div></nav>
 
@@ -59,7 +64,7 @@
   produces on demand.</p>
 </header>
 
-<main class="wrap split">
+<main class="wrap split" id="main">
   <div>
     <video id="v" controls preload="metadata" playsinline poster="/img/demo-poster.png">
       <source src="/demo.mp4" type="video/mp4">
@@ -120,6 +125,21 @@ fetch('/demo.json').then((r) => {
   document.getElementById('fallback').textContent =
     'The transcript could not be loaded. The video above still plays.';
 });
+// The nav, as on the landing: the section menu held open when wide, the theme the dashboard stores.
+(() => {
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const fit = () => { if (menu) menu.open = wide.matches; };
+  wide.addEventListener('change', fit); fit();
+  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  const theme = document.getElementById('theme'), root = document.documentElement;
+  const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  theme.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('nota.theme', root.dataset.theme); } catch {}
+    paint();
+  });
+  paint();
+})();
 </script>
 </body>
 </html>

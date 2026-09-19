@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nota</title>
+<title>Nota: a trading call you can re-run</title>
+<script>try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}</script>
 <meta name="description" content="An AI council reads live RYO market evidence and stores every call as a receipt that re-runs identically, with no key and no network.">
 <meta property="og:title" content="Nota: a trading call you can re-run">
 <meta property="og:description" content="Every decision is a receipt. Replay it from the ledger and get the same answer, with every number traced to the RYO path it came from.">
@@ -11,21 +12,26 @@
 <link rel="stylesheet" href="/landing.css">
 </head>
 <body>
-<nav>
+<a class="skip" href="#main">Skip to content</a>
+<nav aria-label="Site">
   <div class="wrap">
     <b>Nota</b>
     <div class="right">
-      <a href="#proof">Verification</a>
-      <a href="#broken">When a source fails</a>
-      <a href="#how">How it works</a>
-      <a href="/scorecard">RYO scorecard</a>
-      <a href="https://github.com/PugarHuda/nota">Source</a>
+      <details class="menu"><summary>Menu</summary><div>
+        <a href="#proof">Verification</a>
+        <a href="#broken">When a source fails</a>
+        <a href="#how">How it works</a>
+        <a href="/scorecard">RYO scorecard</a>
+        <a href="https://github.com/PugarHuda/nota">Source</a>
+        <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
+      </div></details>
       <a href="/ja" hreflang="ja" lang="ja">日本語</a>
-      <a class="cta" href="/app">Open the dashboard</a>
+      <a class="cta" href="/app"><span class="opt">Open the </span>dashboard</a>
     </div>
   </div>
 </nav>
 
+<main id="main" class="binder">
 <header>
   <div class="wrap">
     <div>
@@ -39,7 +45,7 @@
       <button type="button" id="verify">Verify a receipt now</button>
       <output id="verify-out" aria-live="polite" data-idle="Calls this site's API and re-runs receipt %s."
               data-running="running…" data-waiting="the ledger has not loaded yet"
-              data-ok="rebuilt from the stored evidence in %m ms" data-drift="%n field(s) differ"
+              data-ok="rebuilt from the stored evidence in %m ms" data-drift="fields that differ: %n"
               data-unreachable="could not reach the API">Calls this site's API and re-runs the newest receipt.</output>
     </p>
     </div>
@@ -48,14 +54,14 @@
       <dl>
         <dt>Symbol</dt><dd data-f="symbol">—</dd>
         <dt>Decision</dt><dd data-f="action">—</dd>
-        <dt>Judge's p_up_7d</dt><dd data-f="p">—</dd>
+        <dt>Chance it rises in 7 days <abbr title="p_up_7d">(judge)</abbr></dt><dd data-f="p">—</dd>
         <dt>Evidence</dt><dd data-f="source">—</dd>
         <dt>Issued</dt><dd data-f="date">—</dd>
       </dl>
       <div class="kiritori" aria-hidden="true"><div class="kakuin">照合<br>済<small>VERIFIED</small></div></div>
-      <p class="received">The decision above, reproduced from the evidence it was made on. Press the red button to check.</p>
+      <p class="received">The decision above, reproduced from the evidence it was made on. Press “Verify a receipt now” to re-run it.</p>
       <figure class="seal">
-        <svg id="mark" viewBox="0 0 420 420" role="img"
+        <svg id="mark" viewBox="0 0 420 420" role="img" data-plabel="7-day rise"
              data-label="A circular mark drawn from receipt %s: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability of %p."
              aria-label="A circular mark drawn from the newest receipt: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability."><defs><filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs></svg>
         <figcaption data-caption="Receipt %a. The ticks are its evidence hash, the arc is the probability the judge
@@ -70,18 +76,20 @@
   <div class="wrap" data-tab="検算">
     <h2>Nota audits the data it is given.</h2>
     <p class="lede">RYO publishes an ATR and an RSI. Nota recomputes both from public candles with Wilder's method
-      and compares them, and it checks RYO's price against the median of three exchanges. When they disagree, the
-      judge refuses to size a trade at all. These figures come from the live receipt of 7 September 2026, and
-      every receipt in the ledger replays identically - including the one recorded on 10 September, when the
+      and compares them, and it checks RYO's price against the median of up to five public price sources. When they
+      disagree, the judge refuses to size a trade at all. The figures below are read from the newest receipt that
+      holds all three checks, and every receipt in the ledger replays identically - including the one recorded on 10 September, when the
       builder key started answering 401 and all five RYO sections went to error at once. Nothing was patched
       for it: the council read what was left, the judge refused the trade, and the diff put the collapse at
       the top of the page.</p>
-    <div class="audit">
+    <div class="audit" id="audit" data-receipt="" data-pts=" pts">
       <div class="h">Measure</div><div class="h n">Nota</div><div class="h n">RYO</div><div class="h n">Apart</div>
-      <div>ATR(14), USD</div><div class="n">4.347</div><div class="n">4.3762</div><div class="agree">0.67%</div>
-      <div>RSI(14)</div><div class="n">64.84</div><div class="n">68.70</div><div class="agree">3.9 pts</div>
-      <div>Price, USD</div><div class="n">105.05</div><div class="n">104.946</div><div class="agree">0.10%</div>
+      <div>ATR(14), USD</div><div class="n" data-a="atr.nota">—</div><div class="n" data-a="atr.ryo">—</div><div class="n" data-a="atr.apart">—</div>
+      <div>RSI(14)</div><div class="n" data-a="rsi.nota">—</div><div class="n" data-a="rsi.ryo">—</div><div class="n" data-a="rsi.apart">—</div>
+      <div>Price, USD</div><div class="n" data-a="price.nota">—</div><div class="n" data-a="price.ryo">—</div><div class="n" data-a="price.apart">—</div>
     </div>
+    <p id="audit-note" class="note" data-note="Receipt %s, %d. Green is inside the threshold the skill warns at, red is past it."
+       data-missing="No receipt among the newest %n holds all three checks.">reading the ledger…</p>
   </div>
 </section>
 
@@ -110,7 +118,8 @@
       OKX's hourly candles, so one question finally has an answer: does RYO's verdict change how often RYO's own
       plan works?</p>
     <p id="scorecard-line" class="note"
-       data-line="%n plans locked over %d day(s). %c of them point the other way from RYO's own verdict."
+       data-line-one="%n plans locked over %d day. %c of them point the other way from RYO's own verdict."
+       data-line-many="%n plans locked over %d days. %c of them point the other way from RYO's own verdict."
        data-settled="%t of %k decided plans reached RYO's +1R target before its stop within 24 hours."
        data-none="None has settled yet; the next settles %w."
        data-closed="None has settled yet; the first windows have closed and are recorded by the next hourly cycle."
@@ -200,7 +209,7 @@
           decides how much the judge listens next time.</p>
       </div>
       <figure>
-        <pre class="proof"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
+        <pre class="proof" tabindex="0" role="region" aria-label="curl proof"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
 <span class="p">og:title</span>       ETH: LONG practice trade, 1377 USD, stop 2312.57
 <span class="p">og:description</span> long (p_up_7d 0.68). All three council members are
                bullish with medium to high confidence...
@@ -236,6 +245,7 @@
     </div>
   </div>
 </section>
+</main>
 
 <footer>
   <div class="wrap">

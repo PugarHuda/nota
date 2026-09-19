@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 
 from nota.ledger import Ledger
-from tests.test_landing_numbers import ROW, _evidence_numbers, _holds
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "nota" / "static"
@@ -32,7 +31,10 @@ def test_each_language_shares_the_one_stylesheet_and_the_one_script(lang):
     page = _read(lang)
     assert '<link rel="stylesheet" href="/landing.css">' in page
     assert '<script src="/landing.js" defer></script>' in page
-    assert "<style>" not in page and "<script>" not in page, "behaviour or style was inlined again"
+    assert "<style>" not in page, "style was inlined again"
+    # the one inline script applies the stored theme before first paint, so a dark reader never sees a white flash
+    inline = re.findall(r"<script>(.*?)</script>", page, re.S)
+    assert inline == ["try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}"]
     # and that one script is what reads the ledger both pages draw
     assert "/api/decisions?limit=" in (STATIC / "landing.js").read_text(encoding="utf-8")
 
@@ -67,30 +69,14 @@ def test_no_language_states_a_number_of_its_own(lang):
 
 
 @pytest.mark.parametrize("lang", sorted(PAGES))
-def test_the_audit_table_holds_in_every_language(lang):
-    """The figures are the same in both; only the row labels are translated."""
-    rows = ROW.findall(_read(lang))
-    assert len(rows) == 3
-    evidence = _evidence_numbers()
-    for label, nota, ryo, apart in rows:
-        for value in (nota, ryo):
-            assert _holds(evidence, value), f"{lang}: {label} {value} is in no shipped receipt"
-        gap = abs(float(nota) - float(ryo))
-        if apart.strip().endswith("%"):
-            assert float(apart.strip().rstrip("%")) == pytest.approx(gap / float(ryo) * 100, abs=0.01)
-        else:
-            assert float(apart.strip().split()[0]) == pytest.approx(gap, abs=0.05)
-
-
-@pytest.mark.parametrize("lang", sorted(PAGES))
 def test_no_english_sentence_is_left_inside_the_shared_script(lang):
     """Every string the script would otherwise write itself has to come from the page, or the
     Japanese page renders English the moment anything is fetched, failed or empty."""
     page = _read(lang)
     for attr in ("data-idle", "data-running", "data-waiting", "data-ok", "data-drift",
-                 "data-unreachable", "data-mark-label", "data-source-label", "data-none",
+                 "data-unreachable", "data-mark-label", "data-plabel", "data-note", "data-missing", "data-source-label", "data-none",
                  "data-col-section", "data-col-status", "data-blocked", "data-sized", "data-label",
-                 "data-caption", "data-line", "data-settled", "data-closed"):
+                 "data-caption", "data-line-one", "data-line-many", "data-settled", "data-closed"):
         assert attr + '="' in page, f"{lang} does not supply {attr}"
     assert page.count('data-error="') == 3      # the ledger row, the failure panel, the scorecard line
 

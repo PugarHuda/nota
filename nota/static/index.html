@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nota</title>
+<title>Receipts dashboard · Nota</title>
 <!--OG-->
 <link rel="stylesheet" href="/landing.css">
 <style>
@@ -18,8 +18,11 @@
 
   header { display:flex; flex-wrap:wrap; gap:6px 22px; align-items:center; padding:12px 22px; background:var(--paper);
            border-bottom:1px solid var(--form) }
-  header h1 { font:400 20px/1 var(--display); margin:0; max-width:none; display:inline-flex; align-items:center; gap:8px }
-  header h1::before { content:""; width:9px; height:9px; border-radius:50%; background:var(--seal) }
+  header h1 { font:400 20px/1 var(--display); margin:0; max-width:none }
+  header h1 a { color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:8px }
+  header h1 a::before { content:""; width:9px; height:9px; border-radius:50%; background:var(--seal) }
+  /* keyboard hints mean nothing on a touch screen; the theme switch stays */
+  @media (hover:none) and (pointer:coarse) { header .keys .hint { display:none } }
   header .tagline { color:var(--ink-2); font-size:13px }
   header .tagline a { color:var(--ink-2) }
   header .keys { margin-left:auto; font-size:12px; color:var(--ink-2); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center }
@@ -36,17 +39,22 @@
   /* the open receipt: one full document, ruled, headed, and stampable */
   #detail { position:relative; padding:26px clamp(18px,3vw,40px) 34px; overflow-wrap:anywhere }
   #detail > * { max-width:78ch } #detail table, #detail details, #detail .sheet-title, #detail .wide { max-width:none }
-  #detail .kakuin { left:auto; right:34px; bottom:auto; top:74px }
+  /* The 照合済 seal is a cell of the verdict row, beside the probability, never over the degraded-evidence
+     banner or the headline: whatever it lands on, the reader must still be able to read. */
+  #detail .kakuin { position:static; align-self:center; justify-self:end; margin-right:6px }
+  @media (max-width:560px) { #detail .kakuin { width:64px; height:64px; font-size:15px } #detail .kakuin small { font-size:8px }
+    #detail .verdict { grid-template-columns:auto minmax(0,1fr) } #detail .verdict .act { grid-column:1 / -1 } }   /* the word on its own line, seal and figure under it */
   #detail.stamped .kakuin { opacity:.9 }
+  #detail h2.sheet-title { font:inherit; color:inherit; margin:0 0 6px; max-width:none }
+  #detail h2.sheet-title:focus { outline:none }
+  #detail h2.sheet-title:focus-visible { outline:2px solid var(--ink); outline-offset:3px }
   #detail .withheld { border-left:3px solid var(--warn); padding-left:9px; margin:4px 0 }   /* a field the gate kept from the council */
-  /* a wide table scrolls inside the receipt instead of breaking section names mid-word */
-  #detail table { display:block; overflow-x:auto } #detail tbody { display:table; width:100% }
-  #detail td, #detail th { overflow-wrap:normal } #detail th { white-space:nowrap }
+  /* a wide table scrolls inside its own focusable region instead of breaking section names mid-word */
+  .tscroll { overflow-x:auto; max-width:100% }
+  #detail .tscroll td, #detail .tscroll th, #detail .tscroll code { overflow-wrap:normal } #detail th { white-space:nowrap }
 
   input, select { width:100%; background:var(--paper); color:var(--ink); border:1px solid var(--form-2); padding:8px 10px;
                   font-size:13px; border-radius:2px }
-  .skip { position:absolute; left:-999px; top:8px; background:var(--ink); color:var(--paper); padding:6px 10px; z-index:9 }
-  .skip:focus { left:8px }
 
   /* the ledger book: one ruled line per receipt */
   .row { display:grid; grid-template-columns:1fr auto; gap:2px 10px; width:100%; text-align:left; padding:10px 10px;
@@ -77,7 +85,7 @@
   .headline { font:400 clamp(21px,2.1vw,27px)/1.35 var(--display); margin:14px 0 14px }
 
   /* the verdict: what the council decided, written large, with its probability beside it */
-  .verdict { display:grid; grid-template-columns:1fr auto; align-items:end; gap:8px 20px; padding:14px 0 12px;
+  .verdict { position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:end; gap:8px 20px; padding:14px 0 12px;
              border-top:3px double var(--ink); border-bottom:1px solid var(--form) }
   .verdict .act { font:400 34px/1 var(--display) }
   .verdict .act.long { color:var(--long) } .verdict .act.short, .verdict .act.no_trade { color:var(--short) }
@@ -114,6 +122,9 @@
   details summary { cursor:pointer; color:var(--ink); font-size:13px; line-height:1.8 }
   #orient { font-size:13px; background:var(--desk) } #orient p { max-width:none }
   #skills label, #skill-out, #backing, #backers, #scores, #positions, #attention { font-size:13px }
+  #skills textarea { width:100%; min-height:84px; font:12px/1.5 var(--fig); background:var(--paper); color:var(--ink);
+                     border:1px solid var(--form-2); padding:8px 10px; border-radius:2px; margin-top:2px }
+  .clear { font:inherit; color:var(--ink); background:none; border:1px solid var(--form-2); border-radius:3px; padding:3px 9px; cursor:pointer }
   #skill-out { overflow-wrap:anywhere }   /* a withheld path is one long dotted word */
   #help { position:fixed; right:18px; bottom:18px; background:var(--paper); border:1px solid var(--form-2); padding:14px 18px;
           border-radius:2px; font-size:13px; box-shadow:0 8px 28px light-dark(rgba(30,43,94,.16), rgba(0,0,0,.5)) }
@@ -122,12 +133,12 @@
 <body>
 <a class="skip" href="#detail">Skip to receipt</a>
 <header>
-  <h1>Nota</h1>
+  <h1><a href="/">Nota</a></h1>
   <span class="tagline">Council decisions on read-only RYO evidence. Practice trades only, never financial advice.
     <a href="/demo">Narrated walkthrough</a> · <a href="/scorecard">RYO verdict scorecard</a></span>
   <span id="health" aria-live="polite"></span>
-  <span class="keys"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help
-    <button type="button" class="badge" id="theme" title="theme: light / dark">theme: light</button></span>
+  <span class="keys"><span class="hint"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help</span>
+    <button type="button" class="badge" id="theme" title="theme: light / dark" aria-pressed="false">theme: light</button></span>
 </header>
 <main>
   <nav aria-label="decisions">
@@ -144,7 +155,7 @@
     <input id="filter" placeholder="filter symbol / action…" aria-label="filter decisions">
     <div id="list"></div>
   </nav>
-  <section id="detail" aria-live="polite" aria-label="decision receipt" tabindex="-1"><div class="empty">Loading…</div></section>
+  <section id="detail" aria-label="decision receipt" tabindex="-1"><div class="empty">Loading…</div></section>
   <aside aria-label="positions and leaderboard">
     <div id="attention" class="card" aria-live="polite" hidden></div>
     <h2>Run a skill (Track 3)</h2>
@@ -162,6 +173,8 @@
     <div id="backers"></div>
   </aside>
 </main>
+<!-- one short sentence per receipt opened, instead of the whole receipt being read out as it renders -->
+<p id="sr-status" class="sr" aria-live="polite"></p>
 <div id="help" hidden>
   <b>Keys</b><br>
   <kbd>j</kbd> / <kbd>k</kbd> next / previous decision<br>
@@ -177,13 +190,14 @@ const THEMES = ['light', 'dark'];
 function setTheme(name) {
   document.documentElement.setAttribute('data-theme', name);
   $('#theme').textContent = `theme: ${name}`;
+  $('#theme').setAttribute('aria-pressed', String(name === 'dark'));
   try { localStorage.setItem('nota.theme', name); } catch {}
 }
 let theme = 'light';
 try { theme = localStorage.getItem('nota.theme') || 'light'; } catch {}
 setTheme(THEMES.includes(theme) ? theme : 'light');
 $('#theme').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = v => v === null || v === undefined ? '<span class="muted">null</span>' : typeof v === 'number' ? (Math.abs(v) >= 1000 ? v.toLocaleString() : +v.toFixed(4)) : esc(String(v));
 const px = v => v === null || v === undefined ? '—'
   : Math.abs(v) >= 100 ? v.toLocaleString(undefined, {maximumFractionDigits: 2})
@@ -192,19 +206,31 @@ const api = async p => { const r = await fetch(p); if (!r.ok) throw new Error(`$
 
 let all = [], shown = [], sel = 0, current = null;
 
+// The filter matches the words a row shows, so typing what you see finds it.
+const haystack = d => [d.symbol, d.action, d.action.replace('_', ' '), d.source, d.trade_kind === 'trade' ? 'sized' : '',
+                       d.degraded ? 'degraded' : '', d.resolved ? 'resolved' : ''].join(' ').toLowerCase();
+
 function renderList() {
   const q = $('#filter').value.trim().toLowerCase();
-  shown = all.filter(d => !q || `${d.symbol} ${d.action} ${d.trade_kind}`.toLowerCase().includes(q));
+  const hadFocus = $('#list').contains(document.activeElement);   // a re-render must not drop a keyboard user to <body>
+  shown = all.filter(d => !q || haystack(d).includes(q));
   $('#list').innerHTML = shown.length ? shown.map((d, i) => `
     <button type="button" class="row ${i === sel ? 'sel' : ''}" data-i="${i}" aria-current="${i === sel}" aria-label="${esc(d.symbol)} ${esc(d.action)}${d.degraded ? ', degraded evidence' : ''}, ${esc(d.created_at)}">
       <span>${d.degraded ? '<span class="dot" title="degraded evidence"></span>' : ''}<b>${esc(d.symbol)}</b> <span class="muted small">${esc(d.source)}</span></span>
-      <span class="badge ${d.action}">${esc(d.action.replace('_', ' '))}${d.trade_kind === 'trade' ? ', sized' : ''}</span>
-      <span class="t">${esc(d.created_at)}   p_up ${d.p_up_7d.toFixed(2)}${d.resolved ? '   resolved' : ''}</span>
-    </button>`).join('') : '<div class="empty">No receipts yet.<br>Run <code>uv run nota decide SOL</code>.</div>';
-  $('#list').querySelectorAll('.row').forEach(el => el.onclick = () => { sel = +el.dataset.i; open(shown[sel].id); });
+      <span class="badge ${esc(d.action)}">${esc(d.action.replace('_', ' '))}${d.trade_kind === 'trade' ? ', sized' : ''}</span>
+      <span class="t">${esc(d.created_at)}   p_up ${esc(d.p_up_7d.toFixed(2))}${d.resolved ? '   resolved' : ''}</span>
+    </button>`).join('')
+    : all.length ? `<div class="empty">No receipt matches "${esc(q)}". <button type="button" class="clear" id="clear-filter">Clear the filter</button></div>`
+    : '<div class="empty">No receipts yet.<br>Run <code>uv run nota decide SOL</code>.</div>';
+  $('#list').querySelectorAll('.row').forEach(el => el.onclick = () => { sel = +el.dataset.i; open(shown[sel].id, true, true); });
+  const clear = $('#clear-filter');
+  if (clear) clear.onclick = () => { $('#filter').value = ''; sel = 0; renderList(); $('#filter').focus(); };
+  if (hadFocus) $('#list .sel')?.focus();
 }
 
-async function open(id, push = true) {
+// `user`: the reader asked for this receipt (a click, Enter, a link), so the page takes them to it;
+// the receipt opened on load leaves focus and scroll where the browser put them.
+async function open(id, push = true, user = false) {
   let d; try { d = await api(`/api/decisions/${id}`); } catch (e) {
     $('#detail').innerHTML = `<div class="banner">${e.message.endsWith('404') ? `No receipt with id <code>${esc(id)}</code> in this ledger.` : esc(e.message)}</div>`;
     return;
@@ -216,8 +242,7 @@ async function open(id, push = true) {
   const degraded = Object.entries(r.availability).filter(([, s]) => s !== 'ok' && s !== 'available');
   const t = r.trade;
   $('#detail').innerHTML = `
-    <div class="sheet-title"><strong>RECEIPT</strong><span>${esc(r.id)}</span></div>
-    <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
+    <h2 class="sheet-title" id="receipt-title" tabindex="-1"><strong>RECEIPT</strong><span>${esc(r.id)}</span></h2>
     ${degraded.length ? `<div class="banner">Degraded evidence: ${degraded.map(([k, s]) => `<b>${esc(k)}</b> ${esc(s)}`).join(', ')}. Missing values stay null; the judge was told.</div>` : ''}
     <p class="headline">${esc(r.headline)}</p>
     <div class="card" id="summary" aria-label="thirty second summary">
@@ -227,18 +252,19 @@ async function open(id, push = true) {
       ${ryoSaid(r)}
       <div><b>Next:</b> ${d.outcome ? `scored: ${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}% (${d.outcome.went_up ? 'went up' : 'went down'})` : nextStep(r)}</div>
     </div>
-    <div class="meta"><span>receipt <a href="/r/${r.id}">${r.id}</a></span><span>${esc(r.created_at)}</span>
+    <div class="meta"><span>receipt <a href="/r/${esc(r.id)}">${esc(r.id)}</a></span><span>${esc(r.created_at)}</span>
       <span>source ${esc(r.source)}</span><span>model ${esc(r.model)} (${esc(r.prompt_version)})</span>
-      <span>evidence ${r.pack_hash.slice(0, 16)}</span>
+      <span>evidence ${esc(r.pack_hash.slice(0, 16))}</span>
       ${spendLine(r.spend)}
-      ${d.previous_id ? `<span>previous <a href="/r/${d.previous_id}" data-open="${d.previous_id}">${d.previous_id}</a></span>` : ''}</div>
+      ${d.previous_id ? `<span>previous <a href="/r/${esc(d.previous_id)}" data-open="${esc(d.previous_id)}">${esc(d.previous_id)}</a></span>` : ''}</div>
 
-    <h2>What changed${d.previous_id ? ` since ${d.previous_id}` : ''}</h2>
+    <h2>What changed${d.previous_id ? ` since ${esc(d.previous_id)}` : ''}</h2>
     ${d.changes.length ? changesTable(d.changes) : `<div class="card muted">${d.previous_id ? 'Nothing changed: identical evidence and verdict.' : 'First receipt for this symbol; nothing to diff against.'}</div>`}
 
     <h2 class="bare">Verdict</h2>
     <div class="verdict">
       <div class="act ${esc(r.verdict.action)}">${esc(r.verdict.action.replace('_', ' '))}</div>
+      <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
       <div class="p">${r.verdict.p_up_7d.toFixed(2)}<small>probability the price is higher in 7 days</small></div>
     </div>
     <p class="rationale">${esc(r.verdict.rationale)}</p>
@@ -282,18 +308,27 @@ async function open(id, push = true) {
         <span class="badge">p_up ${o.p_up_7d.toFixed(2)}, ${esc(o.confidence)} confidence</span></div>
       <p class="thesis">${esc(o.thesis)}</p>
       ${o.citations.map(c => `<div class="cite"><code>${esc(c.path)}</code> = ${esc(c.value)}${c.note ? ' — ' + esc(c.note) : ''}</div>`).join('')}
-      ${o.dropped_citations ? `<div class="cite">${o.dropped_citations} citation(s) dropped: the path was not in the evidence</div>` : ''}
+      ${o.dropped_citations ? `<div class="cite">${esc(o.dropped_citations)} citation${o.dropped_citations === 1 ? '' : 's'} dropped: the path was not in the evidence</div>` : ''}
       <p class="small muted" style="margin:8px 0 0">Invalidated by: ${esc(o.invalidation)}</p></div>`).join('')}
 
     <h2>Evidence provenance</h2>
-    <table><tr><th>section</th><th>tool</th><th>status</th><th>as_of</th><th>data_mode</th><th>trace</th></tr>
-      ${Object.entries(r.provenance).map(([k, p]) => `<tr><td>${esc(k)}</td><td>${esc(p.tool)}</td><td><span class="badge ${p.status}">${esc(p.status)}</span></td><td>${fmt(p.as_of)}</td><td>${fmt(p.data_mode)}</td><td class="muted">${fmt(p.trace_id)}</td></tr>`).join('')}
-    </table>
+    <div class="tscroll" tabindex="0" role="region" aria-label="evidence provenance"><table><tr><th>section</th><th>tool</th><th>status</th><th>as_of</th><th>data_mode</th><th>trace</th></tr>
+      ${Object.entries(r.provenance).map(([k, p]) => `<tr><td>${esc(k)}</td><td>${esc(p.tool)}</td><td><span class="badge ${esc(p.status)}">${esc(p.status)}</span></td><td>${fmt(p.as_of)}</td><td>${fmt(p.data_mode)}</td><td class="muted">${fmt(p.trace_id)}</td></tr>`).join('')}
+    </table></div>
     ${r.warnings.length ? `<h2>Warnings</h2>${r.warnings.map(w => `<div class="small${w.includes('withheld ') ? ' withheld' : ''}">• ${esc(w)}</div>`).join('')}` : ''}
     <p class="small muted">Replay: <button type="button" id="verify" class="badge">Verify replay now</button> <span id="verify-out" aria-live="polite"></span>
-      <a href="/r/${r.id}.json">JSON</a>   <a href="/r/${r.id}.md">Markdown</a>
+      <a href="/r/${esc(r.id)}.json">JSON</a>   <a href="/r/${esc(r.id)}.md">Markdown</a>
       <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
-  $('#detail').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open); });
+  $('#detail').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open, true, true); });
+  document.title = `${r.symbol} ${r.verdict.action.replace('_', ' ')} · receipt ${r.id} · Nota`;
+  $('#sr-status').textContent = `Opened receipt ${r.id}: ${r.symbol} ${r.verdict.action.replace('_', ' ')}, p_up ${r.verdict.p_up_7d.toFixed(2)}`;
+  if (user) {
+    // on one column the receipt sits under the list, so a tap that changed only something off-screen
+    // looked like it did nothing; take the reader to it, and move focus with them
+    if (matchMedia('(max-width:1100px)').matches)
+      $('#detail').scrollIntoView({block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+    $('#receipt-title').focus({preventScroll: true});
+  }
   try { $('#handle').value = localStorage.getItem('nota.handle') || ''; } catch (_) {}
   $('#backing').querySelectorAll('[data-stance]').forEach(b => b.onclick = async () => {
     const handle = $('#handle').value.trim();
@@ -325,13 +360,14 @@ async function open(id, push = true) {
     } catch (e) { $('#verify-out').textContent = e.message; }
   };
   $('#detail').scrollTop = 0;
+  if (id === all[0]?.id) newestRequests = d.requests || {};
   loadSide().catch(e => { $('#summary-position').innerHTML = `<b>Position:</b> ${esc(e.message)}`; });  // refresh position line for this receipt
 }
 
 setInterval(async () => {  // the ledger is written by the CLI / watch loop; pick up new receipts without a reload
   try {
     const fresh = await api('/api/decisions?limit=200');
-    if (JSON.stringify(fresh) !== JSON.stringify(all)) { all = fresh; renderList(); loadSide(); }
+    if (JSON.stringify(fresh) !== JSON.stringify(all)) { all = fresh; newestRequests = null; renderList(); loadSide(); }
   } catch (_) { /* keep the last good list */ }
 }, 30000);
 
@@ -357,28 +393,36 @@ const POSITION_TEXT = { open: 'open', stopped: 'would be STOPPED OUT at the late
 
 function changesTable(ch) {
   const top = ch.slice(0, 8), rest = ch.slice(8), max = ch[0].impact || 1;
-  const row = c => `<tr><td><code>${esc(c.path)}</code><div class="small muted">${esc(c.why)}</div></td><td class="num">${fmt(c.before)}</td><td class="num">${fmt(c.after)}</td><td style="width:90px"><div class="bar" role="img" aria-label="impact ${Math.round(c.impact / max * 100)} of 100" title="impact ${c.impact}"><i style="width:${Math.max(4, Math.min(100, c.impact / max * 100))}%"></i></div></td></tr>`;
-  return `<table><tr><th>path</th><th class="num">before</th><th class="num">after</th><th>impact</th></tr>${top.map(row).join('')}</table>
-    ${rest.length ? `<details><summary>${rest.length} smaller changes</summary><table>${rest.map(row).join('')}</table></details>` : ''}`;
+  const row = c => `<tr><td><code>${esc(c.path)}</code><div class="small muted">${esc(c.why)}</div></td><td class="num">${fmt(c.before)}</td><td class="num">${fmt(c.after)}</td><td style="width:90px"><div class="bar" role="img" aria-label="impact ${Math.round(c.impact / max * 100)} of 100" title="impact ${esc(c.impact)}"><i style="width:${Math.max(4, Math.min(100, c.impact / max * 100))}%"></i></div></td></tr>`;
+  const table = rows => `<div class="tscroll" tabindex="0" role="region" aria-label="what changed"><table><tr><th>path</th><th class="num">before</th><th class="num">after</th><th>impact</th></tr>${rows.map(row).join('')}</table></div>`;
+  return `${table(top)}
+    ${rest.length ? `<details><summary>${rest.length} smaller changes</summary>${table(rest)}</details>` : ''}`;
 }
 
 // Where a backing goes on this deployment, as /api/health reports it, rather than assumed.
 const BACKING_TEXT = { postgres: 'ledger snapshot; backings are stored in Postgres', ledger: 'backings are stored in this ledger', none: 'ledger snapshot with no database; backing is off here' };
 
+// Checked once on load and then once a minute, not on every receipt opened: the server caches the RYO
+// probe for 60 s anyway, and the badge says how old the check it shows is.
 async function loadHealth() {
   try {
     const h = await api('/api/health');
     window.__health = h;
-    const ryo = h.ryo.error ? `<span class="badge unavailable">RYO down</span>` : `<span class="badge ok">RYO ${esc(h.ryo.status)}, ${h.ryo.tools} tools</span>`;
-    $('#health').innerHTML = `${h.readonly ? `<span class="badge partial" title="${esc(BACKING_TEXT[h.backing] || '')}">read-only demo</span> ` : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${h.ledger.decisions} receipts, ${h.ledger.due} due for scoring</span>`;
+    const age = Math.max(0, Math.round((Date.now() - Date.parse(h.checked_at)) / 1000));
+    const ago = Number.isFinite(age) ? `, checked ${age}s ago` : '';
+    const ryo = h.ryo.error ? `<span class="badge unavailable" title="${esc(h.ryo.error)}">RYO down${ago}</span>`
+      : `<span class="badge ok" title="${esc(h.ryo.tools)} tools">RYO ${esc(h.ryo.status)}${ago}</span>`;
+    $('#health').innerHTML = `${h.readonly ? `<span class="badge partial" title="${esc(BACKING_TEXT[h.backing] || '')}">read-only demo</span> ` : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${esc(h.ledger.decisions)} receipts, ${esc(h.ledger.due)} due for scoring</span>`;
   } catch (e) { $('#health').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
 }
+const healthReady = loadHealth();
+setInterval(loadHealth, 60000);
 
 async function loadSide() {
-  await loadHealth();
+  await healthReady;
   const [pos, sc, bk] = await Promise.all([api('/api/positions'), api('/api/scores'), api('/api/backers')]);
   $('#backers').innerHTML = bk.length ? `<table><tr><th>handle</th><th class="num">backed</th><th class="num">scored</th><th class="num">accuracy</th></tr>
-      ${bk.slice(0, 15).map(b => `<tr><td>${esc(b.handle)}</td><td class="num">${b.backed}</td><td class="num">${b.scored}</td><td class="num">${b.accuracy === null ? '—' : b.accuracy}</td></tr>`).join('')}</table>`
+      ${bk.slice(0, 15).map(b => `<tr><td>${esc(b.handle)}</td><td class="num">${esc(b.backed)}</td><td class="num">${esc(b.scored)}</td><td class="num">${b.accuracy === null ? '—' : esc(b.accuracy)}</td></tr>`).join('')}</table>`
     : '<div class="muted small">Nobody has backed a call yet.</div>';
   const stopped = pos.filter(p => p.status === 'stopped'), hit = pos.filter(p => p.status === 'target');
   const degraded = all.filter(d => d.degraded).length, due = (window.__health && window.__health.ledger.due) || 0;
@@ -391,25 +435,25 @@ async function loadSide() {
   $('#attention').innerHTML = items.length ? `<b>Needs attention:</b> ${items.join(' ')}` : '';
   const mine = current && pos.find(p => p.symbol === current.receipt.symbol);
   const sp = $('#summary-position');
-  if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${mine.side} from ${px(mine.entry)}, latest ${px(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) — <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
+  if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${esc(mine.side)} from ${px(mine.entry)}, latest ${px(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) — <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
   $('#positions').innerHTML = pos.length ? pos.map(p => `<div class="card">
-      <b>${esc(p.symbol)}</b> <span class="badge ${p.side}">${p.side}</span> <span class="badge ${p.status === 'open' ? 'ok' : p.status === 'target' ? 'long' : p.status === 'stopped' ? 'short' : 'partial'}">${esc(POSITION_TEXT[p.status])}</span> <a class="small" href="/r/${p.decision_id}" data-open="${p.decision_id}">receipt</a>
+      <b>${esc(p.symbol)}</b> <span class="badge ${esc(p.side)}">${esc(p.side)}</span> <span class="badge ${p.status === 'open' ? 'ok' : p.status === 'target' ? 'long' : p.status === 'stopped' ? 'short' : 'partial'}">${esc(POSITION_TEXT[p.status])}</span> <a class="small" href="/r/${esc(p.decision_id)}" data-open="${esc(p.decision_id)}">receipt</a>
       <div class="meta"><span>entry ${px(p.entry)}</span><span>stop ${px(p.stop)}</span><span>target ${px(p.target)}</span><span>${p.size_usd.toFixed(0)} USD</span></div>
       <div class="small muted">latest ${px(p.latest_price)} as of ${fmt(p.latest_as_of)}, move ${p.move_pct === null ? '<span class="muted">unavailable</span>' : (p.move_pct >= 0 ? '+' : '') + p.move_pct + '%'}</div>
       <div class="bar" title="−100 = at stop, +100 = one stop-distance in profit"><i class="${(p.stop_progress_pct || 0) < 0 ? 'neg' : 'pos'}" style="width:${Math.min(50, Math.abs(p.stop_progress_pct || 0) / 2)}%"></i></div></div>`).join('')
     : '<div class="muted small">No open practice positions.</div>';
-  $('#positions').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open); });
+  $('#positions').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open, true, true); });
   const roles = Object.entries(sc.scores).sort((a, b) => a[1].brier_mean - b[1].brier_mean);
   $('#scores').innerHTML = roles.length ? `<table><tr><th>role</th><th class="num">n</th><th class="num">brier</th><th class="num">weight</th></tr>
-      ${roles.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td><td class="num">${sc.weights[r] ?? '—'}</td></tr>`).join('')}</table>
+      ${roles.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${esc(s.n)}</td><td class="num">${esc(s.brier_mean)}</td><td class="num">${esc(sc.weights[r] ?? '—')}</td></tr>`).join('')}</table>
       <div class="small muted" id="scores-n">${esc(sc.resolved)} resolved (${esc(sc.n_independent)} independent: calls on one token less than 7 days apart watched the same week) · ${esc(sc.unresolved)} awaiting <code>nota resolve</code>${tooFew(sc.n_independent, sc.meaningful_at)}</div>
       <h2>Judge calibration (stated p_up vs hit rate)</h2>
       <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
-      ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
+      ${sc.reliability.bins.map(b => `<tr><td>${esc(b.bin)}</td><td class="num">${esc(b.n)}</td><td class="num">${esc(b.mean_p ?? '—')}</td><td class="num">${esc(b.hit_rate ?? '—')}</td></tr>`).join('')}</table>
       <div class="small muted" id="calibration-n">judge Brier ${esc(sc.reliability.judge_brier ?? '—')} over ${esc(sc.reliability.n)} resolved at the 7-day horizon (${esc(sc.reliability.n_independent)} independent)${sc.reliability.excluded_before_horizon ? `, ${esc(sc.reliability.excluded_before_horizon)} closed earlier and left out` : ''}${tooFew(sc.reliability.n_independent, sc.reliability.meaningful_at)}</div>
       ${vsRyoLine(sc.vs_ryo)}
       ${sourcesTable(sc.sources)}${baseRateTable(sc.vs_base_rate)}`
-    : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
+    : `<div class="muted small">No resolved decisions yet (${esc(sc.unresolved)} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
 }
 
 // n counts scored calls; independence counts separate weeks per token. The warning keys off the latter.
@@ -443,11 +487,11 @@ function sourcesTable(s) {
   return `<h2>Which sources helped</h2>
     <table><tr><th>section</th><th class="num">with, brier</th><th class="num">without, brier</th><th class="num">helps by</th></tr>
     ${rows.map(([name, v]) => `<tr><td>${esc(name)}</td>
-      <td class="num">${v.answered.brier_mean ?? '—'} <span class="muted small">n=${v.answered.n}</span></td>
-      <td class="num">${v.missing.brier_mean ?? '—'} <span class="muted small">n=${v.missing.n}</span></td>
-      <td class="num">${v.helps_by === null ? '—' : (v.helps_by > 0 ? '+' : '') + v.helps_by}</td></tr>`).join('')}</table>
+      <td class="num">${esc(v.answered.brier_mean ?? '—')} <span class="muted small">n=${esc(v.answered.n)}</span></td>
+      <td class="num">${esc(v.missing.brier_mean ?? '—')} <span class="muted small">n=${esc(v.missing.n)}</span></td>
+      <td class="num">${v.helps_by === null ? '—' : (v.helps_by > 0 ? '+' : '') + esc(v.helps_by)}</td></tr>`).join('')}</table>
     <div class="small muted">Lower Brier is better, so a positive "helps by" means the decision went better with that
-      source. ${s.enough_to_read ? `${s.scored_decisions} scored decisions.` :
+      source. ${s.enough_to_read ? `${esc(s.scored_decisions)} scored decisions.` :
       `Only ${esc(s.scored_decisions)} scored decision${s.scored_decisions === 1 ? '' : 's'} (${esc(s.n_independent)} independent) so far - read nothing into this until there are ${esc(s.meaningful_at)}.`}</div>`;
 }
 
@@ -458,38 +502,70 @@ function baseRateTable(v) {
   if (!rows.length) return '';
   return `<div class="vs-base"><h2>Against the base rate</h2>
     <table><tr><th>role</th><th class="num">n</th><th class="num">brier</th><th class="num">base brier</th><th class="num">skill</th></tr>
-    ${rows.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td>
-      <td class="num">${s.base_brier_mean}</td><td class="num">${s.skill === null ? '—' : (s.skill > 0 ? '+' : '') + s.skill}</td></tr>`).join('')}</table>
+    ${rows.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${esc(s.n)}</td><td class="num">${esc(s.brier_mean)}</td>
+      <td class="num">${esc(s.base_brier_mean)}</td><td class="num">${s.skill === null ? '—' : (s.skill > 0 ? '+' : '') + esc(s.skill)}</td></tr>`).join('')}</table>
     <div class="small muted">Skill = 1 − Brier / base-rate Brier; above zero the agent beat how often the token rose anyway.
       ${v.enough_to_read ? '' : `Only ${esc(v.n)} so far (${esc(v.n_independent)} independent) - read nothing into this until there are ${esc(v.meaningful_at)}.`}</div></div>`;
 }
 
-let skillDefs = [];
-function renderSkillArgs() {
+let skillDefs = [], newestRequests = null;
+// An object, or a list of objects, is typed as JSON; everything else is one line. `json` is set on the
+// field so the runner parses exactly those.
+const isJson = a => a.type === 'object' || (a.type === 'array' && a.items?.type === 'object');
+async function renderSkillArgs() {
   const d = skillDefs.find(x => x.name === $('#skill-name').value);
   $('#skill-args').innerHTML = d ? `<div class="small muted">${esc(d.description)}</div>` + d.args.map(a => `
-    <label class="small" style="display:block; margin-top:4px">${esc(a.name)}${a.required ? ' *' : ''} <span class="muted">(${a.type}${a.items ? ' of ' + a.items.type : ''})</span>
-      <input data-arg="${esc(a.name)}" data-type="${a.type}" placeholder="${esc(a.description)}" style="margin-top:2px"></label>`).join('') : '';
+    <label class="small" style="display:block; margin-top:4px">${esc(a.name)}${a.required ? ' *' : ''} <span class="muted">(${esc(a.type)}${a.items ? ' of ' + esc(a.items.type) : ''}${isJson(a) ? ', JSON' : ''})</span>
+      ${isJson(a) ? `<textarea data-arg="${esc(a.name)}" data-type="${esc(a.type)}" data-json="1" spellcheck="false" placeholder="${esc(a.description)}"></textarea>`
+        : `<input data-arg="${esc(a.name)}" data-type="${esc(a.type)}" placeholder="${esc(a.description)}" style="margin-top:2px">`}</label>`).join('') : '';
+  // A JSON field's example is the value the newest receipt actually sent that skill, not an invented one.
+  if (!d || !d.args.some(isJson) || !all[0]) return;
+  try { newestRequests ??= (await api(`/api/decisions/${all[0].id}`)).requests || {}; } catch (_) { return; }
+  const sent = newestRequests[d.name] || {};
+  for (const a of d.args.filter(isJson)) {
+    const el = $(`#skill-args [data-arg="${a.name}"]`);
+    if (el && sent[a.name] != null) el.placeholder = `from receipt ${all[0].id}: ${JSON.stringify(sent[a.name])}`;
+  }
+}
+
+// Every field is checked here and named when it is wrong, before anything is sent.
+function readSkillArgs() {
+  const args = {};
+  for (const inp of $('#skill-args').querySelectorAll('[data-arg]')) {
+    const v = inp.value.trim(), name = inp.dataset.arg, type = inp.dataset.type;
+    if (!v) continue;
+    if (inp.dataset.json) {
+      let parsed;
+      try { parsed = JSON.parse(v); } catch (e) { throw new Error(`${name}: not valid JSON (${e.message})`); }
+      if (type === 'object' && (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed))) throw new Error(`${name}: expected a JSON object {…}`);
+      if (type === 'array' && (!Array.isArray(parsed) || parsed.some(x => x === null || typeof x !== 'object' || Array.isArray(x)))) throw new Error(`${name}: expected a JSON list of objects [{…}]`);
+      args[name] = parsed;
+    } else if (type === 'integer' || type === 'number') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || (type === 'integer' && !Number.isInteger(n))) throw new Error(`${name}: expected ${type === 'integer' ? 'a whole number' : 'a number'}, got "${v}"`);
+      args[name] = n;
+    } else args[name] = type === 'array' ? v.split(',').map(s => s.trim()).filter(Boolean) : v;
+  }
+  return args;
 }
 async function loadSkills() {
   try { skillDefs = await api('/api/skills/'); } catch (e) { $('#skill-status').textContent = e.message; return; }
   $('#skill-name').innerHTML = skillDefs.map(d => `<option value="${esc(d.name)}">${esc(d.name)}</option>`).join('');
   $('#skill-name').onchange = renderSkillArgs; renderSkillArgs();
   $('#skill-run').onclick = async () => {
-    const args = {};
-    for (const inp of $('#skill-args').querySelectorAll('[data-arg]')) {
-      const v = inp.value.trim(); if (!v) continue;
-      args[inp.dataset.arg] = inp.dataset.type === 'array' ? v.split(',').map(s => s.trim()).filter(Boolean) : (inp.dataset.type === 'integer' || inp.dataset.type === 'number') ? Number(v) : v;
-    }
+    let args;
+    try { args = readSkillArgs(); } catch (e) { $('#skill-status').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; return; }
     $('#skill-status').textContent = 'running…'; $('#skill-out').innerHTML = '';
     try {
-      const res = await fetch(`/api/skills/${$('#skill-name').value}/invoke`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }) });
+      const res = await fetch(`/api/skills/${encodeURIComponent($('#skill-name').value)}/invoke`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args }) });
+      // a proxy's HTML error page is not JSON; say what came back instead of a parse error
+      if (!res.headers.get('content-type')?.includes('json')) throw new Error(`HTTP ${res.status}: the server did not answer with JSON`);
       const body = await res.json();
       if (!res.ok) throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail));
       const env = body.result;
-      $('#skill-status').innerHTML = `<span class="badge ${env.status}">${esc(env.status)}</span> ${body.latency_ms} ms · data_mode ${esc(env.data_mode)}`;
+      $('#skill-status').innerHTML = `<span class="badge ${esc(env.status)}">${esc(env.status)}</span> ${esc(body.latency_ms)} ms · data_mode ${esc(env.data_mode)}`;
       $('#skill-out').innerHTML = `<b>${esc(env.summary.headline)}</b>
-        <div>${Object.entries(env.availability).map(([k, s]) => `<span class="badge ${s}">${esc(k)}: ${esc(s)}</span>`).join(' ')}</div>
+        <div>${Object.entries(env.availability).map(([k, s]) => `<span class="badge ${esc(s)}">${esc(k)}: ${esc(s)}</span>`).join(' ')}</div>
         ${env.summary.key_points.map(k => `<div>• ${esc(k)}</div>`).join('')}
         ${env.warnings.map(w => `<div class="muted">⚠ ${esc(w)}</div>`).join('')}
         <details><summary>envelope JSON</summary><pre style="white-space:pre-wrap; overflow:auto; max-height:320px">${esc(JSON.stringify(env, null, 1))}</pre></details>`;
@@ -499,16 +575,16 @@ async function loadSkills() {
 loadSkills();
 
 document.addEventListener('keydown', e => {
-  if (e.target === $('#filter')) { if (e.key === 'Escape' || e.key === 'Enter') { e.target.blur(); if (e.key === 'Enter' && shown[0]) open(shown[0].id); } return; }
-  if (e.target.matches?.('input, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }  // typing a handle must not navigate
+  if (e.target === $('#filter')) { if (e.key === 'Escape' || e.key === 'Enter') { e.target.blur(); if (e.key === 'Enter' && shown[0]) open(shown[0].id, true, true); } return; }
+  if (e.target.matches?.('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }  // typing a handle must not navigate
   if (e.key === 'Enter' && e.target.closest?.('button, a')) return;  // native activation handles it
   if (e.key === 'j') { sel = Math.min(shown.length - 1, sel + 1); renderList(); $('#list .sel')?.focus(); }
   else if (e.key === 'k') { sel = Math.max(0, sel - 1); renderList(); $('#list .sel')?.focus(); }
-  else if (e.key === 'Enter' && shown[sel]) open(shown[sel].id);
-  else if (e.key === 'p' && current?.previous_id) open(current.previous_id);
+  else if (e.key === 'Enter' && shown[sel]) open(shown[sel].id, true, true);
+  else if (e.key === 'p' && current?.previous_id) open(current.previous_id, true, true);
   else if (e.key === '/') { e.preventDefault(); $('#filter').focus(); }
   else if (e.key === '?') $('#help').hidden = !$('#help').hidden;
-  else if (e.key === 'Escape') $('#help').hidden = true;
+  else if (e.key === 'Escape') { $('#help').hidden = true; $('#list .sel')?.focus(); }   // back to the list, as the help says
 });
 $('#filter').oninput = () => { sel = 0; renderList(); };
 window.onpopstate = () => route(false);

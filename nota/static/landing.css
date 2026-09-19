@@ -69,11 +69,37 @@ body > nav .wrap { display:flex; align-items:center; gap:26px; width:100% }
 body > nav b, body > nav b a { font:400 21px/1 var(--display); letter-spacing:.02em; color:var(--ink); text-decoration:none;
                  display:inline-flex; align-items:center; gap:8px }
 body > nav b::after { content:""; width:9px; height:9px; border-radius:50%; background:var(--seal); order:-1 }
-body > nav a { font-size:14px; color:var(--ink-2); text-decoration:none }
+body > nav a { font-size:14px; color:var(--ink-2); text-decoration:none; white-space:nowrap }
 body > nav a:hover { color:var(--ink) }
 body > nav .right { margin-left:auto; display:flex; align-items:center; gap:22px }
 body > nav .cta { color:var(--ink); font-weight:700 }
-@media (max-width:760px) { body > nav .right a:not(.cta) { display:none } }
+/* The section links sit in a native <details> menu. Wide, it is held open (by the page's script) and
+   its summary hidden, so the links read as a row; up to 1100px they fold under "Menu" and drop down,
+   while the language link, the theme switch and the call to action stay in the bar. */
+body > nav .menu > div { display:flex; align-items:center; gap:22px }
+body > nav .menu summary { cursor:pointer; white-space:nowrap; font-size:14px; color:var(--ink); list-style:none; padding:6px 2px }
+body > nav .menu summary::-webkit-details-marker { display:none }
+body > nav .menu summary::after { content:" ▾" / "" }
+@media (min-width:1101px) { body > nav .menu summary { display:none } }
+@media (max-width:1100px) {
+  body > nav .right { gap:14px }
+  body > nav .menu { position:relative }
+  body > nav .menu > div { position:absolute; right:0; top:calc(100% + 12px); z-index:11; flex-direction:column; align-items:stretch;
+    gap:0; min-width:220px; background:var(--paper); border:1px solid var(--form-2); padding:6px 0;
+    box-shadow:0 8px 24px light-dark(rgba(30,43,94,.14), rgba(0,0,0,.5)) }
+  body > nav .menu > div a { padding:10px 16px }
+  body > nav .menu > div .theme { margin:6px 16px 8px; align-self:flex-start }
+}
+@media (max-width:420px) { body > nav .wrap { gap:10px } body > nav .right { gap:10px } body > nav a { font-size:13px } }
+button.theme { font:13px/1 var(--text); color:var(--ink-2); background:none; border:1px solid var(--form-2); border-radius:3px;
+               padding:6px 8px; cursor:pointer; white-space:nowrap }
+button.theme[aria-pressed="true"] { color:var(--ink); border-color:var(--ink) }
+/* the skip link is the first thing a keyboard reaches, and appears only then */
+.skip { position:absolute; left:-999px; top:8px; background:var(--ink); color:var(--paper); padding:6px 10px; z-index:20 }
+.skip:focus { left:8px }
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap }
+[aria-disabled="true"] { opacity:.6; cursor:progress }
+@media (max-width:480px) { body > nav .opt { display:none } }
 
 /* type */
 h1 { font:400 clamp(34px,4.1vw,50px)/1.16 var(--display); letter-spacing:-.005em; margin:0; max-width:15ch }
@@ -96,22 +122,24 @@ p { max-width:var(--measure) }
 /* ---------------------------------------------------------------------------------------------
    The document: a sheet of paper, ruled like a form, headed with a double rule. */
 .sheet { background:var(--paper); border:1px solid var(--form); border-radius:2px; padding:26px 28px }
-.sheet-title { display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+.sheet-title { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:16px;
                padding-bottom:10px; margin-bottom:6px; border-bottom:3px double var(--ink) }
 .sheet-title strong { font:400 22px/1.2 var(--display); letter-spacing:.14em }
-.sheet-title span { font:13px/1.4 var(--fig); color:var(--ink-2) }
+.sheet-title span { font:13px/1.4 var(--fig); color:var(--ink-2); overflow-wrap:anywhere; min-width:0 }
+@media (max-width:379px) { .sheet-title strong { letter-spacing:.05em } }
 
 /* hero: the claim on the left, the receipt it is about on the right */
 header { padding:clamp(40px,7vh,72px) 0 clamp(44px,7vh,68px) }
 header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,.94fr); gap:clamp(28px,5vw,64px); align-items:center }
-@media (max-width:960px) { header .wrap { grid-template-columns:1fr } }
+@media (max-width:960px) { header .wrap { grid-template-columns:minmax(0,1fr) } }   /* 1fr alone grows to the longest word */
 
 .slip { position:relative }
-.slip dl { display:grid; grid-template-columns:auto 1fr; margin:0 0 4px }
+.slip dl { display:grid; grid-template-columns:auto minmax(0,1fr); margin:0 0 4px }
 .slip dt, .slip dd { padding:9px 0; border-bottom:1px solid var(--form); margin:0 }
-.slip dt { font-size:13px; color:var(--ink-2); padding-right:18px; white-space:nowrap }
+.slip dt { font-size:13px; color:var(--ink-2); padding-right:18px; max-width:24ch }
 .slip dd { font:15px/1.4 var(--fig); text-align:right; overflow-wrap:anywhere }
 .slip dd.long { color:var(--long) } .slip dd.short { color:var(--short) }
+@media (max-width:480px) { .slip dt { max-width:13ch } }
 .slip .received { font-size:13px; color:var(--ink-2); margin:12px 0 0; max-width:30ch }
 
 /* the seal: the evidence hash as a hanko, pressed onto the slip at a hand's angle */
@@ -145,16 +173,16 @@ header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,.94fr)
 .verify button { font:700 14px/1 var(--text); padding:12px 16px; border:1.5px solid var(--seal); border-radius:3px;
                  background:var(--paper); color:var(--seal); cursor:pointer }
 .verify button:hover { background:var(--seal); color:var(--paper) }
-.verify button:disabled { opacity:.6; cursor:progress }
+
 .verify output { font-family:var(--fig); font-variant-numeric:tabular-nums }
 .verify .yes { color:var(--long) } .verify .no { color:var(--short) }
 
 /* sections: each one a sheet on the desk */
-body > section { padding:7px 0 }   /* pages in one binder: the desk shows only as a seam */
-body > section > .wrap { background:var(--paper); border:1px solid var(--form); border-radius:2px;
+.binder > section { padding:7px 0 }   /* pages in one binder: the desk shows only as a seam */
+.binder > section > .wrap { background:var(--paper); border:1px solid var(--form); border-radius:2px;
                   padding-top:clamp(28px,4vw,44px); padding-bottom:clamp(28px,4vw,44px) }
-@media (max-width:1240px) { body > section > .wrap { margin:0 var(--pad); padding-left:clamp(18px,4vw,40px); padding-right:clamp(18px,4vw,40px) } }
-body > section h2 { padding-bottom:12px; border-bottom:3px double var(--ink); max-width:none }
+@media (max-width:1240px) { .binder > section > .wrap { margin:0 var(--pad); padding-left:clamp(18px,4vw,40px); padding-right:clamp(18px,4vw,40px) } }
+.binder > section h2 { padding-bottom:12px; border-bottom:3px double var(--ink); max-width:none }
 
 /* the proof: a real terminal transcript, printed on the one dark sheet */
 figure { margin:0 }
@@ -172,6 +200,7 @@ figcaption { font-size:13px; line-height:1.6; color:var(--ink-2); margin-top:12p
 .audit .h, .broken-grid .h { font:700 13px/1.3 var(--text); color:var(--ink-2); border-bottom:1px solid var(--form-2) }
 .audit .n { text-align:right; font-variant-numeric:tabular-nums }
 .audit .agree, .broken-grid .ok { text-align:right; color:var(--long) }
+.audit .far { color:var(--short); font-weight:700 }
 .broken-grid .bad { text-align:right; color:var(--short); font-weight:700 }
 .broken-grid .warn { grid-column:1 / -1; font:13px/1.65 var(--text); color:var(--ink-2); white-space:pre-wrap; overflow-wrap:anywhere }
 
@@ -232,25 +261,25 @@ footer .fine { margin:18px 0 0; max-width:72ch }
 body { overflow-x:clip; isolation:isolate }
 
 /* 1 飾り枠: a hairline inner frame with 隅金具 corner fittings, a sakura on the top right */
-body > section > .wrap, body > main.wrap:not(.split) { position:relative }
-body > section > .wrap::before, body > main.wrap:not(.split)::before { content:""; position:absolute; inset:5px; pointer-events:none;
+.binder > section > .wrap, body > main.wrap:not(.split) { position:relative }
+.binder > section > .wrap::before, body > main.wrap:not(.split)::before { content:""; position:absolute; inset:5px; pointer-events:none;
   border:30px solid #0000; border-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' fill='none'%3E%3Cdefs%3E%3Cg id='k'%3E%3Cpath d='M2 30V2h28' stroke='%23b8892f' stroke-width='1.4'/%3E%3Cpath d='M6.5 30V6.5H30' stroke='%239eaacb'/%3E%3C/g%3E%3Cpath id='d' d='M15 10 20 15 15 20 10 15z' fill='%23f5ead0' stroke='%23b8892f'/%3E%3C/defs%3E%3Cpath d='M32 2h16M32 78h16M2 32v16M78 32v16' stroke='%23c8d0e4'/%3E%3Cuse href='%23k'/%3E%3Cuse href='%23k' transform='matrix(1 0 0 -1 0 80)'/%3E%3Cuse href='%23k' transform='matrix(-1 0 0 -1 80 80)'/%3E%3Cuse href='%23k' transform='matrix(-1 0 0 1 80 0)'/%3E%3Cuse href='%23d'/%3E%3Cuse href='%23d' transform='matrix(1 0 0 -1 0 80)'/%3E%3Cuse href='%23d' transform='matrix(-1 0 0 -1 80 80)'/%3E%3Cg transform='translate(63 15) scale(1.9)' fill='%23f7dde2' stroke='%239eaacb' stroke-width='.45'%3E%3Ccircle cx='0' cy='-3.2' r='2.6'/%3E%3Ccircle cx='3.04' cy='-0.99' r='2.6'/%3E%3Ccircle cx='1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-3.04' cy='-0.99' r='2.6'/%3E%3Ccircle r='1.1' fill='%23b8892f' stroke='none'/%3E%3C/g%3E%3Cg transform='translate(54 27) scale(.9)' fill='%23f7dde2' stroke='%239eaacb' stroke-width='.45'%3E%3Ccircle cx='0' cy='-3.2' r='2.6'/%3E%3Ccircle cx='3.04' cy='-0.99' r='2.6'/%3E%3Ccircle cx='1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-3.04' cy='-0.99' r='2.6'/%3E%3Ccircle r='1.1' fill='%23b8892f' stroke='none'/%3E%3C/g%3E%3C/svg%3E") 32 / 30px stretch }
-:root[data-theme="dark"] body > section > .wrap::before, :root[data-theme="dark"] body > main.wrap:not(.split)::before { border-image-source:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' fill='none'%3E%3Cdefs%3E%3Cg id='k'%3E%3Cpath d='M2 30V2h28' stroke='%23d9b563' stroke-width='1.4'/%3E%3Cpath d='M6.5 30V6.5H30' stroke='%2346527a'/%3E%3C/g%3E%3Cpath id='d' d='M15 10 20 15 15 20 10 15z' fill='%23332b1a' stroke='%23d9b563'/%3E%3C/defs%3E%3Cpath d='M32 2h16M32 78h16M2 32v16M78 32v16' stroke='%232c3554'/%3E%3Cuse href='%23k'/%3E%3Cuse href='%23k' transform='matrix(1 0 0 -1 0 80)'/%3E%3Cuse href='%23k' transform='matrix(-1 0 0 -1 80 80)'/%3E%3Cuse href='%23k' transform='matrix(-1 0 0 1 80 0)'/%3E%3Cuse href='%23d'/%3E%3Cuse href='%23d' transform='matrix(1 0 0 -1 0 80)'/%3E%3Cuse href='%23d' transform='matrix(-1 0 0 -1 80 80)'/%3E%3Cg transform='translate(63 15) scale(1.9)' fill='%2343262e' stroke='%2346527a' stroke-width='.45'%3E%3Ccircle cx='0' cy='-3.2' r='2.6'/%3E%3Ccircle cx='3.04' cy='-0.99' r='2.6'/%3E%3Ccircle cx='1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-3.04' cy='-0.99' r='2.6'/%3E%3Ccircle r='1.1' fill='%23d9b563' stroke='none'/%3E%3C/g%3E%3Cg transform='translate(54 27) scale(.9)' fill='%2343262e' stroke='%2346527a' stroke-width='.45'%3E%3Ccircle cx='0' cy='-3.2' r='2.6'/%3E%3Ccircle cx='3.04' cy='-0.99' r='2.6'/%3E%3Ccircle cx='1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-3.04' cy='-0.99' r='2.6'/%3E%3Ccircle r='1.1' fill='%23d9b563' stroke='none'/%3E%3C/g%3E%3C/svg%3E") }
-@media (max-width:560px) { body > section > .wrap::before, body > main.wrap:not(.split)::before { inset:4px; border-width:20px; border-image-width:20px } }
+:root[data-theme="dark"] .binder > section > .wrap::before, :root[data-theme="dark"] body > main.wrap:not(.split)::before { border-image-source:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' fill='none'%3E%3Cdefs%3E%3Cg id='k'%3E%3Cpath d='M2 30V2h28' stroke='%23d9b563' stroke-width='1.4'/%3E%3Cpath d='M6.5 30V6.5H30' stroke='%2346527a'/%3E%3C/g%3E%3Cpath id='d' d='M15 10 20 15 15 20 10 15z' fill='%23332b1a' stroke='%23d9b563'/%3E%3C/defs%3E%3Cpath d='M32 2h16M32 78h16M2 32v16M78 32v16' stroke='%232c3554'/%3E%3Cuse href='%23k'/%3E%3Cuse href='%23k' transform='matrix(1 0 0 -1 0 80)'/%3E%3Cuse href='%23k' transform='matrix(-1 0 0 -1 80 80)'/%3E%3Cuse href='%23k' transform='matrix(-1 0 0 1 80 0)'/%3E%3Cuse href='%23d'/%3E%3Cuse href='%23d' transform='matrix(1 0 0 -1 0 80)'/%3E%3Cuse href='%23d' transform='matrix(-1 0 0 -1 80 80)'/%3E%3Cg transform='translate(63 15) scale(1.9)' fill='%2343262e' stroke='%2346527a' stroke-width='.45'%3E%3Ccircle cx='0' cy='-3.2' r='2.6'/%3E%3Ccircle cx='3.04' cy='-0.99' r='2.6'/%3E%3Ccircle cx='1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-3.04' cy='-0.99' r='2.6'/%3E%3Ccircle r='1.1' fill='%23d9b563' stroke='none'/%3E%3C/g%3E%3Cg transform='translate(54 27) scale(.9)' fill='%2343262e' stroke='%2346527a' stroke-width='.45'%3E%3Ccircle cx='0' cy='-3.2' r='2.6'/%3E%3Ccircle cx='3.04' cy='-0.99' r='2.6'/%3E%3Ccircle cx='1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-1.88' cy='2.59' r='2.6'/%3E%3Ccircle cx='-3.04' cy='-0.99' r='2.6'/%3E%3Ccircle r='1.1' fill='%23d9b563' stroke='none'/%3E%3C/g%3E%3C/svg%3E") }
+@media (max-width:560px) { .binder > section > .wrap::before, body > main.wrap:not(.split)::before { inset:4px; border-width:20px; border-image-width:20px } }
 
 /* 2 大字: each sheet numbered like a line on an official form */
 @counter-style nota-daiji { system:fixed; symbols:"壱" "弐" "参" "四" "五" "六" "七" "八"; suffix:"" }
 body { counter-reset:sec }
-body > section, body > main.wrap:not(.split) > h2 { counter-increment:sec }
-body > section h2, body > main.wrap:not(.split) > h2 { position:relative; padding-left:80px }
-body > section h2 { padding-top:7px; min-height:82px }
+.binder > section, body > main.wrap:not(.split) > h2 { counter-increment:sec }
+.binder > section h2, body > main.wrap:not(.split) > h2 { position:relative; padding-left:80px }
+.binder > section h2 { padding-top:7px; min-height:82px }
 body > main.wrap:not(.split) > h2 { padding-top:12px; min-height:64px }
-body > section h2::before, body > main.wrap:not(.split) > h2::before { content:counter(sec,nota-daiji) / ""; position:absolute; left:4px; top:4px;
+.binder > section h2::before, body > main.wrap:not(.split) > h2::before { content:counter(sec,nota-daiji) / ""; position:absolute; left:4px; top:4px;
   width:56px; height:56px; display:grid; place-items:center; font:400 26px/1 var(--display); color:var(--ink);
   background:var(--gold-2); border:1px solid var(--gold); outline:1px solid var(--form-2); outline-offset:3px }
 @media (max-width:560px) {
-  body > section h2, body > main.wrap:not(.split) > h2 { padding-left:62px; padding-top:6px; min-height:68px }
-  body > section h2::before, body > main.wrap:not(.split) > h2::before { width:44px; height:44px; font-size:21px } }
+  .binder > section h2, body > main.wrap:not(.split) > h2 { padding-left:62px; padding-top:6px; min-height:68px }
+  .binder > section h2::before, body > main.wrap:not(.split) > h2::before { width:44px; height:44px; font-size:21px } }
 ol.steps li::before { font:700 24px/1.2 var(--fig); color:var(--ink-2) }
 
 /* 3 受付印: the round office dater, NOTA / the receipt's date / 記録 */
@@ -279,28 +308,31 @@ ol.steps li::before { font:700 24px/1.2 var(--fig); color:var(--ink-2) }
 
 /* 5 点線リーダー on the slip rows */
 .slip dd { display:flex; align-items:baseline; gap:10px; min-width:0 }
-.slip dd::before { content:""; flex:1 1 auto; min-width:12px; height:2px; align-self:center;
+.slip dd::before { content:""; flex:1 1 auto; min-width:0; height:2px; align-self:center;
   background:radial-gradient(circle,var(--form-2) .9px,#0000 1.2px) 0 50%/6px 2px repeat-x }
 
 /* 6 紙縒り: the paper-twist cord that binds a 大福帳, tying the claim to the pages under it */
-body > nav + header:not(.wrap)::after { content:""; display:block; width:min(420px,86%); aspect-ratio:320 / 36;
+.binder > header:first-child::after { content:""; display:block; width:min(420px,86%); aspect-ratio:320 / 36;
   margin:clamp(30px,5vh,48px) auto 0; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 36' fill='none' stroke-linecap='round'%3E%3Crect x='120.5' y='6.5' width='79' height='23' fill='%23ffffff' stroke='%23c8d0e4'/%3E%3Ccircle cx='145' cy='18' r='3.5' fill='%23edf0f5' stroke='%239eaacb'/%3E%3Ccircle cx='175' cy='18' r='3.5' fill='%23edf0f5' stroke='%239eaacb'/%3E%3Cpath stroke='%23b8892f' stroke-width='1.4' d='M6 18q10 -6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M175 18q10 -6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M145 18q15-9 30 0'/%3E%3Cpath stroke='%239eaacb' stroke-width='1.4' d='M6 18q10 6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M175 18q10 6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M145 18q15 9 30 0'/%3E%3Ccircle cx='5' cy='18' r='2.2' fill='%23b8892f'/%3E%3Ccircle cx='315' cy='18' r='2.2' fill='%23b8892f'/%3E%3C/svg%3E") center/contain no-repeat }
-:root[data-theme="dark"] body > nav + header:not(.wrap)::after { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 36' fill='none' stroke-linecap='round'%3E%3Crect x='120.5' y='6.5' width='79' height='23' fill='%23161c30' stroke='%232c3554'/%3E%3Ccircle cx='145' cy='18' r='3.5' fill='%230e1322' stroke='%2346527a'/%3E%3Ccircle cx='175' cy='18' r='3.5' fill='%230e1322' stroke='%2346527a'/%3E%3Cpath stroke='%23d9b563' stroke-width='1.4' d='M6 18q10 -6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M175 18q10 -6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M145 18q15-9 30 0'/%3E%3Cpath stroke='%2346527a' stroke-width='1.4' d='M6 18q10 6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M175 18q10 6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M145 18q15 9 30 0'/%3E%3Ccircle cx='5' cy='18' r='2.2' fill='%23d9b563'/%3E%3Ccircle cx='315' cy='18' r='2.2' fill='%23d9b563'/%3E%3C/svg%3E") }
+:root[data-theme="dark"] .binder > header:first-child::after { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 36' fill='none' stroke-linecap='round'%3E%3Crect x='120.5' y='6.5' width='79' height='23' fill='%23161c30' stroke='%232c3554'/%3E%3Ccircle cx='145' cy='18' r='3.5' fill='%230e1322' stroke='%2346527a'/%3E%3Ccircle cx='175' cy='18' r='3.5' fill='%230e1322' stroke='%2346527a'/%3E%3Cpath stroke='%23d9b563' stroke-width='1.4' d='M6 18q10 -6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M175 18q10 -6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M145 18q15-9 30 0'/%3E%3Cpath stroke='%2346527a' stroke-width='1.4' d='M6 18q10 6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M175 18q10 6 20 0t20 0 20 0 20 0 20 0 20 0 19 0M145 18q15 9 30 0'/%3E%3Ccircle cx='5' cy='18' r='2.2' fill='%23d9b563'/%3E%3Ccircle cx='315' cy='18' r='2.2' fill='%23d9b563'/%3E%3C/svg%3E") }
 
 /* 7 七宝 地紋 in the desk's side margins only: masked off wherever a sheet or the hero text sits */
-@media (max-width:759px) { body:has(> section, > main.wrap)::before { display:none } }
-body:has(> section, > main.wrap)::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+@media (max-width:759px) { body:has(> .binder, > main.wrap)::before { display:none } }
+body:has(> .binder, > main.wrap)::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cg fill='none' stroke='%23d3daea'%3E%3Ccircle r='24'/%3E%3Ccircle cx='48' r='24'/%3E%3Ccircle cy='48' r='24'/%3E%3Ccircle cx='48' cy='48' r='24'/%3E%3Ccircle cx='24' cy='24' r='24'/%3E%3C/g%3E%3C/svg%3E") 0 0/48px 48px;
   -webkit-mask:linear-gradient(90deg,#000 calc(max(var(--pad),50% - 580px) - 14px),#0000 max(var(--pad),50% - 580px),
     #0000 calc(100% - max(var(--pad),50% - 580px)),#000 calc(100% - max(var(--pad),50% - 580px) + 14px));
   mask:linear-gradient(90deg,#000 calc(max(var(--pad),50% - 580px) - 14px),#0000 max(var(--pad),50% - 580px),
     #0000 calc(100% - max(var(--pad),50% - 580px)),#000 calc(100% - max(var(--pad),50% - 580px) + 14px)) }
-:root[data-theme="dark"] body:has(> section, > main.wrap)::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cg fill='none' stroke='%231f2842'%3E%3Ccircle r='24'/%3E%3Ccircle cx='48' r='24'/%3E%3Ccircle cy='48' r='24'/%3E%3Ccircle cx='48' cy='48' r='24'/%3E%3Ccircle cx='24' cy='24' r='24'/%3E%3C/g%3E%3C/svg%3E") }
+:root[data-theme="dark"] body:has(> .binder, > main.wrap)::before { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cg fill='none' stroke='%231f2842'%3E%3Ccircle r='24'/%3E%3Ccircle cx='48' r='24'/%3E%3Ccircle cy='48' r='24'/%3E%3Ccircle cx='48' cy='48' r='24'/%3E%3Ccircle cx='24' cy='24' r='24'/%3E%3C/g%3E%3C/svg%3E") }
 
 /* 8 風景印: the Nota post office's pictorial postmark, straddling two sheets */
 .fukei { position:absolute; right:calc(-1 * clamp(0px, var(--pad) - 20px, 34px));   /* overhang never wider than the page margin, rotation included */
         bottom:-40px; z-index:1; width:168px; height:auto; transform:rotate(-8deg); pointer-events:none }
 @media (max-width:760px) { .fukei { width:88px; right:-2px; bottom:-14px } }
+/* the postmark sits over the sheet's lower right corner, so that sheet's text keeps clear of it */
+.binder > section > .wrap:has(> .fukei) { padding-right:190px }
+@media (max-width:760px) { .binder > section > .wrap:has(> .fukei) { padding-right:100px } }
 .fukei .f-paper { fill:var(--paper) } .fukei .f-sky { fill:var(--sakura) } .fukei .f-sea { fill:var(--water) }
 .fukei .f-sun { fill:var(--gold-2); stroke:var(--gold) }
 .fukei .f-fuji { fill:var(--tint); stroke:var(--ink-2); stroke-width:1.4; stroke-linejoin:round }
@@ -320,7 +352,7 @@ footer::before { content:""; display:block; height:56px; margin:0 0 30px; backgr
 
 /* 10 見出し tabs: the section's name set vertically on an index tab off the sheet's edge */
 @media (min-width:760px) {
-  body > section > .wrap[data-tab]::after { content:attr(data-tab) / ""; position:absolute; top:30px; left:calc(100% + 1px);
+  .binder > section > .wrap[data-tab]::after { content:attr(data-tab) / ""; position:absolute; top:30px; left:calc(100% + 1px);
     writing-mode:vertical-rl; padding:12px 6px 14px; font:400 15px/1 var(--display); letter-spacing:.2em; color:var(--ink);
     background:var(--tint); border:1px solid var(--form-2); border-left:0; border-radius:0 3px 3px 0 } }
 

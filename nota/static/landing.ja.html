@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nota</title>
+<title>Nota：再実行できる売買判断</title>
+<script>try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}</script>
 <meta name="description" content="AIの評議会がRYOの市場エビデンスを読み、すべての判断を「同じ結果で再実行できる領収書」として保存します。鍵もネットワークも不要です。">
 <meta property="og:title" content="Nota: 再実行できるトレード判断">
 <meta property="og:description" content="判断はすべて領収書です。台帳から再実行すれば同じ答えが返り、数値はどれも出所のRYOパスまで辿れます。">
@@ -12,21 +13,26 @@
 <link rel="stylesheet" href="/landing.css">
 </head>
 <body>
-<nav>
+<a class="skip" href="#main">本文へ移動</a>
+<nav aria-label="サイト">
   <div class="wrap">
     <b>Nota</b>
     <div class="right">
-      <a href="#proof">検証</a>
-      <a href="#broken">データ源が落ちたとき</a>
-      <a href="#how">仕組み</a>
-      <a href="/scorecard">RYOスコアカード</a>
-      <a href="https://github.com/PugarHuda/nota">ソース</a>
+      <details class="menu"><summary>メニュー</summary><div>
+        <a href="#proof">検証</a>
+        <a href="#broken">データ源が落ちたとき</a>
+        <a href="#how">仕組み</a>
+        <a href="/scorecard">RYOスコアカード</a>
+        <a href="https://github.com/PugarHuda/nota">ソース</a>
+        <button type="button" class="theme" id="theme" aria-pressed="false">ダーク表示</button>
+      </div></details>
       <a href="/" hreflang="en" lang="en">English</a>
-      <a class="cta" href="/app">ダッシュボードを開く</a>
+      <a class="cta" href="/app">ダッシュボード<span class="opt">を開く</span></a>
     </div>
   </div>
 </nav>
 
+<main id="main" class="binder">
 <header>
   <div class="wrap">
     <div>
@@ -37,10 +43,10 @@
       <a class="btn ghost" href="/demo">デモを見る</a>
     </div>
     <p class="verify">
-      <button type="button" id="verify">いま領収書を検証する</button>
+      <button type="button" id="verify">今すぐ領収書を検証</button>
       <output id="verify-out" aria-live="polite" data-idle="このサイトのAPIを呼び、領収書 %s を再実行します。"
               data-running="実行中…" data-waiting="台帳がまだ読み込まれていません"
-              data-ok="保存済みエビデンスから %m ミリ秒で再構築" data-drift="%n 個のフィールドが相違"
+              data-ok="保存済みエビデンスから %m ミリ秒で再構築" data-drift="相違するフィールド：%n"
               data-unreachable="APIに到達できませんでした">このサイトのAPIを呼び、最新の領収書を再実行します。</output>
     </p>
     </div>
@@ -49,14 +55,14 @@
       <dl>
         <dt>銘柄</dt><dd data-f="symbol">—</dd>
         <dt>判断</dt><dd data-f="action">—</dd>
-        <dt>判定役の p_up_7d</dt><dd data-f="p">—</dd>
+        <dt>7日以内に上がる確率 <abbr title="p_up_7d">（判定役）</abbr></dt><dd data-f="p">—</dd>
         <dt>エビデンス</dt><dd data-f="source">—</dd>
         <dt>発行日</dt><dd data-f="date">—</dd>
       </dl>
       <div class="kiritori" aria-hidden="true"><div class="kakuin">照合<br>済<small>VERIFIED</small></div></div>
-      <p class="received">上記の判断を、判断時の証拠から再現します。赤いボタンで確かめてください。</p>
+      <p class="received">上記の判断を、判断時の証拠から再現します。「今すぐ領収書を検証」を押して確かめてください。</p>
       <figure class="seal">
-        <svg id="mark" viewBox="0 0 420 420" role="img"
+        <svg id="mark" viewBox="0 0 420 420" role="img" data-plabel="7日上昇"
              data-label="領収書 %s から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率 %p です。"
              aria-label="最新の領収書から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率です。"><defs><filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs></svg>
         <figcaption data-caption="領収書 %a。目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。">目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。</figcaption>
@@ -68,13 +74,15 @@
 <section id="proof">
   <div class="wrap" data-tab="検算">
     <h2>Notaは与えられたデータ自体を検算します。</h2>
-    <p class="lede">RYOはATRとRSIを公開しています。Notaはその両方を公開ローソク足からワイルダー式で計算し直して突き合わせ、さらにRYOの価格を3取引所の中央値と照合します。両者が食い違えば、判定役はポジションのサイズ決定そのものを拒みます。以下の数値は2026年9月7日のライブ領収書のものです。台帳にあるすべての領収書は同一に再実行されます。9月10日に記録されたもの、つまりビルダー鍵が401を返しはじめてRYOの5セクションが一斉にエラーへ落ちた日の領収書も含めてです。そのための小細工は一切していません。評議会は残ったものだけを読み、判定役はトレードを拒み、差分はその崩壊をページ最上段に置きました。</p>
-    <div class="audit">
+    <p class="lede">RYOはATRとRSIを公開しています。Notaはその両方を公開ローソク足からワイルダー式で計算し直して突き合わせ、さらにRYOの価格を最大5つの公開価格ソースの中央値と照合します。両者が食い違えば、判定役はポジションのサイズ決定そのものを拒みます。以下の数値は、3つの検算がそろった最新の領収書から読み込んでいます。台帳にあるすべての領収書は同一に再実行されます。9月10日に記録されたもの、つまりビルダー鍵が401を返しはじめてRYOの5セクションが一斉にエラーへ落ちた日の領収書も含めてです。そのための小細工は一切していません。評議会は残ったものだけを読み、判定役はトレードを拒み、差分はその崩壊をページ最上段に置きました。</p>
+    <div class="audit" id="audit" data-receipt="" data-pts=" pt">
       <div class="h">項目</div><div class="h n">Nota</div><div class="h n">RYO</div><div class="h n">差</div>
-      <div>ATR(14), USD</div><div class="n">4.347</div><div class="n">4.3762</div><div class="agree">0.67%</div>
-      <div>RSI(14)</div><div class="n">64.84</div><div class="n">68.70</div><div class="agree">3.9 pts</div>
-      <div>価格, USD</div><div class="n">105.05</div><div class="n">104.946</div><div class="agree">0.10%</div>
+      <div>ATR(14), USD</div><div class="n" data-a="atr.nota">—</div><div class="n" data-a="atr.ryo">—</div><div class="n" data-a="atr.apart">—</div>
+      <div>RSI(14)</div><div class="n" data-a="rsi.nota">—</div><div class="n" data-a="rsi.ryo">—</div><div class="n" data-a="rsi.apart">—</div>
+      <div>価格, USD</div><div class="n" data-a="price.nota">—</div><div class="n" data-a="price.ryo">—</div><div class="n" data-a="price.apart">—</div>
     </div>
+    <p id="audit-note" class="note" data-note="領収書 %s（%d）。緑はスキルが警告するしきい値の内側、赤はそれを超えた値です。"
+       data-missing="直近 %n 件の領収書に、3つの検算がそろったものはありません。">台帳を読んでいます…</p>
   </div>
 </section>
 
@@ -96,7 +104,8 @@
     <h2>RYO自身の成績も記録します。</h2>
     <p class="lede"><code>deep_analysis</code>の回答には必ず判断とトレードプランが付きますが、その後どうなったかをRYOは記録していません。Notaは主要25銘柄のプランを毎日固定し、OKXの1時間足でひとつずつ決着させます。これで「RYOの判断は、RYO自身のプランが機能する頻度を変えるのか」という問いに答えが出ます。</p>
     <p id="scorecard-line" class="note"
-       data-line="%d日間で%n件のプランを固定しました。そのうち%c件は、RYO自身の判断と逆の方向を向いています。"
+       data-line-one="%d日間で%n件のプランを固定しました。そのうち%c件は、RYO自身の判断と逆の方向を向いています。"
+       data-line-many="%d日間で%n件のプランを固定しました。そのうち%c件は、RYO自身の判断と逆の方向を向いています。"
        data-settled="24時間以内に決着した%k件のうち、%t件がストップより先にRYOの+1R目標に到達しました。"
        data-none="まだ決着したプランはありません。次の決着は%wです。"
        data-closed="まだ決着したプランはありません。最初の期間はすでに終了し、次の毎時サイクルで記録されます。"
@@ -170,7 +179,7 @@
         <p>エージェントも同じ土俵にいます。各自が過去の判断からのブライアスコアを持ち、そのスコアが次に判定役がどれだけ耳を傾けるかを決めます。</p>
       </div>
       <figure>
-        <pre class="proof"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
+        <pre class="proof" tabindex="0" role="region" aria-label="curlによる確認"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
 <span class="p">og:title</span>       ETH: LONG practice trade, 1377 USD, stop 2312.57
 <span class="p">og:description</span> long (p_up_7d 0.68). All three council members are
                bullish with medium to high confidence...
@@ -201,6 +210,7 @@
     </div>
   </div>
 </section>
+</main>
 
 <footer>
   <div class="wrap">

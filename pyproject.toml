@@ -28,6 +28,7 @@ packages = ["nota"]
 
 [dependency-groups]
 dev = [
+    "axe-playwright-python>=0.1.8",
     "playwright>=1.62.0",
     "pytest>=9.1.1",
     "respx>=0.23.1",

@@ -7,6 +7,7 @@ really invokes the skills.
 """
 
 import json
+import re
 import os
 import socket
 import sqlite3
@@ -35,6 +36,16 @@ def _receipts():
     """Newest first, the order the API answers in."""
     rows = sqlite3.connect(DEMO).execute("SELECT receipt_json FROM decisions ORDER BY created_at DESC").fetchall()
     return [json.loads(r[0]) for r in rows]
+
+
+def _most_failed():
+    """The receipt the landing's failure panel shows: the most RYO sections in error or unavailable,
+    newest first on a tie."""
+    from nota.evidence import SECTIONS
+
+    failed = lambda r: sum(r["availability"].get(k) in ("error", "unavailable") for k in SECTIONS)
+    rs = _receipts()
+    return max(rs, key=lambda r: (failed(r), -rs.index(r)))
 
 
 @pytest.fixture(scope="module")
@@ -113,7 +124,7 @@ def test_landing_renders_draws_its_mark_and_verifies_a_receipt_for_real(server, 
     # the failure panel is the ledger's own record of a source going down, not a description of one
     page.wait_for_selector("#broken-panel .bad")
     shown = [c.inner_text() for c in page.locator("#broken-panel > div").all()]
-    degraded = next(r for r in _receipts() if any(v != "ok" for v in r["availability"].values()))
+    degraded = _most_failed()
     assert degraded["id"] in page.locator("#broken-verdict").inner_text()
     assert page.locator("#broken-panel .bad").count() == sum(
         1 for v in degraded["availability"].values() if v != "ok")
@@ -182,10 +193,10 @@ def test_demo_page_plays_the_shipped_video_and_lists_its_real_chapters(server, b
     page.close()
 
 
-@pytest.mark.parametrize("width,height", [(390, 844), (768, 1024), (1440, 900)])
+@pytest.mark.parametrize("width,height", [(320, 640), (390, 844), (768, 1024), (1440, 900)])
 def test_no_horizontal_overflow_on_either_page_at_any_width(server, browser, width, height):
     page, problems = page_with_log(browser, viewport={"width": width, "height": height})
-    for path in ("/", "/app", "/demo"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
         page.goto(server + path, wait_until="networkidle")
         page.wait_for_timeout(400)
         overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
@@ -306,9 +317,12 @@ def test_accessibility_floor_focus_alt_and_live_regions(server, browser):
 
     # every list row is a real button, not a div with a click handler
     assert page.eval_on_selector_all("#list .row", "els => els.every(e => e.tagName === 'BUTTON')")
-    # the panels that change without a page load announce themselves
-    for sel in ("#detail", "#health", "#attention"):
+    # the panels that change without a page load announce themselves; the receipt itself does not,
+    # or a screen reader would read the whole document out every time one opens
+    for sel in ("#health", "#attention", "#sr-status"):
         assert page.get_attribute(sel, "aria-live") == "polite", sel
+    assert page.get_attribute("#detail", "aria-live") is None
+    playwright.expect(page.locator("#sr-status")).to_contain_text(NEWEST["id"])
     # form controls carry a label or an accessible name
     assert page.get_attribute("#filter", "aria-label")
     assert page.get_attribute("#skill-name", "aria-label")
@@ -370,6 +384,37 @@ def _contrast(hex_fg: str, hex_bg: str) -> float:
     a, b = lum(hex_fg.lstrip("#")), lum(hex_bg.lstrip("#"))
     hi, lo = max(a, b), min(a, b)
     return (hi + 0.05) / (lo + 0.05)
+
+
+@pytest.mark.parametrize("path", ["/", "/scorecard", "/demo"])
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_every_visible_text_on_the_reading_pages_meets_wcag_aa(server, browser, path, theme):
+    """Each text node's colour against the nearest opaque background behind it, in both themes.
+    Ornaments marked aria-hidden are drawings, not text, and are skipped."""
+    ctx = browser.new_context(viewport={"width": 1366, "height": 900})
+    ctx.add_init_script(f"try{{localStorage.setItem('nota.theme','{theme}')}}catch(e){{}}")
+    page = ctx.new_page()
+    page.goto(server + path, wait_until="networkidle")
+    pairs = page.evaluate(r"""() => {
+      const rgb = c => (c.match(/[\d.]+/g) || []).map(Number);
+      const hex = a => '#' + a.slice(0, 3).map(n => Math.round(n).toString(16).padStart(2, '0')).join('');
+      const bgOf = el => { for (let e = el; e; e = e.parentElement) { const c = rgb(getComputedStyle(e).backgroundColor);
+        if (c.length === 3 || c[3] === 1) return hex(c); } return hex(rgb(getComputedStyle(document.documentElement).backgroundColor)); };
+      const out = [];
+      const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n; (n = walk.nextNode());) {
+        const el = n.parentElement;
+        if (!n.textContent.trim() || el.closest('[aria-hidden="true"], script, style, .skip, .sr, svg, video')) continue;
+        const r = el.getBoundingClientRect(), st = getComputedStyle(el);
+        if (!r.width || st.visibility === 'hidden' || +st.opacity < 0.5) continue;
+        out.push([el.tagName + '.' + el.className, hex(rgb(st.color)), bgOf(el)]);
+      }
+      return out;
+    }""")
+    assert len(pairs) > 20
+    bad = sorted({(w, fg, bg, round(_contrast(fg, bg), 2)) for w, fg, bg in pairs if _contrast(fg, bg) < 4.5})
+    assert bad == [], f"{path} {theme}: {bad[:8]}"
+    ctx.close()
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
@@ -511,3 +556,212 @@ def test_a_head_probe_over_the_wire_matches_get(server):
         get, head = httpx.get(server + path, timeout=30), httpx.head(server + path, timeout=30)
         assert head.status_code == get.status_code == 200, path
         assert head.content == b"" and head.headers.get("content-length") == get.headers.get("content-length"), path
+
+
+# --- phones, keyboards, the seal, the theme, and third-party text -----------------------------------
+
+def _rects_intersect(a, b) -> bool:
+    return not (a["x"] + a["width"] <= b["x"] or b["x"] + b["width"] <= a["x"]
+                or a["y"] + a["height"] <= b["y"] or b["y"] + b["height"] <= a["y"])
+
+
+@pytest.mark.parametrize("width", [320, 768, 1440])
+def test_the_verified_seal_never_covers_the_degraded_banner_or_the_headline(server, browser, width):
+    """The receipt where all five RYO sections failed has the banner a reader must be able to read."""
+    worst = _most_failed()
+    page, problems = page_with_log(browser, viewport={"width": width, "height": 900})
+    page.goto(f"{server}/r/{worst['id']}", wait_until="networkidle")
+    page.wait_for_selector("#detail .banner")
+    page.click("#verify")
+    page.wait_for_function("() => document.querySelector('#detail').classList.contains('stamped')", timeout=30000)
+    seal = page.locator("#detail .kakuin").bounding_box()
+    for sel in ("#detail .banner", "#detail .headline"):
+        text = page.evaluate("""s => { const r = document.createRange(); r.selectNodeContents(document.querySelector(s));
+          return [...r.getClientRects()].map(q => ({x: q.x, y: q.y, width: q.width, height: q.height})); }""", sel)
+        assert text and not any(_rects_intersect(seal, t) for t in text), f"{width}px: the seal covers {sel}"
+    assert problems == [], problems
+    page.close()
+
+
+def test_a_tap_on_a_phone_brings_the_receipt_into_view_and_names_it(server, browser):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                              reduced_motion="reduce")
+    page = ctx.new_page()
+    page.goto(server + "/app", wait_until="networkidle")
+    page.wait_for_selector("#list .row")
+    target = _receipts()[2]
+    page.locator("#list .row").nth(2).tap()
+    page.wait_for_url(f"**/r/{target['id']}")
+    page.wait_for_function("() => document.activeElement && document.activeElement.id === 'receipt-title'")
+    top = page.evaluate("() => document.querySelector('#detail').getBoundingClientRect().top")
+    assert 0 <= top <= 200, f"the opened receipt sits {top}px down the screen"
+    assert target["id"] in page.title() and target["symbol"] in page.title()
+    playwright.expect(page.locator("#sr-status")).to_contain_text(target["id"])
+    # the keyboard hints are for keyboards; a touch screen keeps only the theme switch
+    assert not page.locator("header .keys .hint").is_visible() and page.locator("#theme").is_visible()
+    ctx.close()
+
+
+def test_enter_on_a_row_keeps_focus_somewhere_and_escape_returns_to_the_list(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 1366, "height": 900})
+    page.goto(server + "/app", wait_until="networkidle")
+    page.wait_for_selector("#list .row")
+    page.locator("#list .row").nth(1).focus()
+    page.keyboard.press("Enter")
+    page.wait_for_url(f"**/r/{_receipts()[1]['id']}")
+    assert page.evaluate("() => document.activeElement.tagName") != "BODY"
+    page.keyboard.press("Escape")
+    assert page.evaluate("() => document.activeElement.classList.contains('row')")
+    page.keyboard.press("j")
+    assert page.evaluate("() => document.activeElement.classList.contains('sel')")
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_filter_says_when_nothing_matches_and_offers_to_clear(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 1366, "height": 900})
+    page.goto(server + "/app", wait_until="networkidle")
+    page.wait_for_selector("#list .row")
+    page.fill("#filter", "zzz")
+    playwright.expect(page.locator("#list")).to_contain_text('No receipt matches "zzz"')
+    page.click("#clear-filter")
+    playwright.expect(page.locator("#list .row")).to_have_count(SHIPPED)
+    page.fill("#filter", "sized")      # words the row shows, not field names
+    playwright.expect(page.locator("#list .row")).to_have_count(sum(r["trade"]["kind"] == "trade" for r in _receipts()))
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_landing_keeps_the_language_switch_and_a_menu_on_a_phone(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 390, "height": 844})
+    page.goto(server + "/", wait_until="networkidle")
+    assert page.locator("a[hreflang=ja]").is_visible()
+    assert page.locator("nav a.cta").is_visible()
+    assert not page.locator("nav .menu a[href='#proof']").is_visible()
+    page.click("nav .menu summary")
+    assert page.locator("nav .menu a[href='#proof']").is_visible()
+    # wide, the same links read as a row with no menu button, on one line
+    page.set_viewport_size({"width": 1366, "height": 900})
+    page.wait_for_timeout(100)
+    assert page.locator("nav .menu a[href='#proof']").is_visible() and not page.locator("nav .menu summary").is_visible()
+    assert page.locator("body > nav").bounding_box()["height"] <= 80
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_dark_theme_chosen_anywhere_holds_everywhere(server, browser):
+    ctx = browser.new_context(viewport={"width": 1366, "height": 900})
+    page = ctx.new_page()
+    page.goto(server + "/app", wait_until="networkidle")
+    page.click("#theme")
+    assert page.get_attribute("#theme", "aria-pressed") == "true"
+    for path in ("/", "/ja", "/scorecard", "/demo"):
+        page.goto(server + path, wait_until="networkidle")
+        assert page.evaluate("() => document.documentElement.dataset.theme") == "dark", path
+        assert page.get_attribute("#theme", "aria-pressed") == "true", path
+    page.click("#theme")          # and switching back on a reading page is what the dashboard opens with
+    page.goto(server + "/app", wait_until="networkidle")
+    assert page.evaluate("() => document.documentElement.dataset.theme") == "light"
+    ctx.close()
+
+
+def test_the_scorecard_horizon_lives_in_the_url_and_times_say_utc(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 1366, "height": 900})
+    page.goto(server + "/scorecard?h=72", wait_until="networkidle")
+    assert page.get_attribute(".horizon button[data-h='72']", "aria-pressed") == "true"
+    page.click(".horizon button[data-h='24']")
+    page.wait_for_url("**/scorecard?h=24")
+    cells = page.locator("#open-t td:last-child").all_inner_texts()     # the Locked column
+    assert cells and all(c.endswith("UTC") for c in cells), cells[:3]
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_skill_runner_sends_a_json_object_argument_as_an_object(server, browser):
+    """positioning_check takes RYO's derivatives block. The network call is answered from the newest
+    shipped receipt's real positioning_check envelope, so this stays offline."""
+    from nota.ledger import Ledger
+
+    led = Ledger(str(DEMO), readonly=True)
+    pack = json.loads(led.get_pack(NEWEST["pack_hash"]))
+    env = pack["sections"]["positioning_check"]["envelope"]
+    sent = {}
+
+    def answer(route):
+        sent.update(route.request.post_data_json)
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps({"name": "positioning_check", "result": env, "latency_ms": 5}))
+
+    page, problems = page_with_log(browser, viewport={"width": 1366, "height": 1100})
+    page.route("**/api/skills/positioning_check/invoke", answer)
+    page.goto(server + "/app", wait_until="networkidle")
+    page.select_option("#skill-name", "positioning_check")
+    box = page.locator("#skill-args textarea[data-arg='reference_derivatives']")
+    playwright.expect(box).to_have_attribute("placeholder", re.compile("from receipt " + NEWEST["id"]))
+    page.fill("#skill-args [data-arg='symbol']", NEWEST["symbol"])
+    box.fill("{not json")
+    page.click("#skill-run")
+    playwright.expect(page.locator("#skill-status")).to_contain_text("reference_derivatives: not valid JSON")
+    page.fill("#skill-args [data-arg='atr_stop_pct']", "NaN")
+    box.fill(json.dumps(env["request"]["reference_derivatives"]))
+    page.click("#skill-run")
+    playwright.expect(page.locator("#skill-status")).to_contain_text("atr_stop_pct: expected a number")
+    page.fill("#skill-args [data-arg='atr_stop_pct']", "")
+    page.click("#skill-run")
+    playwright.expect(page.locator("#skill-out")).to_contain_text(env["summary"]["headline"])
+    assert sent["args"]["reference_derivatives"] == env["request"]["reference_derivatives"]
+    assert problems == [], problems
+    page.close()
+
+
+@pytest.mark.parametrize("path", ["/app", "/scorecard"])
+def test_third_party_text_never_becomes_markup(server, browser, path):
+    """RYO's words and the ledger's reach these pages through innerHTML templates; a planted tag must
+    arrive as text."""
+    bad = "<img src=x onerror=window.__x=1>"
+    page, problems = page_with_log(browser, viewport={"width": 1366, "height": 900})
+
+    def health(route):
+        body = route.fetch().json()
+        body["ryo"] = {"status": bad, "tools": bad, "checked_at": body["checked_at"]}
+        body["ledger"]["decisions"] = bad
+        body["llm"] = {"kind": bad, "model": bad, "key_set": True}
+        route.fulfill(json=body)
+
+    def scorecard(route):
+        body = route.fetch().json()
+        for row in body["open"][:3] + body["settled"][:3]:
+            row.update(symbol=bad, verdict=bad, side=bad, confluence_state=bad, result=bad, confluence_score=bad)
+        body["coverage"][bad] = 1
+        body["lanes"] = {bad: {bad: 1}}
+        body["missing_inputs"] = {bad: 2}
+        route.fulfill(json=body)
+
+    page.route("**/api/health", health)
+    page.route("**/api/scorecard*", scorecard)
+    page.goto(server + path, wait_until="networkidle")
+    page.wait_for_timeout(300)
+    assert page.evaluate("() => window.__x") is None
+    assert page.evaluate("() => document.querySelectorAll('img[src=\"x\"]').length") == 0
+    shown = page.locator("#health" if path == "/app" else "#cov").inner_text()
+    assert "<img" in shown                     # it is there, as text
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_landing_verify_button_keeps_focus_while_it_runs(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 1366, "height": 900})
+    page.goto(server + "/", wait_until="networkidle")
+    page.focus("#verify")
+    page.keyboard.press("Enter")
+    assert page.evaluate("() => document.activeElement.id") == "verify"
+    page.wait_for_function("() => document.querySelector('#verify-out').textContent.includes('identical')", timeout=20000)
+    assert page.evaluate("() => document.activeElement.id") == "verify"
+    assert page.get_attribute("#verify", "aria-disabled") is None
+    assert page.get_attribute("#verify-out", "aria-busy") is None
+    # the audit table is the API's numbers, with the receipt they came from named under it
+    rid = page.get_attribute("#audit", "data-receipt")
+    assert rid and rid in page.locator("#audit-note").inner_text()
+    assert "—" not in page.locator("#audit").inner_text()
+    assert problems == [], problems
+    page.close()
