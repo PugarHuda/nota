@@ -1,6 +1,7 @@
 """Which sources help, not just which agents are right."""
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from nota.calibration import MEANINGFUL_N, source_scores
@@ -17,8 +18,9 @@ def _scored(led: Ledger, decision_id: str, availability: dict[str, str], judge_b
     raw = json.loads(led.get_decision(decision_id))
     raw["availability"] = availability
     led.save_decision(raw["id"], raw["pack_hash"], raw["symbol"], raw["model"], json.dumps(raw))
-    led.save_outcome(decision_id, json.dumps({"decision_id": decision_id, "brier": {"judge": judge_brier},
-                                              "went_up": True, "horizon_reached": True}))
+    resolved = (datetime.fromisoformat(raw["created_at"]) + timedelta(days=8)).isoformat()  # past the 7-day horizon
+    led.save_outcome(decision_id, json.dumps({"decision_id": decision_id, "brier": {"judge": judge_brier}, "resolved_at": resolved,
+                                              "decided_as_of": raw["created_at"], "went_up": True, "horizon_reached": True}))
 
 
 def test_a_source_that_helps_shows_a_lower_brier_when_it_answered():
@@ -61,4 +63,5 @@ def test_an_unscored_ledger_produces_an_empty_table_rather_than_zeros():
     led = Ledger(":memory:")
     decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     out = source_scores(led)
-    assert out == {"scored_decisions": 0, "enough_to_read": False, "meaningful_at": MEANINGFUL_N, "sources": {}}
+    assert out == {"scored_decisions": 0, "n_independent": 0, "excluded_before_horizon": 0, "enough_to_read": False,
+                   "meaningful_at": MEANINGFUL_N, "sources": {}}

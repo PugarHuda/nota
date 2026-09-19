@@ -2,11 +2,12 @@ name: ledger
 
 # The judge weights each agent by that agent's own Brier score, and a Brier score only exists once a
 # decision has reached its seven-day horizon and been scored against a later price. Nothing on the
-# hosted deployment can write - a serverless filesystem is read-only - so the ledger grows here: one
-# cycle a day scores whatever came due, records a fresh decision when there is a key to make one
-# with, and commits the snapshot the site serves.
+# hosted deployment can write - a serverless filesystem is read-only - so the ledger grows here: an
+# hourly pass scores and settles whatever came due, the 09:00 run also locks and records a fresh
+# decision when there is a key to make one with, and each commits the snapshot the site serves.
 #
-# Scoring needs no key at all. `nota resolve` falls back to the exchange median, so this keeps
+# Scoring needs no key at all: a decision is priced at the OKX hourly close at its horizon, and
+# `nota resolve` falls back to the exchange median (labelled late) when OKX cannot give it, so this keeps
 # calibrating even while the RYO builder key is expired or absent, which is the state it was written
 # in: the key issued for the hackathon started answering 401 on 2026-09-10.
 #
@@ -17,9 +18,9 @@ name: ledger
 on:
   schedule:
     - cron: "0 9 * * *"
-    # A second pass to settle scorecard windows that close during the day. Lock and decide are
-    # once a UTC day, so this run makes no RYO or model calls when the morning one already did.
-    - cron: "0 17 * * *"
+    # Hourly: score and settle whatever closed in the last hour, so an outcome is written within the
+    # hour after its window closes (the scorecard page says so). Lock and decide run only at 09:00.
+    - cron: "20 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -63,11 +64,11 @@ jobs:
 
       - name: Lock today's RYO verdicts and plans for the scorecard
         # A day missed here is a sample lost for good, so this runs before the slower council.
-        if: env.RYO_MCP_KEY != ''
+        if: env.RYO_MCP_KEY != '' && github.event.schedule != '20 * * * *'
         run: uv run nota lock || echo "::warning::lock failed; the cycle continues"
 
       - name: Record today's decisions
-        if: env.RYO_MCP_KEY != '' && env.OPENAI_API_KEY != ''
+        if: env.RYO_MCP_KEY != '' && env.OPENAI_API_KEY != '' && github.event.schedule != '20 * * * *'
         run: |
           for s in SOL BTC ETH; do
             uv run nota decide "$s" --once-a-day || echo "::warning::decide $s failed; the cycle continues"

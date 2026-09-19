@@ -21,6 +21,7 @@ def _clear_rate_limiter():
     sources._CACHE.clear()
     price_check._CG_IDS.clear()
     api._health_cache = None
+    api._scorecard_cache.clear()
     yield
     api._BACKING_HITS.clear()
     sources._CACHE.clear()

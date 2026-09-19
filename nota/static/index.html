@@ -402,14 +402,19 @@ async function loadSide() {
   const roles = Object.entries(sc.scores).sort((a, b) => a[1].brier_mean - b[1].brier_mean);
   $('#scores').innerHTML = roles.length ? `<table><tr><th>role</th><th class="num">n</th><th class="num">brier</th><th class="num">weight</th></tr>
       ${roles.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td><td class="num">${sc.weights[r] ?? '—'}</td></tr>`).join('')}</table>
-      <div class="small muted">${sc.resolved} resolved · ${sc.unresolved} awaiting <code>nota resolve</code></div>
+      <div class="small muted" id="scores-n">${esc(sc.resolved)} resolved (${esc(sc.n_independent)} independent: calls on one token less than 7 days apart watched the same week) · ${esc(sc.unresolved)} awaiting <code>nota resolve</code>${tooFew(sc.n_independent, sc.meaningful_at)}</div>
       <h2>Judge calibration (stated p_up vs hit rate)</h2>
       <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
       ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
-      <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved at the 7-day horizon${sc.reliability.excluded_before_horizon ? `, ${sc.reliability.excluded_before_horizon} closed earlier and left out` : ''}</div>
+      <div class="small muted" id="calibration-n">judge Brier ${esc(sc.reliability.judge_brier ?? '—')} over ${esc(sc.reliability.n)} resolved at the 7-day horizon (${esc(sc.reliability.n_independent)} independent)${sc.reliability.excluded_before_horizon ? `, ${esc(sc.reliability.excluded_before_horizon)} closed earlier and left out` : ''}${tooFew(sc.reliability.n_independent, sc.reliability.meaningful_at)}</div>
       ${vsRyoLine(sc.vs_ryo)}
       ${sourcesTable(sc.sources)}${baseRateTable(sc.vs_base_rate)}`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
+}
+
+// n counts scored calls; independence counts separate weeks per token. The warning keys off the latter.
+function tooFew(n, at) {
+  return n >= at ? '' : `. Only ${esc(n)} so far - read nothing into this until ${esc(at)}.`;
 }
 
 // RYO's own call on the same evidence beside the council's: the question a reader asks first.
@@ -443,7 +448,7 @@ function sourcesTable(s) {
       <td class="num">${v.helps_by === null ? '—' : (v.helps_by > 0 ? '+' : '') + v.helps_by}</td></tr>`).join('')}</table>
     <div class="small muted">Lower Brier is better, so a positive "helps by" means the decision went better with that
       source. ${s.enough_to_read ? `${s.scored_decisions} scored decisions.` :
-      `Only ${s.scored_decisions} scored decision${s.scored_decisions === 1 ? '' : 's'} so far — read nothing into this until there are ${s.meaningful_at}.`}</div>`;
+      `Only ${esc(s.scored_decisions)} scored decision${s.scored_decisions === 1 ? '' : 's'} (${esc(s.n_independent)} independent) so far - read nothing into this until there are ${esc(s.meaningful_at)}.`}</div>`;
 }
 
 // Each agent against the token's own base rate (how often it closed higher 7 days later on
@@ -456,7 +461,7 @@ function baseRateTable(v) {
     ${rows.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td>
       <td class="num">${s.base_brier_mean}</td><td class="num">${s.skill === null ? '—' : (s.skill > 0 ? '+' : '') + s.skill}</td></tr>`).join('')}</table>
     <div class="small muted">Skill = 1 − Brier / base-rate Brier; above zero the agent beat how often the token rose anyway.
-      ${v.enough_to_read ? '' : `Only ${v.n} so far — read nothing into this until there are ${v.meaningful_at}.`}</div></div>`;
+      ${v.enough_to_read ? '' : `Only ${esc(v.n)} so far (${esc(v.n_independent)} independent) - read nothing into this until there are ${esc(v.meaningful_at)}.`}</div></div>`;
 }
 
 let skillDefs = [];

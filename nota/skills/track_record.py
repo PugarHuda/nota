@@ -46,7 +46,7 @@ def verdict_track_record(symbol: str | None = None, horizon_hours: int = 24, led
     h = horizon_hours
     warnings: list[str] = []
     try:
-        s = summary(ledger or Ledger(os.environ.get("NOTA_DB", "nota.db")), h)
+        s = summary(ledger or Ledger(os.environ.get("NOTA_DB", "nota.db")), h, stats=False)
         availability = {"ledger": "available"}
     except Exception as exc:  # an old snapshot without scorecard tables, or no ledger at all
         s = {"open": [], "settled": [], "lock_days": 0}
@@ -63,7 +63,8 @@ def verdict_track_record(symbol: str | None = None, horizon_hours: int = 24, led
             "verdict_against_plan": sum(r["verdict_contradicts_side"] for r in open_ + settled),
             "latest": None if latest is None else {k: latest.get(k) for k in ("symbol", "locked_at", "verdict", "confluence_state",
                                                                              "confluence_score", "side", "trace_id")},
-            "method": "deep_analysis locked daily, bracket re-anchored to OKX, first touch on OKX 1H candles (nota.scorecard)"}
+            "method": "deep_analysis locked daily, bracket re-anchored to OKX, first touch on OKX 1m candles to the first "
+                      "full hour then 1H candles, a both-levels hour split on its 1m candles (nota.scorecard)"}
     if sym and sym not in UNIVERSE:  # nothing is ever locked for it, so "none settled yet" would imply there will be
         availability["ledger"] = "unavailable"
         warnings.append(f"{sym} is not in the scorecard universe (25 majors): {', '.join(UNIVERSE)}")

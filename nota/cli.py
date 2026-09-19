@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 import time
 from datetime import datetime, timedelta, timezone
 
-from nota.calibration import CannotResolve, close_position, due, fill_base_rates, resolve, role_scores, role_weights
+from nota.calibration import CannotResolve, close_position, due, fill_base_rates, repair_outcomes, resolve, role_scores, role_weights
 from nota.decide import decide
 from nota import paths
 from nota.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
@@ -165,13 +165,18 @@ def decide_cmd(
     notify: bool = typer.Option(False, help="Post the receipt to configured Telegram/Discord channels"),
     price_check: bool = typer.Option(True, help="Add price_check: keyless CoinGecko/Coinbase/Kraken spot prices vs RYO's price"),
     as_json: bool = typer.Option(False, "--json"),
-    once_a_day: bool = typer.Option(False, "--once-a-day", help="Skip when this symbol already has a decision today (UTC)"),
+    once_a_day: bool = typer.Option(False, "--once-a-day", help="Skip when this symbol was decided less than 20 h ago"),
 ):
     """Gather evidence, run the council, size a practice trade, store the receipt."""
     symbol = _sym(symbol)
-    if once_a_day and any(d["created_at"][:10] == now_iso()[:10] for d in _ledger().list_decisions(limit=5, symbol=symbol)):
-        typer.echo(f"{symbol}: already decided today; skipped")  # a second call the same day would count twice in the Brier scores
-        raise typer.Exit()
+    last = _ledger().list_decisions(limit=1, symbol=symbol)
+    if once_a_day and last:
+        # a second call inside the same week-long window watches the same market; 20 h rather than the
+        # UTC date, because two calls either side of midnight are 12 h apart, not a day
+        age = datetime.now(timezone.utc) - datetime.fromisoformat(last[0]["created_at"])
+        if age < timedelta(hours=20):
+            typer.echo(f"{symbol}: already decided {age.total_seconds() / 3600:.1f} h ago; skipped")
+            raise typer.Exit()
     src = _source(source)
     receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=_extras(src, voices, news, price_check))
     typer.echo(receipt.model_dump_json(indent=1) if as_json else render_markdown(receipt))
@@ -375,6 +380,8 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
                 early: bool = typer.Option(False, help="With --all: also score decisions before their horizon (final, not re-scored)"), source: str = "live"):
     """Score decisions against a fresh analyze_token price read."""
     led = _ledger()
+    for did in repair_outcomes(led):  # outcomes stored before horizon_reached was computed from their own times
+        typer.echo(f"{did}: horizon fields repaired")
     ids = (led.unresolved() if early else due(led)) if all_ else ([decision_id] if decision_id else [])
     if not ids:
         typer.echo("nothing to resolve")
@@ -398,13 +405,22 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
 @app.command("lock")
 def lock_cmd(symbols: str = typer.Option("", help="Comma-separated; default is the scorecard universe")):
     """Scorecard: lock today's deep_analysis verdict and trade plan for each symbol (one RYO call each,
-    paced for the builder fan-out limit). Every failure is stored as its own row."""
+    paced for the builder fan-out limit). A failure is stored as one row per symbol-day, and a dead key
+    stops the run after the first symbol with one 'aborted' row (exit 1)."""
     from nota.scorecard import lock_all
 
-    rows = lock_all(_source("live"), _ledger(), [s.strip() for s in symbols.split(",") if s.strip()] or None)
-    for r in rows:
+    def echo(r: dict) -> None:  # as each row is saved: a 20-minute run shows progress, and a kill loses nothing unseen
+        if r["status"] == "aborted":
+            typer.echo(f"aborted: {r['error']}; not asked: {', '.join(r['skipped']) or 'none'}")
+            return
         typer.echo(f"{r['symbol']:5} {r['status']:16} {r['verdict'] or '-':12} {r['confluence_state'] or '-':10} "
                    f"basis {r['basis_pct'] if r['basis_pct'] is not None else '-'}%" + (f"  ({r['error']})" if r["error"] else ""))
+
+    rows = lock_all(_source("live"), _ledger(), [s.strip() for s in symbols.split(",") if s.strip()] or None, on_row=echo)
+    if not rows:
+        typer.echo("every symbol already has a lock from the last 20 h")
+    if any(r["status"] == "aborted" for r in rows):
+        raise typer.Exit(1)
 
 
 @app.command("settle")

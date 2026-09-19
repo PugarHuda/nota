@@ -162,8 +162,14 @@ def test_resolve_prices_then_from_the_exchange_median_when_ryo_answered_nothing(
     _prices(kr=152.0)
     db = tmp_path / "demo.db"
     shutil.copy(Path(__file__).parent.parent / "data" / "demo.db", db)
+    # decided 2026-09-10 12:18, so priced at the OKX hourly close ending 2026-09-17 12:00, however late this runs
+    open_ms = int(datetime(2026, 9, 17, 11, tzinfo=timezone.utc).timestamp() * 1000)
+    okx = respx.get("https://www.okx.com/api/v5/market/history-candles").mock(
+        return_value=Response(200, json={"code": "0", "data": [[str(open_ms), "150", "152", "149", "151", "0", "0", "0", "1"]]}))
     out = resolve("2ae531ec2c9b", Ledger(str(db)), None)
     assert out.price_then == 101.0 and out.price_now == 151.0 and out.went_up and out.horizon_reached
+    assert out.price_now_source == "okx_1h_close_at_horizon" and out.price_now_as_of == "2026-09-17T12:00:00+00:00"
+    assert okx.calls.last.request.url.params["before"] == str(open_ms - 1)
 
 
 @pytest.fixture

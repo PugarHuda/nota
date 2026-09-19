@@ -16,11 +16,19 @@ council cannot argue past), **2 Dashboards** (diff-first receipt dashboard, and 
 
 Every `deep_analysis` answer carries a verdict and a trade plan (a stop 1.5 ATR away, a target at
 +1R). RYO never reports what became of either. `nota lock` stores the whole answer for 25 majors
-once a day; `nota settle` later asks OKX's public hourly candles which level was touched first
-within 24 h and 72 h. RYO does not grade itself: the bracket is re-anchored to OKX's price at the
-lock, and a lock where the two prices are more than 2% apart is kept as `basis_mismatch` and never
-settled. Confluence states are compared only on days where both had a decided plan, with a 90%
-interval bootstrapped over days rather than plans. Every failed lock is a counted row.
+once a day (never twice within 20 h); `nota settle` later asks OKX's public candles which level was
+touched first within 24 h and 72 h: 1-minute candles from the lock to the first full hour, hourly
+after, and an hour that touched both levels is split on its own 1-minute candles. RYO does not grade
+itself: the bracket is re-anchored to OKX's price at the lock, and a lock where the two prices are
+more than 2% apart is kept as `basis_mismatch` and never settled. A window with an hour OKX never
+published is retried for a day, then kept as `unsettleable`. Verdict pairs, confluence states and
+RYO's momentum gate are each compared on the target-first rate and on the return at the horizon
+(plans that touched neither level included): within each lock day, combined with Mantel-Haenszel
+weights so a lopsided day cannot flip the sign, with a p-value that shuffles labels within clusters
+of overlapping windows. Nothing is called distinguishable before 10 shared days and p < 0.10; a
+simulated null in the tests checks that rate. Every failed lock is a counted row, one per token and
+day however often retried, and a dead key stops the run after one call with an `aborted` row. The
+page also reports how often each lane of RYO's answer came back available, per RYO's own words.
 [/scorecard](https://nota-ryo.vercel.app/scorecard) shows it, most urgent first;
 `/api/scorecard?horizon=24|72` is the raw record.
 
@@ -106,8 +114,11 @@ gather ──────────► council ──► judge ──► risk 
   `nota replay <id>` reproduces the receipt exactly; `--fresh` re-asks the model and prints
   the drift honestly. The dashboard's "Verify replay" button does the cached check only.
 - **Calibration**: `nota resolve --all` scores every decision whose seven-day horizon has
-  passed (Brier per agent) against a fresh RYO price read, falling back to the exchange median
-  from `price_crosscheck` when RYO cannot give a price; the outcome records which source was used.
+  passed (Brier per agent) against the OKX hourly close at the horizon, however late the cycle
+  runs; when OKX cannot give it, the current RYO price or exchange median stands in, labelled
+  `late:<hours>h:`. Calibration tables count only outcomes that reached the horizon, report how many
+  of their calls are independent (one per token per week), and stay unreadable until 20 are. The
+  judge's weights move towards each agent's Brier only as n/(n+20), so five scored calls cannot swing them.
 - **Autonomy**: `nota watch SOL,BTC --every 3600 --notify` decides on a schedule, resolves
   matured decisions, and posts each new receipt to Telegram / Discord. `--scan-top 3` lets the
   loop pick its own candidates from `scan_market` every cycle.
@@ -386,7 +397,7 @@ text, and as `structuredContent` for clients that parse.
   mean Brier on decisions where that section answered against decisions where it did not, and the
   difference between them. It answers a question the agent leaderboard cannot - not "which agent is
   right" but "does having this feed make the call better". An empty bucket scores `null`, and the
-  table carries `enough_to_read`, false until 20 decisions are scored: the gap between two
+  table carries `enough_to_read`, false until 20 independent decisions are scored: the gap between two
   three-sample means is noise, and printing it as a finding would be the same offence as turning a
   null into a zero.
 - **Verify replay** from the page (cached outputs only, never spends), share to X, exports.
@@ -411,8 +422,8 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
 ## Evaluate with zero keys
 
 The repository ships a ledger snapshot that starts with four receipts made on live RYO evidence
-(2026-09-07, SOL / BTC / ETH, each labelled with its own source) and grows: a daily cycle
-(`.github/workflows/ledger.yml`) scores whatever reached its seven-day horizon and commits the
+(2026-09-07, SOL / BTC / ETH, each labelled with its own source) and grows: an hourly cycle
+(`.github/workflows/ledger.yml`) scores and settles whatever reached its horizon, a daily run locks and decides, and each commits the
 snapshot back. Every receipt in it verifies, and a test says so:
 
 ```bash

@@ -242,11 +242,13 @@ btn.addEventListener('click', async () => {
   try {
     const s = await (await fetch('/api/scorecard')).json();
     const [hit, k] = s.target_first;
-    const first = s.open[0] && new Date(s.open[0].settles_at).toLocaleString(document.documentElement.lang,
+    // only a window still ahead is announced as upcoming; a closed one waits for the hourly cycle to record it
+    const next = s.open.find(r => !r.overdue && new Date(r.settles_at) > Date.now());
+    const when = next && new Date(next.settles_at).toLocaleString(document.documentElement.lang,
       {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
     el.textContent = el.dataset.line.replace(/%n/g, s.open.length + s.settled.length).replace(/%d/g, s.lock_days)
       .replace(/%c/g, s.contradictions) + ' ' + (k ? el.dataset.settled.replace(/%t/g, hit).replace(/%k/g, k)
-      : el.dataset.none.replace(/%w/g, first || '—'));
+      : next ? el.dataset.none.replace(/%w/g, when) : el.dataset.closed);
   } catch (e) {
     el.textContent = el.dataset.error.replace(/%e/g, e.message);
   }

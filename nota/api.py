@@ -30,7 +30,8 @@ from starlette.concurrency import run_in_threadpool
 
 from nota import paths
 from nota.backings import PostgresBackings, store_for
-from nota.calibration import due, reliability, role_scores, role_weights, skill_vs_base, skill_vs_ryo, source_scores
+from nota.calibration import (MEANINGFUL_N, due, reliability, role_scores, role_weights, scored_independent, skill_vs_base,
+                              skill_vs_ryo, source_scores)
 from nota.card import render_card
 from nota.evidence import EvidencePack, first_present
 from nota.ledger import Ledger
@@ -292,6 +293,7 @@ def scores() -> dict[str, Any]:
     led = _ledger()
     s = role_scores(led)
     return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()),
+            "n_independent": scored_independent(led), "meaningful_at": MEANINGFUL_N,
             "reliability": reliability(led), "sources": source_scores(led), "vs_base_rate": skill_vs_base(led),
             "vs_ryo": skill_vs_ryo(led)}
 
@@ -304,10 +306,23 @@ def scorecard(horizon: int = 24) -> dict[str, Any]:
 
     if horizon not in HORIZONS_H:
         raise HTTPException(422, f"horizon must be one of {list(HORIZONS_H)}")
+    led = _ledger()
     try:
-        return summary(_ledger(), horizon)
+        # The contrasts run permutation tests, so a summary is computed once per ledger state (and per
+        # ten minutes, which is how fresh the `overdue` flags need to be), not once per request.
+        state = led.conn.execute("SELECT (SELECT COUNT(*) FROM locks), (SELECT MAX(locked_at) FROM locks), "
+                                 "(SELECT COUNT(*) FROM settlements), (SELECT MAX(settled_at) FROM settlements)").fetchone()
     except sqlite3.OperationalError:
         return summary(Ledger(":memory:"), horizon)
+    key = (os.environ.get("NOTA_DB", "nota.db"), horizon, tuple(state), int(time.time() // 600))
+    if key not in _scorecard_cache:
+        if len(_scorecard_cache) > 16:
+            _scorecard_cache.clear()
+        _scorecard_cache[key] = summary(led, horizon)
+    return _scorecard_cache[key]
+
+
+_scorecard_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
 
 
 @app.get("/scorecard")

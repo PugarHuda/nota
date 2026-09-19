@@ -85,7 +85,14 @@ def test_once_a_day_skips_a_symbol_already_decided_today(monkeypatch, tmp_path):
     Ledger(str(db)).save_decision("abc", "h", "SOL", "m", "{}")
     monkeypatch.setenv("NOTA_DB", str(db))
     res = runner.invoke(cli.app, ["decide", "sol", "--once-a-day", "--source", "recorded"])
-    assert res.exit_code == 0 and "already decided today; skipped" in res.output
+    assert res.exit_code == 0 and "already decided 0.0 h ago; skipped" in res.output
+    # yesterday evening, 12 h ago: a new UTC date, but the same market, so still skipped
+    from datetime import datetime, timedelta, timezone
+
+    twelve = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat(timespec="seconds")
+    Ledger(str(db)).conn.execute("UPDATE decisions SET created_at=?", (twelve,))
+    res = runner.invoke(cli.app, ["decide", "sol", "--once-a-day", "--source", "recorded"])
+    assert res.exit_code == 0 and "already decided 12.0 h ago; skipped" in res.output
 
 
 def test_bad_input_is_a_usage_error_not_a_traceback(tmp_path, monkeypatch):

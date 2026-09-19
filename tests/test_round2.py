@@ -1,6 +1,7 @@
 """Round-two gap fixes: simulated-data guard, MCP transport, Bluesky voices, fear/greed cross-check, reliability, watch --scan-top."""
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -101,9 +102,11 @@ def test_fear_greed_crosscheck_in_price_check():
 def test_reliability_bins_judge_probabilities():
     led = Ledger(":memory:")
     a = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(action="long", p=0.7), led)
-    assert reliability(led) == {"n": 0, "judge_brier": None, "excluded_before_horizon": 0,
+    assert reliability(led) == {"n": 0, "n_independent": 0, "judge_brier": None, "excluded_before_horizon": 0,
+                                "enough_to_read": False, "meaningful_at": 20,
                                 "bins": [{"bin": f"{i / 5:.1f}-{(i + 1) / 5:.1f}", "n": 0, "mean_p": None, "hit_rate": None} for i in range(5)]}
-    led.save_outcome(a.id, Outcome(decision_id=a.id, symbol="SOL", resolved_at="x", decided_as_of=None, horizon_reached=True, price_then=150.0,
+    week_later = (datetime.fromisoformat(a.created_at) + timedelta(days=7, minutes=1)).isoformat()
+    led.save_outcome(a.id, Outcome(decision_id=a.id, symbol="SOL", resolved_at=week_later, decided_as_of=None, horizon_reached=True, price_then=150.0,
                                    price_now=160.0, return_pct=6.7, went_up=True, brier={}).model_dump_json())
     rel = reliability(led)
     assert rel["n"] == 1 and rel["judge_brier"] == 0.09 and rel["bins"][3] == {"bin": "0.6-0.8", "n": 1, "mean_p": 0.7, "hit_rate": 1.0}

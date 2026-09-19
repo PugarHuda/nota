@@ -1,6 +1,8 @@
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
 import pytest
 
 from nota.calibration import CannotResolve, resolve, role_scores, role_weights
@@ -30,6 +32,21 @@ def llm():
                                              citations=[Citation(path="deep_analysis.data.technical_analysis.rsi_14")], invalidation="i"))
     return FakeLLM({"macro": op("macro", 0.9), "technician": op("technician", 0.6), "narrative": op("narrative", 0.3),
                     "judge": lambda _u: Verdict(action="long", p_up_7d=0.7, rationale="r")})
+
+
+def _week_later(led, decision_id, days=8):
+    """Store an outcome as the daily cycle would have: resolved `days` after the decision."""
+    o, rec = json.loads(led.get_outcome(decision_id)), json.loads(led.get_decision(decision_id))
+    o["decided_as_of"] = rec["created_at"]
+    o["resolved_at"] = (datetime.fromisoformat(rec["created_at"]) + timedelta(days=days)).isoformat()
+    led.save_outcome(decision_id, json.dumps(o))
+
+
+def _backdate(led, decision_id, created_at):
+    raw = json.loads(led.get_decision(decision_id))
+    raw["created_at"] = created_at
+    raw["provenance"].get("deep_analysis", {})["as_of"] = created_at   # RYO answered when it was asked
+    led.save_decision(raw["id"], raw["pack_hash"], raw["symbol"], raw["model"], json.dumps(raw))
 
 
 def test_resolve_scores_brier_and_trade_result():
@@ -81,6 +98,7 @@ def test_skill_against_the_base_rate_is_filled_once_and_scored_per_role():
     led = Ledger(":memory:")
     r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
     resolve(r.id, led, PriceSource(165.0))  # went up
+    _week_later(led, r.id)
     asked = []
     rate = lambda sym, day: asked.append((sym, day)) or 0.6
     assert fill_base_rates(led, rate) == [(r.id, 0.6)] and asked == [("SOL", r.created_at[:10])]
@@ -141,6 +159,94 @@ def test_skill_vs_ryo_counts_council_against_ryos_own_call():
     for r in (a, b):
         assert r.trade.kind == "trade"                       # both sized, so each is priced at its own entry
         resolve(r.id, led, PriceSource(r.trade.entry_price * 1.1))
+        _week_later(led, r.id)
     s = skill_vs_ryo(led)
     assert s["n"] == 2 and s["council_hit_rate"] == 0.5 and s["ryo_hit_rate"] == 1.0
     assert s["disagreed"] == 1 and s["council_right_when_disagreeing"] == 0 and s["enough_to_read"] is False
+    assert s["n_independent"] == 1   # two SOL calls minutes apart watched the same week
+
+
+def test_an_outcome_resolved_a_week_later_counts_whatever_its_stored_flag_says():
+    """The SOL outcome of 2026-09-10 was resolved eight days later and stored horizon_reached=false."""
+    from nota.calibration import fill_base_rates, reliability, repair_outcomes, skill_vs_base
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
+    resolve(r.id, led, PriceSource(165.0))
+    _week_later(led, r.id)
+    o = json.loads(led.get_outcome(r.id))
+    o.update(horizon_reached=False, decided_as_of=None)
+    led.save_outcome(r.id, json.dumps(o))
+    fill_base_rates(led, lambda s, d: 0.5)
+    assert reliability(led)["n"] == 1 and skill_vs_base(led)["n"] == 1
+    assert repair_outcomes(led) == [r.id] and repair_outcomes(led) == []   # idempotent
+    fixed = json.loads(led.get_outcome(r.id))
+    assert fixed["horizon_reached"] is True and fixed["decided_as_of"] == r.provenance["deep_analysis"]["as_of"]
+
+
+def test_an_early_stopped_outcome_answers_a_different_question():
+    from nota.calibration import close_position, fill_base_rates, skill_vs_base, source_scores
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
+    close_position(r.id, led, r.trade.stop_price, "okx", "stopped")
+    _week_later(led, r.id)   # even resolved a week on, a stop hit early is not a seven-day answer
+    fill_base_rates(led, lambda s, d: 0.5)
+    base, src = skill_vs_base(led), source_scores(led)
+    assert base["roles"] == {} and base["excluded_before_horizon"] == 1
+    assert src["scored_decisions"] == 0 and src["excluded_before_horizon"] == 1
+    assert role_scores(led)["judge"]["n"] == 1   # still in the trading feedback loop
+
+
+def test_two_calls_minutes_apart_are_two_scores_but_one_independent_sample():
+    from nota.calibration import fill_base_rates, n_independent, skill_vs_base
+
+    led = Ledger(":memory:")
+    one, two = llm(), llm()
+    two.model = "fake-b"   # a different model, so a different receipt over the same evidence
+    a = decide("SOL", RecordedRyoClient(FIXTURES), one, led)
+    b = decide("SOL", RecordedRyoClient(FIXTURES), two, led)
+    t0 = datetime(2026, 9, 1, 9, tzinfo=timezone.utc)
+    _backdate(led, a.id, t0.isoformat())
+    _backdate(led, b.id, (t0 + timedelta(minutes=2)).isoformat())
+    for r in (a, b):
+        resolve(r.id, led, PriceSource(165.0))
+        _week_later(led, r.id)
+    fill_base_rates(led, lambda s, d: 0.5)
+    out = skill_vs_base(led)
+    assert out["n"] == 2 and out["n_independent"] == 1 and out["enough_to_read"] is False
+    week = [("SOL", (t0 + timedelta(days=7 * i)).isoformat()) for i in range(20)]
+    assert n_independent(week) == 20 and n_independent(week + [("BTC", t0.isoformat())]) == 21
+
+
+def test_a_late_resolution_is_priced_at_the_horizon_candle():
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
+    created = datetime(2026, 9, 1, 9, 30, tzinfo=timezone.utc)
+    _backdate(led, r.id, created.isoformat())
+    asked = []
+
+    def okx(request):
+        asked.append(dict(request.url.params))
+        return httpx.Response(200, json={"code": "0", "data": [[asked[-1]["before"], "1", "2", "1", "123.5", "0", "0", "0", "1"]]})
+
+    now = created + timedelta(days=9)   # the cycle got to it two days late
+    out = resolve(r.id, led, PriceSource(999.0), http=httpx.Client(transport=httpx.MockTransport(okx)), now=now)
+    assert out.price_now == 123.5 and out.price_now_source == "okx_1h_close_at_horizon"
+    assert out.price_now_as_of == "2026-09-08T09:00:00+00:00" and out.horizon_reached
+    assert asked[0]["instId"] == "SOL-USDT" and asked[0]["bar"] == "1H"
+    assert asked[0]["before"] == str(int(datetime(2026, 9, 8, 8, tzinfo=timezone.utc).timestamp() * 1000) - 1)
+    led2 = Ledger(":memory:")
+    r2 = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led2)
+    _backdate(led2, r2.id, created.isoformat())
+    down = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(503)))
+    late = resolve(r2.id, led2, PriceSource(165.0), http=down, now=now)
+    assert late.price_now == 165.0 and late.price_now_source == "late:48h:ryo:test"   # how late, on the record
+
+
+def test_weights_move_little_on_one_scored_call():
+    w = role_weights({"macro": {"n": 1.0, "brier_mean": 0.0}, "technician": {"n": 1.0, "brier_mean": 1.0},
+                      "narrative": {"n": 1.0, "brier_mean": 0.5}})
+    assert all(abs(v - 1.0) <= 0.05 for v in w.values()) and w["macro"] == 1.0
+    many = role_weights({"macro": {"n": 200.0, "brier_mean": 0.0}, "technician": {"n": 200.0, "brier_mean": 1.0}})
+    assert many["technician"] < 0.3

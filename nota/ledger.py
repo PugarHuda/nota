@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS backings (
   PRIMARY KEY (decision_id, handle));
 CREATE TABLE IF NOT EXISTS locks (
   id TEXT PRIMARY KEY, symbol TEXT NOT NULL, locked_at TEXT NOT NULL, status TEXT NOT NULL, row_json TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS locks_locked_at ON locks(locked_at);
 CREATE TABLE IF NOT EXISTS settlements (
   lock_id TEXT NOT NULL, horizon_h INTEGER NOT NULL, settled_at TEXT NOT NULL, result_json TEXT NOT NULL,
   PRIMARY KEY (lock_id, horizon_h));
@@ -139,8 +140,20 @@ class Ledger:
     def save_lock(self, id: str, symbol: str, locked_at: str, status: str, row_json: str) -> None:
         self.conn.execute("INSERT OR IGNORE INTO locks VALUES (?,?,?,?,?)", (id, symbol, locked_at, status, row_json))
 
-    def list_locks(self) -> list[tuple[str, str]]:
-        return [(r["id"], r["row_json"]) for r in self.conn.execute("SELECT id, row_json FROM locks ORDER BY locked_at").fetchall()]
+    def replace_lock(self, id: str, symbol: str, locked_at: str, status: str, row_json: str) -> None:
+        """A failed or aborted lock keeps one row per symbol-day: a retry overwrites it instead of adding one."""
+        self.conn.execute("INSERT OR REPLACE INTO locks VALUES (?,?,?,?,?)", (id, symbol, locked_at, status, row_json))
+
+    def delete_lock(self, id: str) -> None:
+        self.conn.execute("DELETE FROM locks WHERE id=?", (id,))
+
+    def list_locks(self, day: str | None = None) -> list[tuple[str, str]]:
+        """All locks, or one UTC day's (`YYYY-MM-DD`), oldest first."""
+        sql, params = "SELECT id, row_json FROM locks", ()
+        if day:
+            nxt = (date.fromisoformat(day) + timedelta(days=1)).isoformat()
+            sql, params = sql + " WHERE locked_at >= ? AND locked_at < ?", (day, nxt)
+        return [(r["id"], r["row_json"]) for r in self.conn.execute(sql + " ORDER BY locked_at", params).fetchall()]
 
     def unsettled_locks(self) -> list[tuple[str, str]]:
         rows = self.conn.execute(
