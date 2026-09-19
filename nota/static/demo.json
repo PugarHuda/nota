@@ -1,81 +1,111 @@
 {
- "seconds": 137.919,
+ "seconds": 184.743,
  "chapters": [
   {
    "id": "open",
-   "start": 0.71,
-   "seconds": 6.384,
-   "text": "This is Nota. It turns an AI trading opinion into something you can check, instead of something you have to trust."
+   "start": 0.799,
+   "seconds": 8.28,
+   "text": "This is Nota. It turns an AI trading opinion on RYO's market evidence into a receipt you can check, instead of something you have to trust."
+  },
+  {
+   "id": "slip",
+   "start": 9.444,
+   "seconds": 9.6,
+   "text": "Every decision is a receipt. This is the newest one in the ledger: the token, what the council decided, the probability the judge stated, and where the evidence came from."
   },
   {
    "id": "mark",
-   "start": 7.464,
-   "seconds": 10.728,
-   "text": "The mark is not decoration. Its ticks are the evidence hash of a real receipt, and the arc is the probability that receipt's judge stated. The same evidence always draws the same figure."
+   "start": 19.406,
+   "seconds": 9.168,
+   "text": "The seal is drawn from the receipt itself. Its ticks are the evidence hash and its arc is that probability, so the same evidence always presses the same seal."
   },
   {
    "id": "verify",
-   "start": 18.557,
-   "seconds": 5.232,
-   "text": "The headline claims a decision can be re-run. So let's press the button and check it, live."
+   "start": 28.941,
+   "seconds": 3.84,
+   "text": "The headline says a decision can be re-run. Let's check that, live."
   },
   {
    "id": "verified",
-   "start": 24.216,
-   "seconds": 8.592,
-   "text": "Identical, true. That rebuilt the decision from the stored evidence and the model output cached beside it. No key, no network call to any model."
+   "start": 33.242,
+   "seconds": 10.512,
+   "text": "Identical, true. The decision was rebuilt from the stored evidence and the model output cached beside it, with no key and no call to any model, and the receipt is stamped as checked."
   },
   {
    "id": "audit",
-   "start": 33.176,
-   "seconds": 14.928,
-   "text": "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles with Wilder's method. Four point three four seven against RYO's four point three seven six: zero point six seven percent apart."
+   "start": 44.12,
+   "seconds": 10.872,
+   "text": "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles, and checks RYO's price against three exchanges before anything is sized."
   },
   {
    "id": "broken",
-   "start": 48.484,
-   "seconds": 25.104,
-   "text": "And here is the day it broke. On the tenth of September the builder key started answering unauthenticated, and all five RYO sections failed at once. Nothing was patched for it. The three independent skills kept answering, a value that could not be fetched stayed null rather than becoming zero, and the judge refused to size anything without primary evidence. This panel is read from the ledger as the page loads. It is a record, not an illustration."
+   "start": 55.373,
+   "seconds": 13.608,
+   "text": "And this is what a failing source looks like. Each section keeps the status its source returned, a value that could not be fetched stays null instead of becoming zero, and the judge is told what it does not have. It is read from the ledger as the page loads."
   },
   {
-   "id": "ledger",
-   "start": 73.964,
-   "seconds": 10.92,
-   "text": "The ledger's receipts are drawn here, each one from its own hash. Nothing on this page is typed in: the marks, this caption and the button you just watched all come from the deployment's own API."
+   "id": "scorecard",
+   "start": 69.346,
+   "seconds": 10.968,
+   "text": "It also keeps RYO's own score. Every day Nota locks RYO's verdict and trade plan for twenty five major tokens, and later settles each plan on OKX's hourly candles."
+  },
+  {
+   "id": "answer",
+   "start": 81.257,
+   "seconds": 9.576,
+   "text": "RYO never reports what became of its plans. Here it is recorded. Seven of the fifty plans locked so far point one way while RYO's own verdict leans the other."
+  },
+  {
+   "id": "plans",
+   "start": 91.206,
+   "seconds": 12.816,
+   "text": "Each row is RYO's own answer, pinned with its trace id. When a plan settles, the page records whether the stop or the target was touched first, and compares verdicts day by day, with an interval, not a headline number."
   },
   {
    "id": "dashboard",
-   "start": 87.985,
-   "seconds": 1.656,
-   "text": "Now the instrument itself."
+   "start": 107.826,
+   "seconds": 1.872,
+   "text": "Now the dashboard."
   },
   {
    "id": "summary",
-   "start": 90.009,
-   "seconds": 9.792,
-   "text": "Every receipt opens on a thirty second summary. What was decided, what changed most since the previous receipt, where the practice position stands, and what happens next."
+   "start": 110.069,
+   "seconds": 9.672,
+   "text": "Every receipt opens on a thirty second summary: what was decided, what changed most since the previous receipt, where the practice position stands, and what happens next."
   },
   {
    "id": "changed",
-   "start": 100.174,
-   "seconds": 7.272,
-   "text": "Each receipt is diffed against the one before it for the same symbol, and ranked by impact, so the row that mattered is the row on top."
+   "start": 120.101,
+   "seconds": 7.176,
+   "text": "Each receipt is diffed against the one before it for the same token, and ranked by impact, so the row that mattered is the row on top."
+  },
+  {
+   "id": "gate",
+   "start": 127.65,
+   "seconds": 14.184,
+   "text": "The council is not allowed to cite a derivatives number that is not about this token. On this receipt, RYO reported the same open interest change for Ethereum as for six unrelated tokens that day. The gate withheld it, and the receipt says why."
   },
   {
    "id": "council",
-   "start": 107.847,
-   "seconds": 14.352,
-   "text": "Three specialists argue. Each cites dotted paths into the evidence, and the value shown is read back out of that evidence rather than retyped by the model. A citation pointing at something absent is dropped in code, and the opinion is downgraded for it."
+   "start": 142.207,
+   "seconds": 11.712,
+   "text": "Three specialists argue, citing dotted paths into the evidence, and every value shown is read back out of that evidence rather than retyped by the model. Each one signs the receipt, or dissents on it."
+  },
+  {
+   "id": "scores",
+   "start": 154.278,
+   "seconds": 13.488,
+   "text": "Every agent is scored against what actually happened, and against the token's own base rate: how often it rose anyway. So far only the macro agent beats that base rate. Five scored calls is far too few to trust, and the page says so."
   },
   {
    "id": "skills",
-   "start": 122.558,
-   "seconds": 8.472,
-   "text": "Four research skills run from this panel, and the same four are served over the Model Context Protocol, so Claude Desktop or Cursor can call them directly."
+   "start": 168.133,
+   "seconds": 9.696,
+   "text": "Seven research skills run from this panel in RYO's own envelope, and the same seven are served over the Model Context Protocol, so Claude or Cursor can call them directly."
   },
   {
    "id": "close",
-   "start": 131.396,
+   "start": 178.206,
    "seconds": 5.568,
    "text": "Read-only research on RYO evidence. No order is ever placed. Not financial advice."
   }

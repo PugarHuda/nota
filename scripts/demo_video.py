@@ -35,7 +35,6 @@ from nota.api import app  # noqa: E402
 
 OUT = ROOT / "docs" / "demo"
 AUDIO = OUT / "audio"
-LANDING_BEATS = {"open", "mark", "verify", "verified", "audit", "ledger"}
 
 OVERLAY_JS = r"""() => {
   if (document.getElementById('__nota_overlay')) return;
@@ -44,20 +43,21 @@ OVERLAY_JS = r"""() => {
   wrap.innerHTML = `
     <div id="__nota_box"></div>
     <div id="__nota_cursor"><svg viewBox="0 0 24 24" width="26" height="26">
-      <path d="M4 2l7.5 18 2.2-7.3L21 10.5z" fill="#fff" stroke="#111" stroke-width="1.4"
+      <path d="M4 2l7.5 18 2.2-7.3L21 10.5z" fill="#fff" stroke="#1e2b5e" stroke-width="1.6"
             stroke-linejoin="round"/></svg></div>
     <div id="__nota_cap"></div>`;
   const css = document.createElement('style');
   css.textContent = `
     #__nota_overlay { position:fixed; inset:0; z-index:2147483647; pointer-events:none }
-    #__nota_box { position:fixed; border:2px solid #2f7df6; border-radius:4px; opacity:0;
-      box-shadow:0 0 0 9999px rgba(8,10,14,.45), 0 6px 26px rgba(0,0,0,.35);
+    #__nota_box { position:fixed; border:2.5px solid #1e2b5e; border-radius:3px; opacity:0;
+      box-shadow:0 0 0 9999px rgba(237,240,245,.62), 0 6px 22px rgba(30,43,94,.18);
       transition:all .55s cubic-bezier(.3,.8,.3,1) }
     #__nota_cursor { position:fixed; left:0; top:0; transform:translate(-100px,-100px);
-      transition:transform .65s cubic-bezier(.3,.8,.3,1); filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)) }
-    #__nota_cap { position:fixed; left:0; right:0; bottom:0; background:rgba(12,14,18,.94);
-      color:#f2f4f8; font:16px/1.5 system-ui,sans-serif; padding:14px 26px;
-      border-top:2px solid #2f7df6; opacity:0; transition:opacity .25s }
+      transition:transform .65s cubic-bezier(.3,.8,.3,1); filter:drop-shadow(0 2px 3px rgba(30,43,94,.35)) }
+    /* the caption is printed on the same paper as the site: indigo ink, no dark band */
+    #__nota_cap { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.97);
+      color:#1e2b5e; font:17px/1.5 "BIZ UDPGothic",system-ui,sans-serif; padding:14px 28px;
+      border-top:3px double #1e2b5e; opacity:0; transition:opacity .25s }
     #__nota_cap.on { opacity:1 }`;
   document.head.appendChild(css);
   document.body.appendChild(wrap);
@@ -131,16 +131,22 @@ def main() -> None:
         page.goto(base + "/", wait_until="networkidle")
         page.evaluate(OVERLAY_JS)
         beat("open")
+        beat("slip")
         beat("mark")
         beat("verify")
         page.click("#verify")
         page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')",
                                timeout=30000)
-        beat("verified")
+        beat("verified")          # the 照合済 seal has just been pressed on the perforation
         beat("audit")
-        # page order: the audit table, then the failure panel, then the row of marks
-        beat("broken", before=lambda: page.locator("#broken-panel").scroll_into_view_if_needed())
-        beat("ledger", before=lambda: page.locator("#ledger").scroll_into_view_if_needed())
+        beat("broken")
+        beat("scorecard")
+
+        page.goto(base + "/scorecard", wait_until="networkidle")
+        page.wait_for_function("!document.querySelector('#answer').textContent.includes('Reading')", timeout=20000)
+        page.evaluate(OVERLAY_JS)
+        beat("answer")
+        beat("plans")
 
         page.goto(base + "/app", wait_until="networkidle")
         page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')",
@@ -149,7 +155,9 @@ def main() -> None:
         beat("dashboard")
         beat("summary")
         beat("changed")
-        beat("council", before=lambda: page.locator("h2:has-text('Council')").first.scroll_into_view_if_needed())
+        beat("gate")
+        beat("council")
+        beat("scores")
         beat("skills")
         beat("close")
 

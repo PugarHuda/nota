@@ -38,6 +38,7 @@
   #detail > * { max-width:78ch } #detail table, #detail details, #detail .sheet-title, #detail .wide { max-width:none }
   #detail .kakuin { left:auto; right:34px; bottom:auto; top:74px }
   #detail.stamped .kakuin { opacity:.9 }
+  #detail .withheld { border-left:3px solid var(--warn); padding-left:9px; margin:4px 0 }   /* a field the gate kept from the council */
   /* a wide table scrolls inside the receipt instead of breaking section names mid-word */
   #detail table { display:block; overflow-x:auto } #detail tbody { display:table; width:100% }
   #detail td, #detail th { overflow-wrap:normal } #detail th { white-space:nowrap }
@@ -286,7 +287,7 @@ async function open(id, push = true) {
     <table><tr><th>section</th><th>tool</th><th>status</th><th>as_of</th><th>data_mode</th><th>trace</th></tr>
       ${Object.entries(r.provenance).map(([k, p]) => `<tr><td>${esc(k)}</td><td>${esc(p.tool)}</td><td><span class="badge ${p.status}">${esc(p.status)}</span></td><td>${fmt(p.as_of)}</td><td>${fmt(p.data_mode)}</td><td class="muted">${fmt(p.trace_id)}</td></tr>`).join('')}
     </table>
-    ${r.warnings.length ? `<h2>Warnings</h2>${r.warnings.map(w => `<div class="small">• ${esc(w)}</div>`).join('')}` : ''}
+    ${r.warnings.length ? `<h2>Warnings</h2>${r.warnings.map(w => `<div class="small${w.includes('withheld ') ? ' withheld' : ''}">• ${esc(w)}</div>`).join('')}` : ''}
     <p class="small muted">Replay: <button type="button" id="verify" class="badge">Verify replay now</button> <span id="verify-out" aria-live="polite"></span>
       <a href="/r/${r.id}.json">JSON</a>   <a href="/r/${r.id}.md">Markdown</a>
       <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
@@ -421,12 +422,12 @@ function sourcesTable(s) {
 function baseRateTable(v) {
   const rows = Object.entries(v?.roles || {}).sort((a, b) => (b[1].skill ?? -9) - (a[1].skill ?? -9));
   if (!rows.length) return '';
-  return `<h2>Against the base rate</h2>
+  return `<div class="vs-base"><h2>Against the base rate</h2>
     <table><tr><th>role</th><th class="num">n</th><th class="num">brier</th><th class="num">base brier</th><th class="num">skill</th></tr>
     ${rows.map(([r, s]) => `<tr><td>${esc(r)}</td><td class="num">${s.n}</td><td class="num">${s.brier_mean}</td>
       <td class="num">${s.base_brier_mean}</td><td class="num">${s.skill === null ? '—' : (s.skill > 0 ? '+' : '') + s.skill}</td></tr>`).join('')}</table>
     <div class="small muted">Skill = 1 − Brier / base-rate Brier; above zero the agent beat how often the token rose anyway.
-      ${v.enough_to_read ? '' : `Only ${v.n} so far — read nothing into this until there are ${v.meaningful_at}.`}</div>`;
+      ${v.enough_to_read ? '' : `Only ${v.n} so far — read nothing into this until there are ${v.meaningful_at}.`}</div></div>`;
 }
 
 let skillDefs = [];

@@ -52,7 +52,7 @@ the first run (`docs/gate-ab/cd5ada18b179.json`) changed nothing, and is publish
 Screenshots are generated from the shipped demo ledger by `scripts/screenshots.py`.
 
 **Watch it instead:** [nota-ryo.vercel.app/demo](https://nota-ryo.vercel.app/demo) — a narrated
-2:18 walkthrough with a clickable transcript, or the bare file at `/demo.mp4`.
+3:04 walkthrough with a clickable transcript, or the bare file at `/demo.mp4`.
 
 ## How a decision is made
 

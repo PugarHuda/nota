@@ -11,7 +11,7 @@ const FPS = 30;
  * on the thing it describes.
  */
 export const Walkthrough: React.FC = () => (
-  <AbsoluteFill style={{backgroundColor: '#0b0d11'}}>
+  <AbsoluteFill style={{backgroundColor: '#edf0f5'}}>
     <OffthreadVideo src={staticFile(timeline.video)} />
     {timeline.beats.map((beat) => (
       <Sequence

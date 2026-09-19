@@ -27,45 +27,59 @@ RATE = "+6%"          # a touch quicker than default: this is a walkthrough, not
 # (id, target selector or None, spoken text). `target` is what the cursor moves to and the box frames.
 BEATS: list[tuple[str, str | None, str]] = [
     ("open", None,
-     "This is Nota. It turns an AI trading opinion into something you can check, instead of "
-     "something you have to trust."),
+     "This is Nota. It turns an AI trading opinion on RYO's market evidence into a receipt you can "
+     "check, instead of something you have to trust."),
+    ("slip", ".slip dl",
+     "Every decision is a receipt. This is the newest one in the ledger: the token, what the council "
+     "decided, the probability the judge stated, and where the evidence came from."),
     ("mark", "#mark",
-     "The mark is not decoration. Its ticks are the evidence hash of a real receipt, and the arc is "
-     "the probability that receipt's judge stated. The same evidence always draws the same figure."),
+     "The seal is drawn from the receipt itself. Its ticks are the evidence hash and its arc is that "
+     "probability, so the same evidence always presses the same seal."),
     ("verify", "#verify",
-     "The headline claims a decision can be re-run. So let's press the button and check it, live."),
-    ("verified", "#verify-out",
-     "Identical, true. That rebuilt the decision from the stored evidence and the model output cached "
-     "beside it. No key, no network call to any model."),
+     "The headline says a decision can be re-run. Let's check that, live."),
+    ("verified", ".kiritori",
+     "Identical, true. The decision was rebuilt from the stored evidence and the model output cached "
+     "beside it, with no key and no call to any model, and the receipt is stamped as checked."),
     ("audit", ".audit",
-     "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles "
-     "with Wilder's method. Four point three four seven against RYO's four point three seven six: "
-     "zero point six seven percent apart."),
+     "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles, "
+     "and checks RYO's price against three exchanges before anything is sized."),
     ("broken", "#broken-panel",
-     "And here is the day it broke. On the tenth of September the builder key started answering "
-     "unauthenticated, and all five RYO sections failed at once. Nothing was patched for it. The "
-     "three independent skills kept answering, a value that could not be fetched stayed null rather "
-     "than becoming zero, and the judge refused to size anything without primary evidence. This "
-     "panel is read from the ledger as the page loads. It is a record, not an illustration."),
-    ("ledger", "#ledger",
-     "The ledger's receipts are drawn here, each one from its own hash. Nothing on this page is "
-     "typed in: the marks, this caption and the button you just watched all come from the "
-     "deployment's own API."),
+     "And this is what a failing source looks like. Each section keeps the status its source returned, "
+     "a value that could not be fetched stays null instead of becoming zero, and the judge is told what "
+     "it does not have. It is read from the ledger as the page loads."),
+    ("scorecard", "#scorecard",
+     "It also keeps RYO's own score. Every day Nota locks RYO's verdict and trade plan for twenty five "
+     "major tokens, and later settles each plan on OKX's hourly candles."),
+    ("answer", "#answer",
+     "RYO never reports what became of its plans. Here it is recorded. Seven of the fifty plans locked "
+     "so far point one way while RYO's own verdict leans the other."),
+    ("plans", "#open-t",
+     "Each row is RYO's own answer, pinned with its trace id. When a plan settles, the page records "
+     "whether the stop or the target was touched first, and compares verdicts day by day, with an "
+     "interval, not a headline number."),
     ("dashboard", None,
-     "Now the instrument itself."),
+     "Now the dashboard."),
     ("summary", "#summary",
-     "Every receipt opens on a thirty second summary. What was decided, what changed most since the "
+     "Every receipt opens on a thirty second summary: what was decided, what changed most since the "
      "previous receipt, where the practice position stands, and what happens next."),
     ("changed", "#detail h2",
-     "Each receipt is diffed against the one before it for the same symbol, and ranked by impact, so "
+     "Each receipt is diffed against the one before it for the same token, and ranked by impact, so "
      "the row that mattered is the row on top."),
-    ("council", None,
-     "Three specialists argue. Each cites dotted paths into the evidence, and the value shown is read "
-     "back out of that evidence rather than retyped by the model. A citation pointing at something "
-     "absent is dropped in code, and the opinion is downgraded for it."),
+    ("gate", "#detail .withheld + .withheld",
+     "The council is not allowed to cite a derivatives number that is not about this token. On this "
+     "receipt, RYO reported the same open interest change for Ethereum as for six unrelated tokens "
+     "that day. The gate withheld it, and the receipt says why."),
+    ("council", ".mitome",
+     "Three specialists argue, citing dotted paths into the evidence, and every value shown is read "
+     "back out of that evidence rather than retyped by the model. Each one signs the receipt, or "
+     "dissents on it."),
+    ("scores", "#scores .vs-base",
+     "Every agent is scored against what actually happened, and against the token's own base rate: "
+     "how often it rose anyway. So far only the macro agent beats that base rate. Five scored calls is "
+     "far too few to trust, and the page says so."),
     ("skills", "#skills",
-     "Four research skills run from this panel, and the same four are served over the Model Context "
-     "Protocol, so Claude Desktop or Cursor can call them directly."),
+     "Seven research skills run from this panel in RYO's own envelope, and the same seven are served "
+     "over the Model Context Protocol, so Claude or Cursor can call them directly."),
     ("close", None,
      "Read-only research on RYO evidence. No order is ever placed. Not financial advice."),
 ]
