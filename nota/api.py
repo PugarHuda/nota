@@ -605,7 +605,7 @@ def demo_page() -> FileResponse:
     return FileResponse(STATIC / "demo.html")
 
 
-@app.get("/demo.mp4", include_in_schema=False)
+@app.api_route("/demo.mp4", methods=["GET", "HEAD"], include_in_schema=False)   # players and link previews probe with HEAD
 def demo_video() -> FileResponse:
     """The submission walkthrough, served from the app itself so the demo URL needs no third party."""
     path = STATIC / "demo.mp4"
