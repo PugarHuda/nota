@@ -10,7 +10,8 @@ Tracks entered: **1 Autonomous Agents** (council, receipts, `watch` loop, a deri
 council cannot argue past), **2 Dashboards** (diff-first receipt dashboard, and the
 [RYO Verdict Scorecard](https://nota-ryo.vercel.app/scorecard)), **3 New Skills**
 (`narrative_convergence`, `news_verify`, `price_crosscheck`, `technicals_crosscheck`,
-`positioning_check`, `move_base_rate`, `verdict_track_record`, all in RYO's envelope).
+`positioning_check`, `move_base_rate`, `verdict_track_record`, `liquidity_check`, `crowd_odds`, all
+in RYO's envelope).
 
 ## RYO Verdict Scorecard
 
@@ -257,6 +258,8 @@ uv run nota replay <id>        # identical: True
 uv run nota replay <id> --fresh
 uv run nota resolve --all      # after 7 days: Brier scores per agent
 uv run nota stamp              # OpenTimestamps: anchor new locks and receipts, upgrade proofs pending over 3 h
+uv run nota export data/snapshot.json   # receipts + scorecard as one JSON (what the ledger cycle attests)
+uv run nota merge-db other.db  # add another snapshot's rows this ledger lacks (the cycle's push-conflict path)
 uv run nota scores
 uv run nota record SOL         # capture all six live tools into fixtures/recorded (all or nothing)
 uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
@@ -490,8 +493,9 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
 
 The repository ships a ledger snapshot that starts with four receipts made on live RYO evidence
 (2026-09-07, SOL / BTC / ETH, each labelled with its own source) and grows: an hourly cycle
-(`.github/workflows/ledger.yml`) scores and settles whatever reached its horizon, a daily run locks and decides, and each commits the
-snapshot back. Every receipt in it verifies, and a test says so:
+(`.github/workflows/ledger.yml`, at :15) scores and settles whatever reached its horizon, a run at
+08:23 UTC locks and decides (16:41 retries what failed), and each commits the snapshot back. Every
+receipt in it verifies, and a test says so:
 
 ```bash
 uv sync   # on PowerShell, set the variable first: $env:NOTA_DB = "data/demo.db"
@@ -499,7 +503,7 @@ NOTA_DB=data/demo.db uv run nota replay b80b42835b01   # identical: True - verif
 NOTA_DB=data/demo.db uv run nota serve      # then open http://127.0.0.1:8000/app for the dashboard
 NOTA_DB=data/demo.db uv run nota positions
 uv run nota skill run price_crosscheck '{"symbol":"SOL"}'   # live exchanges, no key
-uv run pytest -q                              # 176 tests
+uv run pytest -q                              # no network, no keys
 ```
 
 The first line is the point of the project: a cached replay rebuilds the receipt from the ledger's
@@ -512,6 +516,29 @@ same evidence and prints the differences as drift.
 A council decision needs one LLM key (Anthropic, or any OpenAI-compatible provider such as
 Venice) and live RYO evidence needs the builder key; everything else, verification included, runs
 without either.
+
+### CI, and checking the snapshot you were served
+
+- `.github/workflows/test.yml` runs the whole suite on every push and pull request, Playwright
+  browser tests included, and fails when `requirements.txt` (what Vercel installs) drifts from
+  `uv.lock`. `deploy.yml` calls the Vercel deploy hook only after `test` has passed on `main`.
+  Every third-party action is pinned to a commit SHA, `mcp-publisher` to a release whose sha256 is
+  checked before it runs, and Dependabot proposes the bumps weekly.
+- The ledger cycle keeps secrets on the steps that call RYO or the LLM, spends one token on
+  `nota llm-check` before a decision so a dead LLM key cannot burn RYO quota, stops the decision loop
+  at the first failure, and ends on `nota health --strict`, so a dead or expiring RYO key is a red
+  run. The snapshot is committed even when a step failed or timed out; a push rejected because `main`
+  moved is resolved with `nota merge-db` (a row-by-row union of the two SQLite files, every table
+  keyed) and retried, and a snapshot that still cannot be pushed is kept as a run artifact. Each
+  step writes its table of locks, settlements or decisions to the run's summary page.
+- Every snapshot pushed is attested with Sigstore through GitHub artifact attestations, together
+  with `data/snapshot.json` (`nota export`: the receipts and the scorecard at 24 h and 72 h). The
+  attestation URLs are listed in `data/attestations.json`, and the newest is on `/api/health`.
+  To check a copy of the ledger came from this repository's workflow and was not edited since:
+
+```bash
+gh attestation verify data/demo.db --repo PugarHuda/nota
+```
 
 ## The walkthrough, and how it is made
 
@@ -542,12 +569,14 @@ returns; every figure spoken is one this deployment produces on demand.
 
 ## Hosted demo
 
-A read-only copy of the dashboard runs at https://nota-ryo.vercel.app (Vercel, framework-detected
-FastAPI via `main.py`). It serves the committed ledger snapshot `data/demo.db` (receipts on live
-RYO evidence, each carrying its trace ids) with `NOTA_READONLY=1`: reads, replay verification, cards and exports
-work; backing answers 503 because a serverless filesystem cannot be written. The full system,
-including live RYO evidence, the `watch` loop, notifications and backing, runs with
-`uv run nota serve` on any machine with a writable disk.
+The dashboard runs at https://nota-ryo.vercel.app (Vercel, framework-detected FastAPI via
+`main.py`, in the Tokyo region `hnd1`; CSS, script, images, fonts and the video are cached at
+Vercel's CDN). It serves the committed ledger snapshot `data/demo.db` (receipts on live RYO
+evidence, each carrying its trace ids) with `NOTA_READONLY=1`: reads, replay verification, cards,
+feeds and exports work, and so does backing, which is written to Neon Postgres (`DATABASE_URL`)
+with handle claims and edit tokens, since a serverless filesystem cannot be written. New decisions
+and locks arrive with the ledger cycle's commits. The full system, including live RYO evidence, the
+`watch` loop and notifications, runs with `uv run nota serve` on any machine with a writable disk.
 
 ## Failure handling
 
@@ -583,27 +612,39 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 ## Layout
 
 ```
+main.py           Vercel entry: the same app over the read-only snapshot data/demo.db
 nota/
   envelope.py     RYO public response contract + REST/MCP parsers
-  ryo_client.py   RyoClient (httpx) + RecordedRyoClient + record()
-  ledger.py       SQLite: evidence, llm_cache, decisions, outcomes, locks, settlements, stamps
-  stamp.py        OpenTimestamps: .ots writer/parser, calendar submit, upgrade checked against mempool.space
-  evidence.py     EvidencePack, ryo_args(), gather(), candidate_symbols(), path lookups
-  paths.py        candidate paths for price / ATR (one place to fix when the live schema is recorded)
+  ryo_client.py   RyoClient (httpx, paced, MCP handshake) + RecordedRyoClient + record()
+  evidence.py     EvidencePack, ryo_args(), gather() (parallel, fixed order), candidate_symbols(), path lookups
+  paths.py        RYO's recorded field paths for price, ATR, derivatives, Fear & Greed
   llm.py          LLM protocol, AnthropicLLM (messages.parse), OpenAICompatLLM (Venice/OpenRouter)
-  council.py      role prompts, Opinion/Verdict, citation validation, cached run_council()
-  risk.py         size_trade(): PracticeTrade | Blocked
+  council.py      role prompts, untrusted-text framing, Opinion/Verdict, citation validation, cached run_council()
+  risk.py         size_trade(): PracticeTrade | Blocked (incl. RYO's derivatives veto)
+  decide.py       gather -> council -> size -> receipt
   receipt.py      Receipt + markdown rendering
+  replay.py       cached or --fresh replay, field-by-field diff
+  calibration.py  resolve at the horizon, Brier per role, base-rate / crowd / RYO baselines
+  scorecard.py    lock RYO's plans, settle on OKX candles, Mantel-Haenszel contrasts
+  stamp.py        OpenTimestamps: .ots writer/parser, calendar submit, upgrade checked against mempool.space
+  ledger.py       SQLite: evidence, llm_cache, decisions, outcomes, backings, locks, settlements, stamps; merge_from()
+  backings.py     Postgres store for backings, handle claims and the shared rate limit
+  api.py          FastAPI: pages, read API, feeds, CSV, sitemap, /mcp, /a2a
+  mcp_server.py   MCP server (tools, resources, prompts, completion, MCP Apps view)
+  a2a.py          A2A 1.0 agent card and SendMessage
+  card.py         receipt PNG card
   notify.py       Telegram Bot API + Discord webhook publishing
-  api.py          FastAPI read API + static/index.html dashboard
+  cli.py          the `nota` command
   skills/         contract, sources (Telegram, Bluesky, X syndication, RSS, Tavily, Venice), narrative, news, price_check,
                   technicals, positioning, base_rate, track_record, liquidity (DefiLlama), crowd_odds (Polymarket, Kalshi)
-  decide.py / replay.py / calibration.py / cli.py
-  static/         landing.html + landing.ja.html (same page, `/` and `/ja`), index.html (dashboard),
-                  demo.html (walkthrough + transcript), landing.css + landing.js shared by both languages
-scripts/          screenshots.py, narration.py, demo_video.py
+  static/         landing.html + landing.ja.html (`/` and `/ja`), index.html (dashboard), scorecard.html,
+                  demo.html + demo.mp4 + demo.json (walkthrough), mcp_app.html, landing.css + landing.js, fonts/, img/
+data/             demo.db (the ledger snapshot); snapshot.json + attestations.json, written by the ledger cycle
+fixtures/         recorded/: real RYO answers for `--source recorded`
+scripts/          screenshots, narration, demo_video, font_subset, gate_ab, skill_spec_md, submission_pdf
 video/            Remotion composition that puts the narration onto the recording
-docs/             hackathon analysis, MCP builder guide copy, design spec, skill spec, submission draft
+docs/             hackathon analysis, MCP builder guide copy, design spec, skill spec, submission form and notes
+.github/          workflows (test, deploy, ledger, publish-mcp, probe) and dependabot.yml
 tests/            pytest, no network (respx + the FakeLLM test double in tests/fakes.py)
 ```
 
@@ -624,9 +665,10 @@ No starter template was used: the repository began empty and every line of appli
 written during the hackathon. Two external things touched the work without entering it, and are
 named here for completeness: the `taste-skill` design ruleset (Leon Lin, MIT) was installed with
 `npx skills add` and read while reshaping the interface, and it is gitignored rather than vendored,
-so no file of it ships here; and the demo assets under `docs/img` and `docs/demo` are generated by
-`scripts/screenshots.py` and `scripts/demo_video.py` from this project's own dashboard, not sourced
-from anywhere.
+so no file of it ships here; and the screenshots under `docs/img` are generated by
+`scripts/screenshots.py` from this project's own dashboard, not sourced from anywhere
+(`scripts/demo_video.py` writes its recordings to `docs/demo/`, which is gitignored: only the final
+`nota/static/demo.mp4` is committed).
 
 Three tools build the walkthrough and none of them ships inside the application: `edge-tts`
 (GPL-3.0, Microsoft's public neural voices, no key) reads the narration, Playwright records the
@@ -638,8 +680,11 @@ is synthetic, the script is not. The RYO envelopes under `tests/fixtures/` and `
 are real RYO responses captured with `nota record` and labelled `source: recorded`; `tests/fixtures/x/` holds one real payload captured from X's public syndication
 endpoint on 2026-09-07.
 
-No secret has ever been committed. Verified across the whole history, not just the working tree:
-49 commits, 448 blobs, twelve credential patterns (RYO builder keys, Anthropic, OpenAI, OpenRouter,
-Venice, Tavily, Telegram bot tokens, Discord webhooks, AWS, GitHub and Vercel tokens, PEM private
-keys). The single match is `ryo_mcp_your_private_key`, the placeholder inside RYO's own builder
-guide quoted at `docs/MCP-Builder-Guide.md`. No `.env` or credential file was added in any commit.
+No secret has ever been committed. Verified across the whole history, not just the working tree,
+most recently on 2026-09-20: the exact value of every key in the local `.env` and `.env.local`
+(builder key, LLM key, Neon connection strings and password, Vercel token) was searched for in every
+patch of every commit and found in none, and so were thirteen credential patterns (RYO builder keys,
+Anthropic, OpenAI, OpenRouter, Venice, Tavily, Telegram bot tokens, Discord webhooks, AWS, GitHub
+and Vercel tokens, Postgres URLs with a password, PEM private keys). The single match is
+`ryo_mcp_your_private_key`, the placeholder inside RYO's own builder guide quoted at
+`docs/MCP-Builder-Guide.md`. No `.env` or credential file was added in any commit.

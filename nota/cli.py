@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import typer
 from dotenv import load_dotenv
@@ -25,7 +26,7 @@ from nota.replay import replay
 from nota.risk import RiskLimits, atr_usd as risk_atr_usd
 from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, check_args, record
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
-from nota.skills.contract import clean_symbol
+from nota.skills.contract import OK, clean_symbol
 from nota.skills.crowd_odds import crowd_odds
 from nota.skills.liquidity import liquidity_check
 from nota.skills.narrative import narrative_convergence
@@ -87,6 +88,22 @@ def _llm(kind: str):
 
 
 LLM_HELP = "anthropic | openai (env NOTA_LLM)"
+
+
+def _step_summary(title: str, header: list[str], rows: list[list[Any]]) -> None:
+    """Append a Markdown table to the GitHub Actions run page when running there (GITHUB_STEP_SUMMARY),
+    so a day's locks, settlements and decisions read at a glance instead of from a scrolled log."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+
+    def cell(v: Any) -> str:
+        return "-" if v is None or v == "" else str(v).replace("|", "\\|").replace("\n", " ")
+
+    lines = [f"### {title}", "", "| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    lines += ["| " + " | ".join(cell(v) for v in r) + " |" for r in rows] or ["| nothing |" + " |" * (len(header) - 1)]
+    with open(path, "a", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n\n")
 
 
 KEY_WARN_DAYS = 14
@@ -178,9 +195,16 @@ def decide_cmd(
         age = datetime.now(timezone.utc) - datetime.fromisoformat(last[0]["created_at"])
         if age < timedelta(hours=20):
             typer.echo(f"{symbol}: already decided {age.total_seconds() / 3600:.1f} h ago; skipped")
+            _step_summary(f"decide {symbol}", ["status", "detail"], [["skipped", f"decided {age.total_seconds() / 3600:.1f} h ago"]])
             raise typer.Exit()
     src = _source(source)
-    receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=_extras(src, voices, news, price_check))
+    try:
+        receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=_extras(src, voices, news, price_check))
+    except Exception as exc:
+        _step_summary(f"decide {symbol}", ["status", "detail"], [["failed", f"{type(exc).__name__}: {exc}"]])
+        raise
+    _step_summary(f"decide {symbol}", ["status", "receipt", "headline", "degraded"],
+                  [["recorded", receipt.id, receipt.headline, ", ".join(k for k, v in receipt.availability.items() if v not in OK)]])
     typer.echo(receipt.model_dump_json(indent=1) if as_json else render_markdown(receipt))
     if notify:
         for out in notify_receipt(receipt):
@@ -428,6 +452,9 @@ def lock_cmd(symbols: str = typer.Option("", help="Comma-separated; default is t
                    f"basis {r['basis_pct'] if r['basis_pct'] is not None else '-'}%" + (f"  ({r['error']})" if r["error"] else ""))
 
     rows = lock_all(_source("live"), _ledger(), [s.strip() for s in symbols.split(",") if s.strip()] or None, on_row=echo)
+    _step_summary("lock", ["symbol", "status", "verdict", "confluence", "basis %", "error"],
+                  [[r.get("symbol"), r["status"], r.get("verdict"), r.get("confluence_state"), r.get("basis_pct"),
+                    r.get("error")] for r in rows])
     if not rows:
         typer.echo("every symbol already has a lock from the last 20 h")
     if any(r["status"] == "aborted" for r in rows):
@@ -444,6 +471,8 @@ def settle_cmd():
         typer.echo("nothing to settle")
     for r in out:
         typer.echo(f"{r['lock_id']} {r['symbol']:5} {r['horizon_h']}h {r['status']} {r.get('result', r.get('error', ''))}")
+    _step_summary("settle", ["lock", "symbol", "horizon", "status", "result"],
+                  [[r["lock_id"], r["symbol"], f"{r['horizon_h']} h", r["status"], r.get("result", r.get("error"))] for r in out])
 
 
 @app.command("stamp")
@@ -457,6 +486,28 @@ def stamp_cmd():
         typer.echo(line)
     if not out:
         typer.echo("nothing to stamp or upgrade")
+
+
+@app.command("merge-db")
+def merge_db(other: Path = typer.Argument(..., exists=True, dir_okay=False, help="Another ledger snapshot, e.g. origin/main's")):
+    """Add every row of another snapshot that this ledger (NOTA_DB) lacks. The ledger cycle runs it when its
+    push is rejected, so a day's locks survive a snapshot committed meanwhile instead of one side being lost."""
+    for table, n in _ledger().merge_from(str(other)).items():
+        typer.echo(f"{table}: {n} row(s) added")
+
+
+@app.command("export")
+def export_cmd(out: Path = typer.Argument(..., dir_okay=False, help="Where to write the JSON, e.g. data/snapshot.json")):
+    """Write the receipts (newest 200) and the scorecard summary at 24 h and 72 h as one JSON file: the
+    readable half of what the ledger cycle attests with Sigstore, next to data/demo.db itself."""
+    from nota.scorecard import HORIZONS_H, summary
+
+    led = _ledger()
+    doc = {"exported_at": now_iso(),
+           "receipts": [json.loads(led.get_decision(d["id"])) for d in led.list_decisions(limit=200)],
+           "scorecard": {f"{h}h": summary(led, h) for h in HORIZONS_H}}
+    out.write_text(json.dumps(doc, indent=1, sort_keys=True, default=str) + "\n", encoding="utf-8")
+    typer.echo(f"wrote {out}: {len(doc['receipts'])} receipts, scorecard at {', '.join(doc['scorecard'])}")
 
 
 @app.command()

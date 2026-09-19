@@ -1,8 +1,9 @@
 """Vercel entry point (framework-detected FastAPI): the same app as `nota serve`, over a read-only ledger snapshot.
 
 Serverless filesystems cannot be written, so this sets NOTA_READONLY=1 and points NOTA_DB at
-`data/demo.db`. Writes (backing) answer 503 with an explanation instead of faking success.
-Local use is unchanged: `uv run nota serve`.
+`data/demo.db`, the snapshot the ledger cycle commits. Backings go to Postgres (Neon on the hosted
+deployment) through DATABASE_URL; without it a backing answers 503 with an explanation instead of
+faking success. Local use is unchanged: `uv run nota serve`.
 """
 
 import os

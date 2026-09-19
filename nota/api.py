@@ -53,6 +53,10 @@ from nota.stamp import view as stamp_view
 load_dotenv()
 app = FastAPI(title="Nota", description="Read-only view over decision receipts. No orders, no wallets.")
 STATIC = Path(__file__).parent / "static"
+ATTESTATIONS = Path(__file__).resolve().parents[1] / "data" / "attestations.json"
+# Static assets change only with a deploy: the CDN may serve them a day and revalidate in the background for
+# a week (vercel.json sets the same rule at the edge), so a page's CSS, script and images come from the POP.
+CDN_CACHE = {"Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800"}
 KEY_PATHS = set(paths.PRICE_USD + paths.ATR_14 + paths.ATR_14_PCT + paths.RSI_14)
 
 
@@ -497,6 +501,16 @@ def _freshness(led: Ledger) -> dict[str, Any]:
     return out
 
 
+def _attestation() -> dict[str, Any] | None:
+    """The newest Sigstore attestation of the ledger snapshot, as the ledger cycle recorded it, so anyone can
+    check what this deployment serves with `gh attestation verify data/demo.db --repo PugarHuda/nota`."""
+    try:
+        rows = json.loads(ATTESTATIONS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return rows[-1] if isinstance(rows, list) and rows else None
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     """What this deployment can and cannot do right now. No secrets, only whether they are set."""
@@ -521,6 +535,7 @@ def health() -> dict[str, Any]:
                    **_freshness(led)},
         "notify": {"telegram": bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")),
                    "discord": bool(os.environ.get("DISCORD_WEBHOOK_URL"))},
+        "attestation": _attestation(),
     }
 
 
@@ -990,12 +1005,12 @@ def landing_ja(request: Request) -> HTMLResponse:
 def landing_script() -> FileResponse:
     # One behaviour and one appearance shared by every language of the landing, so a translation
     # cannot drift into being a different page.
-    return FileResponse(STATIC / "landing.js", media_type="application/javascript")
+    return FileResponse(STATIC / "landing.js", media_type="application/javascript", headers=CDN_CACHE)
 
 
 @app.get("/landing.css", include_in_schema=False)
 def landing_style() -> FileResponse:
-    return FileResponse(STATIC / "landing.css", media_type="text/css")
+    return FileResponse(STATIC / "landing.css", media_type="text/css", headers=CDN_CACHE)
 
 
 FONTS = {p.name for p in (STATIC / "fonts").glob("*.woff2")}  # served by name from this set only
@@ -1008,7 +1023,7 @@ def font(name: str) -> FileResponse:
     if name not in FONTS:
         raise HTTPException(404, "no such font")
     return FileResponse(STATIC / "fonts" / name, media_type="font/woff2",
-                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                        headers={"Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable"})
 
 
 @app.get("/app")
@@ -1026,7 +1041,7 @@ def landing_image(name: str) -> FileResponse:
     path = (STATIC / "img" / f"{name}.png").resolve()
     if path.parent != (STATIC / "img").resolve() or not path.exists():
         raise HTTPException(404, "no such image")
-    return FileResponse(path, media_type="image/png")
+    return FileResponse(path, media_type="image/png", headers=CDN_CACHE)
 
 
 @app.get("/demo")
@@ -1060,7 +1075,7 @@ def demo_captions() -> Response:
     for i, c in enumerate(ch):
         end = ch[i + 1]["start"] if i + 1 < len(ch) else data["seconds"]
         cues += [c["id"], f"{_vtt_time(c['start'])} --> {_vtt_time(end)}", html.escape(c["text"], quote=False), ""]
-    return Response("\n".join(cues), media_type="text/vtt; charset=utf-8")
+    return Response("\n".join(cues), media_type="text/vtt; charset=utf-8", headers=CDN_CACHE)
 
 
 @app.get("/demo.mp4", include_in_schema=False)
@@ -1069,7 +1084,7 @@ def demo_video() -> FileResponse:
     path = STATIC / "demo.mp4"
     if not path.exists():
         raise HTTPException(404, "demo video not bundled in this checkout")
-    return FileResponse(path, media_type="video/mp4")
+    return FileResponse(path, media_type="video/mp4", headers=CDN_CACHE)
 
 
 @app.get("/demo.json", include_in_schema=False)

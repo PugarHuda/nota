@@ -1,0 +1,36 @@
+name: test
+
+# Every push and pull request runs the whole suite, browser tests included, before anything is published:
+# deploy.yml only fires after this workflow succeeds on main. Actions are pinned to a commit, not a tag,
+# because a tag can be moved to different code after it was reviewed; dependabot proposes the bumps.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest -q
+
+      - name: requirements.txt matches uv.lock
+        # Vercel installs from requirements.txt, the tests from uv.lock: a dependency added to one and not
+        # the other would pass here and break production. The two comment lines uv writes at the top differ
+        # only in the output path, so comment lines are left out of the comparison.
+        run: |
+          uv export --no-dev --no-hashes --no-emit-project -o /tmp/r.txt
+          diff <(grep -v '^#' /tmp/r.txt) <(grep -v '^#' requirements.txt) \
+            || { echo "::error::requirements.txt is stale: run the uv export command in its header"; exit 1; }

@@ -199,3 +199,22 @@ class Ledger:
     def pending_stamps(self, older_than: str) -> list[dict[str, Any]]:
         rows = self.conn.execute("SELECT * FROM stamps WHERE status='pending' AND stamped_at < ? ORDER BY stamped_at", (older_than,))
         return [dict(r) for r in rows.fetchall()]
+
+    # snapshot merge (the ledger cycle's push-conflict path) ------------------------------------
+    def merge_from(self, other_path: str) -> dict[str, int]:
+        """Add every row of another snapshot this one lacks; a row both hold keeps this side's copy. Every
+        table has a primary key, so INSERT OR IGNORE is a union, never a duplicate. Columns are matched by
+        name, so an older snapshot without a later table or column still merges. Returns rows added per table."""
+        self.conn.execute("ATTACH DATABASE ? AS other", (other_path,))
+        try:
+            added: dict[str, int] = {}
+            for (table,) in self.conn.execute("SELECT name FROM other.sqlite_master WHERE type='table'").fetchall():
+                mine = [r[1] for r in self.conn.execute(f'PRAGMA main.table_info("{table}")')]
+                if not mine:
+                    continue  # a table this schema does not have
+                cols = ", ".join(f'"{c}"' for c in [r[1] for r in self.conn.execute(f'PRAGMA other.table_info("{table}")')] if c in mine)
+                added[table] = self.conn.execute(
+                    f'INSERT OR IGNORE INTO main."{table}" ({cols}) SELECT {cols} FROM other."{table}"').rowcount
+            return added
+        finally:
+            self.conn.execute("DETACH DATABASE other")

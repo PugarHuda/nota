@@ -2,14 +2,19 @@ name: deploy
 
 # Vercel's own GitHub integration is linked to this repository but has never fired: every
 # deployment on the project reports source=cli, none reports a git trigger. Rather than leave
-# publishing to a manual command, this calls the project's deploy hook on every push to main.
+# publishing to a manual command, this calls the project's deploy hook - but only after the test
+# workflow has passed on that commit of main, so nothing untested reaches production.
 # The hook URL is a credential, so it lives in the VERCEL_DEPLOY_HOOK repository secret and
 # never appears in the log.
 
 on:
-  push:
+  workflow_run:
+    workflows: [test]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
+
+permissions: {}
 
 concurrency:
   group: deploy-main
@@ -17,6 +22,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
       HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}

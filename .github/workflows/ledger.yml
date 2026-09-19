@@ -2,29 +2,39 @@ name: ledger
 
 # The judge weights each agent by that agent's own Brier score, and a Brier score only exists once a
 # decision has reached its seven-day horizon and been scored against a later price. Nothing on the
-# hosted deployment can write - a serverless filesystem is read-only - so the ledger grows here: an
-# hourly pass scores and settles whatever came due, the 09:00 run also locks and records a fresh
-# decision when there is a key to make one with, and each commits the snapshot the site serves.
+# hosted deployment can write - a serverless filesystem is read-only - so the ledger grows here and each
+# run commits the snapshot the site serves:
 #
-# Scoring needs no key at all: a decision is priced at the OKX hourly close at its horizon, and
-# `nota resolve` falls back to the exchange median (labelled late) when OKX cannot give it, so this keeps
-# calibrating even while the RYO builder key is expired or absent, which is the state it was written
-# in: the key issued for the hackathon started answering 401 on 2026-09-10.
+# - 08:23 UTC: score and settle what came due, lock today's 25 RYO plans, record the day's decisions,
+#   anchor new locks and receipts in Bitcoin, then check the RYO key is alive (a dead key turns the run red).
+# - 16:41 UTC: the same pass again. A lock or decision the morning run already made is skipped (20 h rule),
+#   so this only retries what failed and upgrades proofs a calendar has anchored since.
+# - :15 past every hour: keyless score-and-settle only, so an outcome is written within the hour after its
+#   window closes (the scorecard page says so).
 #
-# ponytail: the whole SQLite snapshot is re-committed each day it changes. At ~40 KB per decision
-# that is fine for months; if the repository gets heavy, keep the last N decisions in the snapshot
-# or move the ledger to Postgres.
+# Minutes off the hour on purpose: GitHub delays top-of-hour schedules, sometimes by hours, when every
+# repository's cron fires at once.
+#
+# Scoring needs no key at all: a decision is priced at the OKX hourly close at its horizon, and `nota resolve`
+# falls back to the exchange median (labelled late) when OKX cannot give it. The RYO builder key issued for the
+# hackathon answered 401 from 2026-09-10 until it was renewed on 2026-09-18; the strict health step at the end
+# is what makes such a lapse a red run instead of a quiet one.
+#
+# Every snapshot pushed is attested with Sigstore (GitHub artifact attestations) together with a JSON export
+# of its receipts and scorecard; the attestation URLs accumulate in data/attestations.json and the newest is on
+# /api/health. `gh attestation verify data/demo.db --repo PugarHuda/nota` checks a copy.
 
 on:
   schedule:
-    - cron: "0 9 * * *"
-    # Hourly: score and settle whatever closed in the last hour, so an outcome is written within the
-    # hour after its window closes (the scorecard page says so). Lock and decide run only at 09:00.
-    - cron: "20 * * * *"
+    - cron: "23 8 * * *"
+    - cron: "41 16 * * *"
+    - cron: "15 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  id-token: write      # Sigstore signing identity for the attestation
+  attestations: write
 
 concurrency:
   group: ledger
@@ -36,22 +46,22 @@ jobs:
     # Actions minutes to produce a commit that cannot be pushed anywhere useful.
     if: github.repository == 'PugarHuda/nota'
     runs-on: ubuntu-latest
-    timeout-minutes: 60   # 25 deep_analysis locks paced at 12 s each take ~20 minutes
+    timeout-minutes: 75
     env:
       NOTA_DB: data/demo.db
-      NOTA_LLM: openai
-      NOTA_MAX_TOKENS: "8000"
-      NOTA_VOICES: tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social
-      RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-      NOTA_MODEL: ${{ secrets.NOTA_MODEL }}
+      UV_NO_DEV: "1"       # the browser test dependencies are not needed to run a cycle
+      UV_FROZEN: "1"
+      # The hourly run only scores and settles; everything that spends RYO or LLM calls is daily.
+      FULL: ${{ github.event.schedule != '15 * * * *' }}
+      # Secrets reach only the steps that call RYO or the LLM; these flags let the other steps decide.
+      HAS_RYO: ${{ secrets.RYO_MCP_KEY != '' }}
+      HAS_LLM: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           python-version: "3.12"
-      - run: uv sync --frozen --no-dev   # the browser test dependencies are not needed to run a cycle
+      - run: uv sync
 
       - name: Score every decision that reached its horizon
         # No key of any kind. A decision that cannot be priced is reported and left unresolved
@@ -63,41 +73,141 @@ jobs:
         run: uv run nota settle
 
       - name: Lock today's RYO verdicts and plans for the scorecard
-        # A day missed here is a sample lost for good, so this runs before the slower council.
-        if: env.RYO_MCP_KEY != '' && github.event.schedule != '20 * * * *'
-        run: uv run nota lock || echo "::warning::lock failed; the cycle continues"
+        # A day missed here is a sample lost for good, so this runs before the slower council. 25 deep_analysis
+        # calls paced for RYO's fan-out limit take ~20 minutes. A dead key aborts after the first symbol
+        # (exit 1); the run carries on so the snapshot is still committed, and the health step turns it red.
+        if: env.FULL == 'true' && env.HAS_RYO == 'true'
+        timeout-minutes: 35
+        env:
+          RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
+        run: uv run nota lock || echo "::warning::lock failed or aborted; the cycle continues"
 
       - name: Record today's decisions
-        if: env.RYO_MCP_KEY != '' && env.OPENAI_API_KEY != '' && github.event.schedule != '20 * * * *'
+        # llm-check spends one token first: an out-of-credit or revoked LLM key would otherwise spend three
+        # symbols' worth of RYO quota gathering evidence for a council that cannot convene.
+        if: ${{ !cancelled() && env.FULL == 'true' && env.HAS_RYO == 'true' && env.HAS_LLM == 'true' }}
+        timeout-minutes: 15
+        env:
+          RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+          NOTA_MODEL: ${{ vars.NOTA_MODEL }}
+          NOTA_LLM: openai
+          NOTA_MAX_TOKENS: "8000"
+          NOTA_VOICES: tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social
         run: |
+          uv run nota llm-check || { echo "::warning::LLM check failed; no decisions today"; exit 0; }
           for s in SOL BTC ETH; do
-            uv run nota decide "$s" --once-a-day || echo "::warning::decide $s failed; the cycle continues"
+            uv run nota decide "$s" --once-a-day || { echo "::warning::decide $s failed; the rest are skipped"; break; }
           done
 
       - name: Anchor new locks and receipts in Bitcoin
-        # Keyless: OpenTimestamps calendars and mempool.space. Every cycle, so a proof submitted at 09:00
-        # is upgraded to its Bitcoin block within the hour after a calendar has one. A calendar outage
-        # leaves the subject for the next cycle.
+        # Keyless: OpenTimestamps calendars and mempool.space. A calendar outage leaves the subject for the next run.
+        if: ${{ !cancelled() && env.FULL == 'true' }}
         run: uv run nota stamp || echo "::warning::stamp failed; the cycle continues"
 
-      - name: Commit the snapshot if it moved
-        env:
-          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+      - name: Commit and push the snapshot if it moved
+        # Runs even when a step above failed or timed out: whatever was locked before that is kept.
+        # A push rejected because main moved (a snapshot or code pushed meanwhile) is merged row by row
+        # instead of rebased: a SQLite file cannot be rebased, and one side's day would be lost.
+        id: commit
+        if: ${{ !cancelled() }}
         run: |
-          python -c "import sqlite3; sqlite3.connect('data/demo.db').execute('PRAGMA wal_checkpoint(TRUNCATE)')"
+          compact() {  # fold the WAL into the file; VACUUM drops the free pages deletes leave behind
+            python3 -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('PRAGMA wal_checkpoint(TRUNCATE)')" "$1"
+            [ "${2:-}" = vacuum ] && python3 -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('VACUUM'); c.execute('PRAGMA wal_checkpoint(TRUNCATE)')" "$1"
+            return 0
+          }
+          compact data/demo.db
           if git diff --quiet -- data/demo.db; then
             echo "ledger unchanged: nothing came due, locked, decided or stamped."
             exit 0
           fi
+          compact data/demo.db vacuum
+          uv run nota export data/snapshot.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/demo.db
-          git commit -m "ledger: cycle $(date -u +%F)"
-          git pull --rebase --autostash
-          git push
-          # A push made with GITHUB_TOKEN deliberately does not trigger other workflows, so the
-          # deploy this needs is called here rather than left to deploy.yml.
+          msg="ledger: cycle $(date -u +'%F %H:%M') UTC"
+          git add data/demo.db data/snapshot.json
+          git commit -m "$msg"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::warning::push rejected (attempt $attempt); merging with origin/main's snapshot"
+            git fetch origin main
+            git show origin/main:data/demo.db > "$RUNNER_TEMP/remote.db"
+            cp data/demo.db "$RUNNER_TEMP/local.db"
+            NOTA_DB="$RUNNER_TEMP/local.db" uv run nota merge-db "$RUNNER_TEMP/remote.db"
+            compact "$RUNNER_TEMP/local.db" vacuum
+            git reset --hard origin/main
+            cp "$RUNNER_TEMP/local.db" data/demo.db
+            uv run nota export data/snapshot.json
+            git add data/demo.db data/snapshot.json
+            git commit -m "$msg (merged with a snapshot pushed meanwhile)"
+          done
+          echo "::error::push failed three times; the snapshot is kept as a run artifact"
+          exit 1
+
+      - name: Keep the snapshot when it could not be pushed
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: demo-db-${{ github.run_id }}
+          path: data/demo.db
+          retention-days: 30
+
+      - name: Attest the pushed snapshot (Sigstore)
+        id: attest
+        if: ${{ !cancelled() && steps.commit.outputs.pushed == 'true' }}
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            data/demo.db
+            data/snapshot.json
+
+      - name: Record the attestation and publish
+        # A separate commit that touches neither attested file, so the snapshot at the attested commit is
+        # byte for byte what was signed.
+        if: ${{ !cancelled() && steps.commit.outputs.pushed == 'true' }}
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+          URL: ${{ steps.attest.outputs.attestation-url }}
+        run: |
+          if [ -n "$URL" ]; then
+            python3 - <<'PY'
+          import datetime, hashlib, json, os, pathlib, subprocess
+          p = pathlib.Path("data/attestations.json")
+          rows = json.loads(p.read_text()) if p.exists() else []
+          rows.append({"at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                       "url": os.environ["URL"],
+                       "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+                       "subjects": {f: hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest()
+                                    for f in ("data/demo.db", "data/snapshot.json")}})
+          p.write_text(json.dumps(rows, indent=1) + "\n")
+          PY
+            git add data/attestations.json
+            git commit -m "ledger: attestation $(date -u +%F)"
+            for attempt in 1 2 3; do
+              git push origin HEAD:main && break
+              [ "$attempt" = 3 ] && echo "::warning::attestation record not pushed; the attestation itself is on GitHub"
+              git pull --rebase origin main
+            done
+          else
+            echo "::warning::no attestation URL (the attest step failed); publishing the snapshot unattested"
+          fi
+          # A push made with GITHUB_TOKEN deliberately does not trigger other workflows, so the deploy this
+          # needs is called here. Only data files changed, and the code they are served by passed `test`.
           if [ -n "$HOOK" ]; then
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$HOOK")
             echo "deploy hook responded $code"
           fi
+
+      - name: RYO key and catalog are healthy
+        # Last, so everything above is committed first. whoami failing, the key expiring within 14 days or an
+        # argument Nota sends leaving RYO's catalog makes this run red rather than a green run with no locks.
+        if: ${{ !cancelled() && env.FULL == 'true' }}
+        env:
+          RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
+        run: uv run nota health --strict

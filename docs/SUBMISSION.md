@@ -1,4 +1,4 @@
-# Submission draft (fill the blanks when the organiser sends the repo and key)
+# Submission notes
 
 Submission platform: DoraHacks BUIDL (per organiser's Discord pin, 17 Aug 2026). The X post URL must be
 added to the BUIDL before judging for the Social Media award; tag @ryodigital, show what was built,
@@ -17,7 +17,7 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 | tracks | track_1, track_2, track_3 |
 | repo_url | https://github.com/RYO-Digital/ryochan-hackathon_repository-235 |
 | demo_video_url | https://nota-ryo.vercel.app/demo (page with transcript) - bare file: /demo.mp4 |
-| hosted demo | https://nota-ryo.vercel.app (read-only ledger snapshot) |
+| hosted demo | https://nota-ryo.vercel.app (ledger snapshot committed by the ledger cycle; backings live on Neon) |
 | x_post_url | _(TBD)_ |
 | submission form | `docs/project-submission-form.md` + `.pdf` (official link broken) |
 | agree_rules / confirm_no_secrets | yes / yes (`.env` is gitignored, `.env.example` has no values) |
@@ -32,103 +32,31 @@ OKX candles, asking whether a verdict changes how often RYO's own plan works (da
 were long under a "cautious" verdict). A gate stops agents citing RYO derivatives fields that are
 not about the token: one OI figure repeated across unrelated tokens. Each agent is scored against
 the token's own base rate, not a coin flip. Track 1: council, gate, receipts. Track 2: diff
-dashboard and /scorecard. Track 3: seven skills in RYO's envelope, also an MCP server. Read-only;
+dashboard and /scorecard. Track 3: nine skills in RYO's envelope, also an MCP server. Read-only;
 no orders.
 
-## X post (draft)
+## X post
 
-> Built Nota for the @ryodigital #RYOCHAN hackathon: an AI council over live RYO market
-> evidence where every call is a receipt you can re-run and get identical output - and it audits
-> RYO's own price and RSI against independent sources, refusing to trade when they disagree.
-> Diff-first dashboard + 4 skills. https://nota-ryo.vercel.app/demo
+Figures read from https://nota-ryo.vercel.app/api/scorecard on 2026-09-20 (both horizons): 50 plans
+locked over 2 lock days, none settled yet, 7 plans long while RYO's own verdict was cautious. Re-read
+them before posting; the page moves every hour.
 
-
-(264 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
-council itself is a commodity in 2026, the verification is not.)
-
-
-### The version actually posted (premium account, no 280-character limit)
-
-The video is attached to the post as an upload, not linked, so it autoplays in the timeline; the
-link then points at `/demo`, where the same file sits beside its transcript.
-
-> Most AI trading tools ask you to trust the answer. I spent @ryodigital's #RYOCHAN hackathon building the part that lets you stop.
+> RYO's deep_analysis gives a verdict and a trade plan. It never tells you what became of either.
 >
-> Nota runs a council of agents over live RYO market evidence and stores every call as a receipt you can re-run. `nota replay <id>` rebuilds the decision from the stored evidence and prints identical: true — no key, no network call to any model. The verify button in this video is pressed live; that answer is the API's, not a caption.
+> For @ryodigital's #RYOCHAN hackathon I built Nota, which keeps that record: every day it locks
+> RYO's verdict and plan for 25 majors, anchors each lock in Bitcoin (OpenTimestamps) and settles
+> it on OKX candles at 24 h and 72 h. 50 plans locked so far; 7 of them long under RYO's own
+> "cautious" verdict.
 >
-> Two things I care about more than the council:
+> Its AI council reads the same evidence through a derivatives gate: a RYO field repeated across
+> unrelated tokens cannot be cited. Every call is a receipt that replays identically, offline.
 >
-> → Every cited number is read back out of the evidence, never retyped by the model. A citation pointing at something absent is dropped in code, and the opinion is downgraded for it.
+> 9 research skills in RYO's envelope, over REST, MCP and A2A. Read-only, no orders.
 >
-> → It audits RYO itself. RSI(14) and ATR(14) recomputed from public candles with Wilder's method: 4.347 against RYO's 4.3762, 0.67% apart. Price checked against three exchanges. When sources disagree, the judge refuses to size anything. A value that couldn't be fetched stays null — it never quietly becomes zero.
->
-> It's also an MCP server, so Claude Desktop or Cursor can call all four research skills directly.
->
-> Read-only research on RYO evidence. No order is ever placed. Not financial advice.
->
-> https://nota-ryo.vercel.app/demo
+> https://nota-ryo.vercel.app/scorecard
 
-(1224 characters. Every figure in it is on the landing page and comes from the live receipt
-of 7 September 2026: ATR 4.347 against RYO's 4.3762, and the price checked against three exchanges.)
-
-## Demo video script (≈ 3 min)
-
-Recordable without the builder key: every RYO section comes from RYO's own recorded answers
-(`--source recorded`), which the receipt and the dashboard both label. Drop the flag for a live run;
-nothing else in the script changes.
-
-1. (0:00) One line: what a "decision receipt" is. `uv run nota health` — MCP health is `ok` with
-   six tools, `ryo_key_set: false`. Name the constraint instead of hiding it.
-2. (0:20) `uv run nota decide SOL --source recorded`. Point at the availability block: a partial
-   section, a warning, a null that stayed null, `data_mode` carried per section.
-3. (1:00) Council: three opinions with dotted-path citations; a dropped citation. Judge rationale.
-   Practice trade: stop = 2×ATR, size from 1% risk. "No order was placed."
-4. (1:40) `uv run nota replay <id>` → identical: True.
-5. (2:00) `NOTA_DB=data/demo.db uv run nota serve`: dashboard, "what changed" ranked by impact,
-   degraded banner, j/k/Enter, permalink, open positions, leaderboard.
-6. (2:30) Live, keyless, right now: `uv run nota skill run price_crosscheck '{"symbol":"SOL"}'`,
-   `technicals_crosscheck`, and `narrative_convergence '{"voices":["tg:WatcherGuru"]}'` — real
-   exchanges, real Telegram, RYO envelope shape, per-voice availability, method named.
-7. (2:55) Close: read-only, practice trades only, not financial advice.
-
-The submitted video is built by three commands, and each hands the next its timing:
-
-```bash
-uv run --with edge-tts python scripts/narration.py   # 12 narrated beats, ffprobe measures each
-uv run python scripts/demo_video.py                  # Playwright records, holding each beat for its own audio
-cd video && npx remotion render                      # Remotion places every line at its recorded offset
-```
-
-`scripts/narration.py` pairs each spoken sentence with the selector it describes; the recorder moves
-a visible cursor to that element, frames it, dims the rest, and captions the line, so a viewer always
-knows which part is being explained. It writes down the second each beat actually began - a page load
-costs time the narration does not - and both the composition and `/demo`'s clickable transcript read
-that same file, so they cannot drift from the video. Result: 3:04, 1280x720, h264 + AAC, 16.8 MB,
-bundled at `nota/static/demo.mp4`. Nothing is staged: the verify button is pressed on camera and the
-"identical: true" it shows is whatever the API returned.
-
-## Help Desk message (paste into https://discord.gg/qkWPjxzxtC)
-
-> Hi team - Pugar Huda Mantoro (Discord: Lynx / hajislamet, GitHub: PugarHuda), project "Nota",
-> tracks 1 + 2 + 3. Three things I still need before I can submit:
->
-> 1. **Builder MCP key.** I registered but have not received a `ryo_mcp_...` key or the private
->    repo DM. Everything RYO-side needs the bearer (`/api/mcp/whoami`, `/api/hackathon/submission`
->    and even `/api/market/*` all answer 401), so I have built against the response contract in the
->    guide with clearly-labelled fixtures and cannot record a single live call until the key lands.
-> 2. **Project Submission Form.** `https://ryobuild.com/project-submission-form.pdf` returns HTTP 200
->    with `content-type: text/html` - it is the SPA shell, not a PDF (same for
->    `MCP-Builder-Guide.pdf`; only the `.md` guide is a real file). Could you post a working link?
->    In the meantime I committed a filled copy built from the `HackathonSubmissionFields` schema.
-> 3. **Deadline.** The landing page counts down to 8 Sep 23:59 JST but
->    `GET /api/hackathon/config` has said `current_phase: submission_close` with
->    `2026-08-31T23:59:59Z` since August. Which one is binding, and is DoraHacks BUIDL still the
->    submission route?
->
-> Demo running now with no key at all: https://nota-ryo.vercel.app - thanks!
-
-Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api/mcp/health` is up
-(`tools: 6`); `/api/hackathon/config` is byte-for-byte unchanged.
+The walkthrough (`nota/static/demo.mp4`) is attached as an upload so it plays in the timeline; the
+link goes to the scorecard, and `/demo` holds the same video with its transcript.
 
 ## What the organiser asks for (Discord, #submit-your-buidl)
 
@@ -136,9 +64,9 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
       (README, `docs/skills/SKILL-SPEC.md`, `docs/HACKATHON-ANALYSIS.md`)
 - [x] All final code on the main branch of the provided repository
       (`RYO-Digital/ryochan-hackathon_repository-235`, remote `organiser`)
-- [x] No secret in the repository **or in the git history**, which they say they review: 49 commits
-      and 448 blobs scanned against twelve credential patterns, one match and it is the placeholder
-      inside RYO's own builder guide
+- [x] No secret in the repository **or in the git history**, which they say they review: on
+      2026-09-20 every commit's patches were searched for the exact value of every local key and
+      for thirteen credential patterns; the one match is the placeholder inside RYO's own builder guide
 - [x] Third-party code and resources disclosed in the README
 - [x] Track stated (1, 2 and 3)
 - [x] **Application Form**: the organiser's own template downloaded 2026-09-07 from
@@ -156,13 +84,13 @@ Status 2026-09-06 13:57 UTC: no reply, no key, no repo DM (inbox checked). `/api
 
 ## Pre-flight checklist
 
-- [x] Pushed into the organiser's repo 2026-09-07 (invited by @johnzenza; it arrived empty):
-      all 39 commits, 87 files at `f5771e7`, including `docs/project-submission-form.pdf` and the
-      bundled walkthrough. `.env` is absent, only `.env.example`. Remote `organiser`; re-push with
-      `git push organiser main`.
+- [x] First push into the organiser's repo 2026-09-07 (invited by @johnzenza; it arrived empty).
+      `.env` is absent, only `.env.example`. Remote `organiser`.
+- [ ] Final code synced: `git push organiser main`, then `git ls-remote organiser main` must print
+      the same commit as `git rev-parse HEAD` on `origin/main` once `test` and `deploy` are green.
 
-- [x] `uv run pytest -q` green (176 passed, 2026-09-08), including a browser check that the
-      shipped `demo.mp4` really plays and that no transcript chapter starts past its end
+- [x] `uv run pytest -q` green, and `.github/workflows/test.yml` runs it on every push with the
+      browser tests; production deploys only after it passes on `main`
 - [x] `git grep -nE "ryo_mcp_[A-Za-z0-9]|VENICE_INFERENCE_KEY_|sk-or-v1-|tvly-[A-Za-z0-9]"` returns
       only doc placeholders and test doubles (re-checked 2026-09-07)
 - [x] Project Submission Form committed: `docs/project-submission-form.md` + `.pdf`

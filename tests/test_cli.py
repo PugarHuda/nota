@@ -164,3 +164,48 @@ def test_health_strict_checks_expiry_and_every_argument_against_the_live_catalog
 def test_fixture_is_no_longer_a_source():
     res = runner.invoke(cli.app, ["decide", "SOL", "--source", "fixture"])
     assert res.exit_code == 2 and "live or recorded" in res.output
+
+
+def test_every_env_var_the_code_reads_is_documented_in_env_example():
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    code = "".join(p.read_text(encoding="utf-8") for p in [*(root / "nota").rglob("*.py"), root / "main.py"])
+    read = set(re.findall(r"""os\.environ(?:\.get\(|\[)\s*["']([A-Z0-9_]+)["']""", code))
+    documented = set(re.findall(r"^#?\s*([A-Z0-9_]+)=", (root / ".env.example").read_text(encoding="utf-8"), re.M))
+    platform = {"GITHUB_STEP_SUMMARY"}  # set by GitHub Actions, not by whoever runs Nota
+    assert read - platform - documented == set()
+
+
+def test_lock_settle_and_decide_write_a_step_summary_table(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    assert runner.invoke(cli.app, ["settle"]).exit_code == 0
+    res = runner.invoke(cli.app, ["decide", "SOL", "--source", "recorded", "--no-price-check", "--json"])
+    assert res.exit_code == 0, res.output
+    rid = json.loads(res.output)["id"]
+    runner.invoke(cli.app, ["decide", "SOL", "--source", "recorded", "--no-price-check", "--once-a-day"])
+    text = summary.read_text(encoding="utf-8")
+    assert "### settle" in text and "| nothing |" in text
+    assert f"| recorded | {rid} |" in text and "| skipped |" in text
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY")
+    runner.invoke(cli.app, ["settle"])
+    assert summary.read_text(encoding="utf-8") == text  # outside Actions nothing is written
+
+
+def test_export_and_merge_db(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    rid = json.loads(runner.invoke(cli.app, ["decide", "SOL", "--source", "recorded", "--no-price-check", "--json"]).output)["id"]
+    out = tmp_path / "snapshot.json"
+    assert runner.invoke(cli.app, ["export", str(out)]).exit_code == 0
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert [r["id"] for r in doc["receipts"]] == [rid] and set(doc["scorecard"]) == {"24h", "72h"}
+    other = tmp_path / "other.db"
+    from nota.ledger import Ledger
+
+    Ledger(str(other)).save_lock("L9", "ETH", "2026-09-20T08:30:00+00:00", "locked", "{}")
+    res = runner.invoke(cli.app, ["merge-db", str(other)])
+    assert res.exit_code == 0 and "locks: 1 row(s) added" in res.output
+    assert runner.invoke(cli.app, ["merge-db", str(tmp_path / "missing.db")]).exit_code == 2

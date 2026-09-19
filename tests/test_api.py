@@ -512,3 +512,24 @@ def test_proofs_are_served_beside_the_exact_bytes_they_anchor(tmp_path, monkeypa
     led.conn.execute("UPDATE stamps SET status='bitcoin', block=967726 WHERE subject='lk1'")
     assert c.get("/api/scorecard?horizon=72").json()["open"][0]["stamp"]["block"] == 967726
     assert c.get("/api/scorecard/locks/nope.ots").status_code == 404 and c.get("/api/scorecard/locks/nope.json").status_code == 404
+
+
+def test_health_reports_the_newest_snapshot_attestation(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    f = tmp_path / "attestations.json"
+    monkeypatch.setattr(api, "ATTESTATIONS", f)
+    assert TestClient(api.app).get("/api/health").json()["attestation"] is None  # none recorded yet
+    rows = [{"url": "https://github.com/PugarHuda/nota/attestations/1"}, {"url": "https://github.com/PugarHuda/nota/attestations/2"}]
+    f.write_text(json.dumps(rows), encoding="utf-8")
+    assert TestClient(api.app).get("/api/health").json()["attestation"]["url"].endswith("/2")
+
+
+def test_static_assets_are_cacheable_at_the_cdn(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    for path in ("/landing.css", "/landing.js", "/img/dashboard.png", "/demo.vtt"):
+        r = c.get(path)
+        assert r.status_code == 200 and "s-maxage=86400" in r.headers["cache-control"], path
+    vercel = json.loads((Path(__file__).resolve().parents[1] / "vercel.json").read_text(encoding="utf-8"))
+    assert vercel["regions"] == ["hnd1"]
+    assert {h["source"] for h in vercel["headers"]} >= {"/landing.css", "/landing.js", "/img/(.*)", "/fonts/(.*)", "/demo.mp4", "/demo.vtt"}
