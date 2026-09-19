@@ -28,7 +28,8 @@
 @font-face { font-family:"UnderMono"; unicode-range:U+005F;
   src:local("Consolas"),local("Menlo"),local("SF Mono"),local("DejaVu Sans Mono"),local("Liberation Mono") }
 
-:root { color-scheme:light dark;
+:root[data-theme="dark"] { color-scheme:dark }   /* dark only when a reader picks it, never by default */
+:root { color-scheme:light;
   --desk:light-dark(#edf0f5,#0e1322);      /* what the paper lies on */
   --paper:light-dark(#ffffff,#161c30);     /* a document */
   --ink:light-dark(#1e2b5e,#e4e8f4);       /* 藍 indigo: text and structure */
@@ -157,9 +158,9 @@ body > section h2 { padding-bottom:12px; border-bottom:3px double var(--ink); ma
 
 /* the proof: a real terminal transcript, printed on the one dark sheet */
 figure { margin:0 }
-pre.proof { margin:0; background:#1b2244; color:#e4e8f4; border-radius:2px; white-space:pre;
-            padding:20px 22px; font:13px/1.8 var(--fig); overflow-x:auto }
-.proof .p { color:#9fb2e6 } .proof .ok { color:#7fd1a6 } .proof .c { color:#9aa3bf }
+pre.proof { margin:0; background:light-dark(#f4f6fb,#10152b); color:var(--ink); border:1px solid var(--form);
+            border-left:4px solid var(--ink); border-radius:2px; white-space:pre; padding:20px 22px; font:13px/1.8 var(--fig); overflow-x:auto }
+.proof .p { color:var(--ink-2) } .proof .ok { color:var(--long); font-weight:700 } .proof .c { color:var(--ink-2) }
 figcaption { font-size:13px; line-height:1.6; color:var(--ink-2); margin-top:12px }
 
 /* ruled tables in the shape of a form */

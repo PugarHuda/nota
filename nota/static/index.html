@@ -125,7 +125,7 @@
     <a href="/demo">Narrated walkthrough</a> · <a href="/scorecard">RYO verdict scorecard</a></span>
   <span id="health" aria-live="polite"></span>
   <span class="keys"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help
-    <button type="button" class="badge" id="theme" title="theme: system / light / dark">theme: system</button></span>
+    <button type="button" class="badge" id="theme" title="theme: light / dark">theme: light</button></span>
 </header>
 <main>
   <nav aria-label="decisions">
@@ -170,17 +170,17 @@
 const $ = s => document.querySelector(s);
 
 // Theme: system (no attribute) -> light -> dark. light-dark() in the CSS does the rest.
-const THEMES = ['system', 'light', 'dark'];
+// Light is the default everywhere; dark is only ever the reader's own choice, not the OS's.
+const THEMES = ['light', 'dark'];
 function setTheme(name) {
-  if (name === 'system') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', name);
+  document.documentElement.setAttribute('data-theme', name);
   $('#theme').textContent = `theme: ${name}`;
   try { localStorage.setItem('nota.theme', name); } catch {}
 }
-let theme = 'system';
-try { theme = localStorage.getItem('nota.theme') || 'system'; } catch {}
-setTheme(THEMES.includes(theme) ? theme : 'system');
-$('#theme').onclick = () => setTheme(THEMES[(THEMES.indexOf(document.documentElement.dataset.theme || 'system') + 1) % 3]);
+let theme = 'light';
+try { theme = localStorage.getItem('nota.theme') || 'light'; } catch {}
+setTheme(THEMES.includes(theme) ? theme : 'light');
+$('#theme').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = v => v === null || v === undefined ? '<span class="muted">null</span>' : typeof v === 'number' ? (Math.abs(v) >= 1000 ? v.toLocaleString() : +v.toFixed(4)) : esc(String(v));
 const px = v => v === null || v === undefined ? '—'

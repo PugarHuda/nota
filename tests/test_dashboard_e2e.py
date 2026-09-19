@@ -120,20 +120,21 @@ def test_permalink_404_exports_and_mobile_layout(server, browser):
     page.close()
 
 
-def test_theme_toggle_cycles_and_persists(server, browser):
+def test_theme_is_light_by_default_and_dark_only_by_choice(server, browser):
+    """Light paper is the product's look; the OS's dark preference does not override it. A reader
+    who picks dark keeps it, and can switch back."""
     base, _first, _second = server
-    page = browser.new_page(viewport={"width": 1000, "height": 700})
+    page = browser.new_page(viewport={"width": 1000, "height": 700}, color_scheme="dark")
     page.goto(base + "/app")
     page.wait_for_selector("#theme")
-    assert page.locator("#theme").inner_text() == "theme: system"
-    assert page.evaluate("document.documentElement.dataset.theme") in (None, "")  # system sets no attribute
-    page.click("#theme")
+    assert page.locator("#theme").inner_text() == "theme: light"
     assert page.evaluate("document.documentElement.dataset.theme") == "light"
+    assert page.evaluate("getComputedStyle(document.documentElement).colorScheme") == "light"   # even on a dark OS
     page.click("#theme")
     assert page.evaluate("document.documentElement.dataset.theme") == "dark"
     page.reload()  # remembered per browser
     page.wait_for_selector("#theme")
     assert page.evaluate("document.documentElement.dataset.theme") == "dark"
-    page.click("#theme")  # back round to system
-    assert page.evaluate("document.documentElement.dataset.theme") in (None, "")
+    page.click("#theme")
+    assert page.evaluate("document.documentElement.dataset.theme") == "light"
     page.close()
