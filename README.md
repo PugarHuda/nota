@@ -30,7 +30,9 @@ simulated null in the tests checks that rate. Every failed lock is a counted row
 day however often retried, and a dead key stops the run after one call with an `aborted` row. The
 page also reports how often each lane of RYO's answer came back available, per RYO's own words.
 [/scorecard](https://nota-ryo.vercel.app/scorecard) shows it, most urgent first;
-`/api/scorecard?horizon=24|72` is the raw record.
+`/api/scorecard?horizon=24|72` is the raw record and `/api/scorecard.csv` the same table as CSV
+(one row per lock and horizon, failures included). The page carries a schema.org `Dataset`
+description (JSON-LD) naming both downloads; the data is offered under CC BY 4.0.
 
 Day 0 (2026-09-18): 25 of 25 locked, 4 CONFIRMED and 21 MIXED, and **7 plans long while RYO's own
 verdict was `cautious`** (XRP, DOGE, ADA, LINK, SUI, BCH, WIF).
@@ -165,7 +167,8 @@ strangers:
 - Every response carries `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, a
   `Permissions-Policy` and a `Content-Security-Policy` of `'self'` only (fonts are self-hosted and
   no page loads a third-party script, so nothing needs more; `/docs` is left out because Swagger UI
-  comes from a CDN). The read-only JSON under `/api/` and `/r/` and `llms.txt` answer any origin,
+  comes from a CDN). The read-only JSON under `/api/` and `/r/`, `llms.txt`, the feeds, the
+  captions and the agent card answer any origin,
   and the skill invoke route answers its CORS preflight, so a page elsewhere can call a skill;
   `/mcp` keeps its `Origin` allowlist. Every page answers `HEAD` with the headers `GET` would send,
   and `/r/<id>` for an id that is not in the ledger is a `404` with `noindex`.
@@ -343,7 +346,8 @@ envelope as a stamped card: status, `as_of`, availability per source, headline, 
 warnings, all written as text, never as markup.
 
 Nota is **published in the official MCP registry** as `io.github.PugarHuda/nota` (version 0.1.0,
-2026-09-10), so a client can find it without being handed the URL:
+2026-09-10; `server.json` here is 0.2.0, which describes the scorecard and the derivatives gate and
+takes effect once republished), so a client can find it without being handed the URL:
 `curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.PugarHuda/nota"`.
 
 `server.json` at the repository root is this server's entry for the official MCP registry, and the
@@ -355,8 +359,27 @@ needs a new `version`, so changing anything in that file means bumping it. Publi
 validate` checks the file against the live registry without publishing.
 
 `GET /llms.txt` follows the llms.txt convention: one generated page telling an agent what is here,
-how to call the MCP endpoint, which skills exist and which receipts the ledger holds. It is built
-from the routes and the ledger, so it cannot drift from them.
+how to call the MCP and A2A endpoints, the scorecard, which skills exist and which receipts the
+ledger holds. Its page list is filtered by the routes the app really serves, so it cannot drift
+from them.
+
+**A2A.** Nota is also an Agent2Agent 1.0 agent. `/.well-known/agent-card.json` is its Agent Card
+(the seven skills with tags and an example call each, one JSON-RPC interface, no streaming, no push)
+and `POST /a2a` takes `SendMessage` with the header `A2A-Version: 1.0` (no header means 0.3, which
+is refused with `VersionNotSupportedError`, as the spec says). The message carries a data part
+`{"skill": ..., "args": {...}}`, or text such as `price_crosscheck SOL`; the call goes through the
+same `invoke` checks as REST and MCP, and the answer is a completed task whose artifact is the
+envelope. Bad arguments are `-32602` with a `google.rpc.BadRequest` detail. Every task finishes
+inside the request, so no task is stored: `GetTask` answers `TaskNotFoundError` and streaming,
+cancel and push configuration answer `UnsupportedOperationError`. It shares `/mcp`'s Origin
+allowlist, 1 MB body cap and per-address skill budget.
+
+**Open data and discovery.** `/feed.xml` (Atom) and `/feed.json` (JSON Feed 1.1) carry the newest
+50 receipts, each with its verdict, degraded sections and, once resolved, the outcome and the
+judge's Brier score, plus every settled scorecard plan. `/api/outcomes.csv` has one row per resolved
+decision (each role's `p_up_7d`, the base rate, what happened, Brier per role). `/robots.txt` and
+`/sitemap.xml` (every page, both languages as `hreflang` alternates, every receipt) are for
+crawlers, and every page's head names its canonical URL, an absolute `og:image` and the feeds.
 
 One endpoint, POST only, stateless. It negotiates the protocol version the client asks for
 (`2026-07-28`, `2025-11-25`, `2025-06-18`, `2025-03-26` or RYO's own `2024-11-05`, and the newest
@@ -461,7 +484,8 @@ without either.
 ## The walkthrough, and how it is made
 
 `/demo` serves a narrated video and, beside it, the transcript as chapters: clicking a line seeks
-to it. Three steps build it, and each one hands the next its timing rather than a guess:
+to it, and the line being spoken stays in sight. The same chapters are served as WebVTT captions at
+`/demo.vtt` (on by default), and the page's `og:video` is absolute, so a shared link plays inline. Three steps build it, and each one hands the next its timing rather than a guess:
 
 ```bash
 uv run --with edge-tts python scripts/narration.py   # the voice, and it sets the pace

@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.PugarHuda/nota",
   "title": "Nota",
-  "description": "Read-only crypto research skills that check a price, RSI and ATR against independent sources.",
-  "version": "0.1.0",
+  "description": "Crypto research: price/RSI/ATR cross-checks, a derivatives gate and a scorecard of RYO's verdicts",
+  "version": "0.2.0",
   "repository": {
     "url": "https://github.com/PugarHuda/nota",
     "source": "github"

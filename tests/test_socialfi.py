@@ -81,7 +81,8 @@ def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):
     page = c.get(f"/r/{second.id}").text
     assert f'<meta property="og:image" content="http://testserver/r/{second.id}.png">' in page
     assert 'name="twitter:card" content="summary_large_image"' in page and "<!--OG-->" not in page
-    assert "<!--OG-->" in c.get("/app").text        # the placeholder is only in the dashboard shell
+    app = c.get("/app").text                        # the shell gets its own card, never the receipt's
+    assert "<!--OG-->" not in app and f"/r/{second.id}.png" not in app and 'og:title" content="Nota receipts dashboard"' in app
     missing = c.get("/r/nope")
     assert missing.status_code == 404 and '<meta name="robots" content="noindex">' in missing.text
     assert "<!--OG-->" not in missing.text and 'id="list"' in missing.text   # still the page, which says so

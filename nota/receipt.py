@@ -16,6 +16,7 @@ from nota.evidence import EvidencePack
 from nota.ledger import now_iso
 from nota.risk import Blocked, PracticeTrade
 from nota.scorecard import BEARISH, BULLISH
+from nota.skills import SKILLS  # their sections carry no RYO trace id
 
 
 class Receipt(BaseModel):
@@ -119,7 +120,9 @@ def render_markdown(r: Receipt) -> str:
              f"- Symbol: {r.symbol}  |  Source: `{r.source}`  |  Model: `{r.model}` (prompts {r.prompt_version})",
              f"- Evidence hash: `{r.pack_hash[:16]}...`  |  Created: {r.created_at}", "", "## Evidence availability", ""]
     for k, p in r.provenance.items():
-        lines.append(f"- `{k}` ({p['tool']}): **{p['status']}** | as_of {p['as_of']}, data_mode {p['data_mode']}, trace {p['trace_id']}")
+        lines.append(f"- `{k}` ({p['tool']}): **{p['status']}** | as_of {p['as_of']}, data_mode {p['data_mode']}, "
+                     + (f"trace {p['trace_id']}" if p.get('trace_id') else
+                        "no RYO trace (Nota skill)" if p['tool'] in SKILLS else "no trace recorded"))
     if r.warnings:
         lines += ["", "## Warnings", ""] + [f"- {w}" for w in r.warnings]
     lines += ["", "## Council", ""]

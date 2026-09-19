@@ -29,7 +29,7 @@ from nota.receipt import Receipt, render_markdown
 from nota.skills import SKILLS, definitions, invoke, live_deps
 
 SERVER_NAME = "nota"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 # newest first: an unknown version asked for in `initialize` gets the newest, as the lifecycle spec says
 SUPPORTED_PROTOCOLS = ("2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 VERSION_META = "io.modelcontextprotocol/protocolVersion"

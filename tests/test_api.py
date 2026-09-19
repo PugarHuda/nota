@@ -366,3 +366,116 @@ def test_the_local_throttle_prunes_expired_keys_and_is_bounded():
         api._BACKING_HITS[f"k{i}"] = [5000.0]
     api._throttle("3.3.3.3", now=5001.0)
     assert len(api._BACKING_HITS) <= 1
+
+
+def _seed_open_data(tmp_path, monkeypatch):
+    """Two receipts (one resolved) and one scorecard lock settled at 24 h, still open at 72 h."""
+    first, second = _seed(tmp_path, monkeypatch)
+    led = Ledger(str(tmp_path / "t.db"))
+    led.save_outcome(first.id, json.dumps({"decision_id": first.id, "symbol": "SOL", "resolved_at": "2020-01-08T00:00:00+00:00",
+                                           "decided_as_of": None, "horizon_reached": True, "price_then": 100.0,
+                                           "price_now": 104.0, "return_pct": 4.0, "went_up": True,
+                                           "brier": {"judge": 0.25, "macro": 0.25}, "base_rate_p": 0.52}))
+    row = {"id": "lk1", "symbol": "SOL", "inst": "SOL-USDT", "locked_at": "2026-09-01T09:00:00+00:00", "okx_price": 100.0,
+           "status": "locked", "verdict": "constructive", "confluence_state": "MIXED",
+           "plan": {"entry": 50.0, "stop": 47.0, "targets": [53.0]}}
+    led.save_lock("lk1", "SOL", row["locked_at"], "locked", json.dumps(row))
+    led.save_settlement("lk1", 24, json.dumps({"status": "settled", "result": "target", "hours_to_touch": 5.0,
+                                              "return_at_horizon_pct": 2.5, "horizon_h": 24}))
+    return first, second
+
+
+def test_captions_come_from_the_chapters_and_the_demo_card_is_absolute():
+    chapters = json.loads((api.STATIC / "demo.json").read_text(encoding="utf-8"))["chapters"]
+    c = TestClient(api.app)
+    vtt = c.get("/demo.vtt")
+    assert vtt.headers["content-type"].startswith("text/vtt") and vtt.text.startswith("WEBVTT")
+    assert vtt.text.count(" --> ") == len(chapters)
+    assert "00:00:00.799 --> 00:00:09.444" in vtt.text                 # a cue runs to the next line's start
+    page = c.get("/demo").text
+    assert '<meta property="og:video" content="http://testserver/demo.mp4">' in page
+    assert 'content="http://testserver/img/demo-poster.png"' in page and '<track kind="captions" src="/demo.vtt"' in page
+
+
+def test_robots_and_sitemap_list_every_page_and_every_receipt(tmp_path, monkeypatch):
+    first, second = _seed(tmp_path, monkeypatch)
+    import defusedxml.ElementTree as DET
+
+    c = TestClient(api.app)
+    assert "Sitemap: http://testserver/sitemap.xml" in c.get("/robots.txt").text
+    sm = DET.fromstring(c.get("/sitemap.xml").content)
+    ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9", "x": "http://www.w3.org/1999/xhtml"}
+    locs = [e.text for e in sm.findall("s:url/s:loc", ns)]
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", f"/r/{first.id}", f"/r/{second.id}"):
+        assert "http://testserver" + path in locs, path
+    ja = next(u for u in sm.findall("s:url", ns) if u.find("s:loc", ns).text.endswith("/ja"))
+    assert {x.get("hreflang") for x in ja.findall("x:link", ns)} == {"en", "ja", "x-default"}
+
+
+def test_feeds_carry_every_receipt_and_every_settled_plan(tmp_path, monkeypatch):
+    first, second = _seed_open_data(tmp_path, monkeypatch)
+    import defusedxml.ElementTree as DET
+
+    c = TestClient(api.app)
+    atom = DET.fromstring(c.get("/feed.xml").content)
+    a = "{http://www.w3.org/2005/Atom}"
+    entries = atom.findall(f"{a}entry")
+    assert len(entries) == min(50, 2) + 1                               # two receipts + one settled plan (72 h still open)
+    ids = [e.find(f"{a}id").text for e in entries]
+    assert f"urn:nota:receipt:{first.id}" in ids and "urn:nota:lock:lk1:24" in ids
+    resolved = next(e for e in entries if e.find(f"{a}id").text.endswith(first.id)).find(f"{a}summary").text
+    assert "judge Brier 0.25" in resolved and "+4.00%" in resolved
+    jf = c.get("/feed.json")
+    assert jf.headers["content-type"].startswith("application/feed+json")
+    body = jf.json()
+    assert body["version"] == "https://jsonfeed.org/version/1.1" and body["title"] and len(body["items"]) == 3
+    assert all({"id", "url", "content_text", "date_published"} <= set(i) for i in body["items"])
+
+
+def test_csv_exports_have_one_row_per_ledger_row(tmp_path, monkeypatch):
+    import csv as _csv
+
+    first, _ = _seed_open_data(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    rows = list(_csv.DictReader(c.get("/api/scorecard.csv").text.splitlines()))
+    assert len(rows) == 1 * 2                                           # one lock x two horizons
+    h24 = next(r for r in rows if r["horizon_h"] == "24")
+    assert h24["result"] == "target" and h24["settlement_source"] == "okx:1H" and float(h24["target"]) == 106.0
+    assert next(r for r in rows if r["horizon_h"] == "72")["settlement_status"] == "open"
+    out = list(_csv.DictReader(c.get("/api/outcomes.csv").text.splitlines()))
+    assert len(out) == len(Ledger(str(tmp_path / "t.db")).list_outcomes()) == 1
+    assert out[0]["decision_id"] == first.id and out[0]["p_up_7d_judge"] == "0.5" and out[0]["brier_judge"] == "0.25"
+    assert out[0]["base_rate_p"] == "0.52" and out[0]["went_up"] == "True"
+
+
+def test_llms_txt_lists_every_discovery_url(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    t = TestClient(api.app).get("/llms.txt").text
+    for path in ("/scorecard", "/api/scorecard?horizon=24", "/api/scorecard.csv", "/demo", "/demo.json", "/demo.vtt",
+                 "/ja", "/api/positions", "/api/scores", "/api/backers", "/feed.xml", "/feed.json", "/api/outcomes.csv",
+                 "/.well-known/agent-card.json", "/a2a"):
+        assert "http://testserver" + path in t, path
+    assert "prompts/list" in t and "completion/complete" in t
+
+
+def test_pages_carry_one_canonical_and_an_absolute_card(tmp_path, monkeypatch):
+    first, _ = _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", f"/r/{first.id}"):
+        head = c.get(path).text.split("</head>")[0]
+        assert head.count('rel="canonical"') == 1 and f'href="http://testserver{path}"' in head, path
+        assert head.count('property="og:image"') == 1 and 'og:image" content="http://testserver/' in head, path
+        assert 'type="application/atom+xml" title="Nota receipts and settled RYO plans" href="/feed.xml"' in head
+    ld = c.get("/scorecard").text.split('<script type="application/ld+json">')[1].split("</script>")[0]
+    assert json.loads(ld)["@type"] == "Dataset"
+
+
+def test_markdown_receipt_never_prints_trace_none(tmp_path, monkeypatch):
+    from nota.receipt import render_markdown
+
+    first, _ = _seed(tmp_path, monkeypatch)
+    prov = {**first.provenance, "price_check": {"tool": "price_crosscheck", "status": "available", "as_of": "t",
+                                                "data_mode": "live", "trace_id": None},
+            "compare": {**first.provenance["compare"], "trace_id": None}}
+    md = render_markdown(first.model_copy(update={"provenance": prov}))
+    assert "trace None" not in md and "no RYO trace (Nota skill)" in md and "no trace recorded" in md

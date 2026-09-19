@@ -6,9 +6,11 @@ stored, so the dashboard can never show a number that has no receipt behind it.
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import hmac
 import html
+import io
 import json
 import logging
 import math
@@ -18,6 +20,7 @@ import re
 import secrets
 import sqlite3
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -29,17 +32,19 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from nota import paths
+from nota.a2a import (PROTOCOL_VERSION as A2A_VERSION, VERSION_NOT_SUPPORTED as A2A_UNSUPPORTED, A2AError,
+                      agent_card, call_from as a2a_call_from, handle as a2a_handle)
 from nota.backings import PostgresBackings, store_for
 from nota.calibration import (MEANINGFUL_N, due, reliability, role_scores, role_weights, scored_independent, skill_vs_base,
                               skill_vs_ryo, source_scores)
 from nota.card import render_card
 from nota.evidence import SECTIONS, EvidencePack, first_present
-from nota.ledger import Ledger
+from nota.ledger import Ledger, now_iso
 from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
 from nota.risk import PracticeTrade
 from nota.ryo_client import RyoClient, RyoError
-from nota.mcp_server import (HEADER_MISMATCH, SUPPORTED_PROTOCOLS, UNSUPPORTED_VERSION, VERSION_META,
+from nota.mcp_server import (HEADER_MISMATCH, PROMPTS, SUPPORTED_PROTOCOLS, UNSUPPORTED_VERSION, VERSION_META,
                              handle as mcp_handle)
 from nota.skills import SKILLS, definitions as skill_definitions, invoke as skill_invoke, live_deps
 from nota.skills.contract import OK
@@ -86,7 +91,7 @@ SECURITY_HEADERS = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "str
                     "Permissions-Policy": "camera=(), microphone=(), geolocation=()"}
 # Read-only JSON and text any page or agent may fetch cross-origin. /mcp is not here: it keeps its
 # Origin allowlist, which the transport spec requires against DNS rebinding.
-CORS_READ = ("/api/", "/r/", "/llms.txt")
+CORS_READ = ("/api/", "/r/", "/llms.txt", "/feed.", "/.well-known/", "/demo.vtt")
 SKILL_INVOKE = re.compile(r"/api/skills/[^/]+/invoke")
 
 
@@ -110,6 +115,34 @@ async def security_headers(request: Request, call_next: Any) -> Response:
 def _ledger() -> Ledger:
     # ponytail: one connection per request; sqlite objects cannot cross FastAPI's worker threads
     return Ledger(os.environ.get("NOTA_DB", "nota.db"))
+
+
+def _base(request: Request) -> str:
+    """The absolute origin links are built on: NOTA_PUBLIC_URL when set, else what the request came in on.
+    The fallback comes from the Host header, so anything put into HTML goes through html.escape."""
+    return os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+
+
+FEED_LINKS = ['<link rel="alternate" type="application/atom+xml" title="Nota receipts and settled RYO plans" href="/feed.xml">',
+              '<link rel="alternate" type="application/feed+json" title="Nota receipts and settled RYO plans" href="/feed.json">']
+
+
+def _page(file: str, request: Request, path: str, extra: tuple[str, ...] | list[str] = (), status: int = 200,
+          image: str = "/img/card.png") -> HTMLResponse:
+    """A static page with its head completed at <!--OG-->: canonical, og:url, og:image and the feed links,
+    all absolute, because link previews and crawlers resolve nothing relative in these tags."""
+    base = html.escape(_base(request))
+    tags = [f'<link rel="canonical" href="{base}{path}">', f'<meta property="og:url" content="{base}{path}">',
+            f'<meta property="og:image" content="{base}{image}">', f'<meta name="twitter:image" content="{base}{image}">',
+            '<meta name="twitter:card" content="summary_large_image">', *FEED_LINKS, *extra]
+    page = (STATIC / file).read_text(encoding="utf-8")
+    return HTMLResponse(page.replace("<!--OG-->", "\n".join(tags), 1), status_code=status)
+
+
+def _hreflang(request: Request) -> list[str]:
+    base = html.escape(_base(request))
+    return [f'<link rel="alternate" hreflang="en" href="{base}/">', f'<link rel="alternate" hreflang="ja" href="{base}/ja">',
+            f'<link rel="alternate" hreflang="x-default" href="{base}/">']
 
 
 def _receipt(led: Ledger, id: str) -> Receipt:
@@ -362,8 +395,32 @@ _scorecard_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
 
 
 @app.get("/scorecard")
-def scorecard_page() -> FileResponse:
-    return FileResponse(STATIC / "scorecard.html")
+def scorecard_page(request: Request) -> HTMLResponse:
+    """The page plus a schema.org Dataset, so a dataset search engine can find and cite the settled plans."""
+    base = _base(request)
+    try:
+        first = _ledger().conn.execute("SELECT MIN(locked_at) FROM locks").fetchone()[0]
+    except sqlite3.OperationalError:          # a snapshot from before the scorecard existed
+        first = None
+    today = datetime.now(timezone.utc).date().isoformat()
+    dataset = {
+        "@context": "https://schema.org", "@type": "Dataset", "name": "RYO Verdict Scorecard",
+        "description": ("RYO's deep_analysis trade plans for 25 major tokens, locked once a day before the outcome "
+                        "is known and settled on OKX hourly candles at 24 and 72 hours: which level was touched first, "
+                        "after how many hours, and the return at the horizon."),
+        "url": f"{base}/scorecard", "license": "https://creativecommons.org/licenses/by/4.0/",
+        "isAccessibleForFree": True,
+        "creator": {"@type": "Organization", "name": "Nota", "url": "https://github.com/PugarHuda/nota"},
+        "keywords": ["crypto", "trade plans", "forecast verification", "RYO", "OKX"],
+        "temporalCoverage": f"{first[:10]}/{today}" if first else today,
+        "distribution": [
+            {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{base}/api/scorecard?horizon=24"},
+            {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{base}/api/scorecard?horizon=72"},
+            {"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": f"{base}/api/scorecard.csv"}],
+    }
+    # '<' escaped so no value can close the script element early
+    ld = json.dumps(dataset).replace("<", "\\u003c")
+    return _page("scorecard.html", request, "/scorecard", [f'<script type="application/ld+json">{ld}</script>'])
 
 
 _HEALTH_TTL = 60.0
@@ -574,10 +631,11 @@ def mcp_server_json() -> FileResponse:
 def llms_txt(request: Request) -> PlainTextResponse:
     """The llms.txt convention: one page that tells an agent what is here and how to call it,
     instead of making it infer the API from HTML. Generated, so it cannot drift from the routes."""
-    base = os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    base = _base(request)
     led = _ledger()
     nl = chr(10)
     skills = nl.join(f"- `{d.name}`: {d.description}" for d in skill_definitions())
+    pages = _llms_pages(base)
     receipts = nl.join(
         f"- [{d['symbol']} {d['id']}]({base}/r/{d['id']}.md) recorded {d['created_at']}"
         for d in led.list_decisions(limit=20))
@@ -600,9 +658,11 @@ POST {base}/mcp speaks the Model Context Protocol over Streamable HTTP (stateles
   output schema
 - `resources/list`, `resources/read` for every receipt, addressed as `nota://receipt/<id>` (markdown)
   or `nota://receipt/<id>.json`, plus `ui://nota/receipt`, an MCP Apps view that renders any tool result
+- `prompts/list`, `prompts/get` for {', '.join(f'`{n}`' for n in PROMPTS)}
+- `completion/complete` offers the receipt ids and symbols this ledger actually holds
 
 ```
-curl -s {base}/mcp -H 'content-type: application/json' \
+curl -s {base}/mcp -H 'content-type: application/json' \\
   -d '{{"jsonrpc":"2.0","id":1,"method":"tools/list"}}'
 ```
 
@@ -622,14 +682,62 @@ Each receipt is also available as `{base}/r/<id>.json` and as a card image at `{
 and `{base}/api/decisions/<id>/replay` re-runs it from the stored evidence and reports whether the
 result is identical.
 
-## Pages
+## Scorecard
 
-- [Overview]({base}/): what Nota claims and how to check it
-- [Dashboard]({base}/app): every receipt, diffed against the one before it
-- [Health]({base}/api/health): what this deployment can and cannot do right now
-- [OpenAPI]({base}/docs)
-- [server.json]({base}/.well-known/mcp/server.json): this server's entry for the official MCP registry
+RYO's own deep_analysis trade plans for 25 majors are locked once a day, before the outcome is known,
+and settled on OKX hourly candles (1 m candles inside an hour that touched both levels) at 24 and
+72 hours: which of stop and first target was touched first, and the return at the horizon.
+
+- [Scorecard]({base}/scorecard): the page, with a schema.org Dataset description
+- `{base}/api/scorecard?horizon=24` and `?horizon=72`: the summary and every row as JSON
+- `{base}/api/scorecard.csv`: every lock at both horizons, failures included
+
+## Agent to agent (A2A 1.0)
+
+The Agent Card at `{base}/.well-known/agent-card.json` lists the same skills. `POST {base}/a2a` takes
+the JSON-RPC `SendMessage` method with header `A2A-Version: 1.0` and a data part `{{"skill", "args"}}`
+(or text such as `price_crosscheck SOL`), and returns a completed task whose artifact is the envelope.
+
+```
+curl -s {base}/a2a -H 'content-type: application/json' -H 'A2A-Version: 1.0' \\
+  -d '{{"jsonrpc":"2.0","id":1,"method":"SendMessage","params":{{"message":{{"messageId":"m1","role":"ROLE_USER","parts":[{{"data":{{"skill":"price_crosscheck","args":{{"symbol":"SOL"}}}}}}]}}}}}}'
+```
+
+## Pages and data
+
+{pages}
 """, media_type="text/plain; charset=utf-8")
+
+
+# What llms.txt says about each public route. The list is filtered by the routes the app really has,
+# so a route that is removed drops out of llms.txt instead of becoming a dead link.
+LLMS_PAGES = {
+    "/": "Overview: what Nota claims and how to check it",
+    "/ja": "The overview in Japanese",
+    "/app": "Dashboard: every receipt, diffed against the one before it",
+    "/scorecard": "RYO Verdict Scorecard",
+    "/demo": "Narrated three-minute walkthrough with a clickable transcript",
+    "/demo.json": "Walkthrough chapters and transcript with the second each line was spoken",
+    "/demo.vtt": "Walkthrough captions (WebVTT)",
+    "/api/decisions": "Receipt summaries, newest first (JSON)",
+    "/api/positions": "Open practice positions against the latest evidence price",
+    "/api/scores": "Brier score per council role, against the base rate and against RYO's own call",
+    "/api/backers": "Handles that backed or faded receipts, and how often they were right",
+    "/api/outcomes.csv": "Every resolved decision: each role's p_up_7d, the base rate, what happened, Brier",
+    "/api/scorecard.csv": "Every scorecard lock at both horizons",
+    "/feed.xml": "Atom feed of receipts, their outcomes and settled RYO plans",
+    "/feed.json": "The same feed as JSON Feed 1.1",
+    "/api/health": "What this deployment can and cannot do right now",
+    "/docs": "OpenAPI",
+    "/.well-known/mcp/server.json": "This server's entry for the official MCP registry",
+    "/.well-known/agent-card.json": "A2A Agent Card",
+    "/sitemap.xml": "Sitemap",
+}
+
+
+def _llms_pages(base: str) -> str:
+    have = {getattr(r, "path", None) for r in app.routes}
+    return chr(10).join(f"- [{desc}]({base}{path})" for path, desc in LLMS_PAGES.items() if path in have)
 
 
 @app.get("/r/{id}.md")
@@ -831,15 +939,15 @@ def favicon() -> Response:
 
 
 @app.get("/")
-def landing() -> FileResponse:
+def landing(request: Request) -> HTMLResponse:
     """The reading room: what Nota claims and how to check it. The instrument itself is /app."""
-    return FileResponse(STATIC / "landing.html")
+    return _page("landing.html", request, "/", _hreflang(request))
 
 
 @app.get("/ja")
-def landing_ja() -> FileResponse:
+def landing_ja(request: Request) -> HTMLResponse:
     """The same reading room in Japanese. Same script, same ids, translated prose only."""
-    return FileResponse(STATIC / "landing.ja.html")
+    return _page("landing.ja.html", request, "/ja", _hreflang(request))
 
 
 @app.get("/landing.js", include_in_schema=False)
@@ -868,8 +976,13 @@ def font(name: str) -> FileResponse:
 
 
 @app.get("/app")
-def index() -> FileResponse:
-    return FileResponse(STATIC / "index.html")
+def index(request: Request) -> HTMLResponse:
+    # index.html has no og:title of its own: /r/<id> serves the same file with the receipt's
+    return _page("index.html", request, "/app", [
+        '<meta property="og:title" content="Nota receipts dashboard">',
+        '<meta property="og:description" content="Every decision receipt, diffed against the one before it, '
+        'with the evidence path behind each number and a replay check.">',
+        '<meta property="og:type" content="website">'], image="/img/dashboard.png")
 
 
 @app.get("/img/{name}.png", include_in_schema=False)
@@ -881,9 +994,37 @@ def landing_image(name: str) -> FileResponse:
 
 
 @app.get("/demo")
-def demo_page() -> FileResponse:
-    """The walkthrough with its transcript, so the video is watchable and readable at one URL."""
-    return FileResponse(STATIC / "demo.html")
+def demo_page(request: Request) -> HTMLResponse:
+    """The walkthrough with its transcript, so the video is watchable and readable at one URL. og:video must
+    be absolute for a link preview to play it inline; 1280x720 is what the recorder renders."""
+    base = html.escape(_base(request))
+    return _page("demo.html", request, "/demo", [
+        f'<meta property="og:video" content="{base}/demo.mp4">', f'<meta property="og:video:secure_url" content="{base}/demo.mp4">',
+        '<meta property="og:video:type" content="video/mp4">', '<meta property="og:video:width" content="1280">',
+        '<meta property="og:video:height" content="720">'], image="/img/demo-poster.png")
+
+
+def _vtt_time(t: float) -> str:
+    ms = int(round(t * 1000))
+    return f"{ms // 3_600_000:02d}:{ms // 60_000 % 60:02d}:{ms // 1000 % 60:02d}.{ms % 1000:03d}"
+
+
+@app.get("/demo.vtt", include_in_schema=False)
+def demo_captions() -> Response:
+    """WebVTT captions from the same chapters the transcript shows: a cue runs from its line's start to
+    the next line's, so the caption stays up through the pause, and the last one to the end of the video.
+    Lines are not broken by hand: a player wraps to its own width, and a fixed break at 80 characters
+    left one-word orphan lines on a 650 px video."""
+    path = STATIC / "demo.json"
+    if not path.exists():
+        raise HTTPException(404, "demo chapters not bundled in this checkout")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    ch = data["chapters"]
+    cues = ["WEBVTT", ""]
+    for i, c in enumerate(ch):
+        end = ch[i + 1]["start"] if i + 1 < len(ch) else data["seconds"]
+        cues += [c["id"], f"{_vtt_time(c['start'])} --> {_vtt_time(end)}", html.escape(c["text"], quote=False), ""]
+    return Response("\n".join(cues), media_type="text/vtt; charset=utf-8")
 
 
 @app.get("/demo.mp4", include_in_schema=False)
@@ -904,27 +1045,256 @@ def demo_chapters() -> FileResponse:
     return FileResponse(path, media_type="application/json")
 
 
+# --- Discovery and open data: robots, sitemap, feeds, CSV --------------------------------------------
+@app.get("/robots.txt", include_in_schema=False)
+def robots(request: Request) -> PlainTextResponse:
+    return PlainTextResponse(f"User-agent: *\nAllow: /\n\nSitemap: {_base(request)}/sitemap.xml\n")
+
+
+SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/demo")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap(request: Request) -> Response:
+    """Every page plus every receipt permalink. The two landings name each other as language alternates."""
+    base = _base(request)
+    sm, xh = "http://www.sitemaps.org/schemas/sitemap/0.9", "http://www.w3.org/1999/xhtml"
+    ET.register_namespace("", sm)
+    ET.register_namespace("xhtml", xh)
+    root = ET.Element(f"{{{sm}}}urlset")
+
+    def add(path: str, lastmod: str | None = None) -> ET.Element:
+        u = ET.SubElement(root, f"{{{sm}}}url")
+        ET.SubElement(u, f"{{{sm}}}loc").text = base + path
+        if lastmod:
+            ET.SubElement(u, f"{{{sm}}}lastmod").text = lastmod
+        return u
+
+    for path in SITEMAP_PAGES:
+        u = add(path)
+        if path in ("/", "/ja"):
+            for lang, href in (("en", "/"), ("ja", "/ja"), ("x-default", "/")):
+                ET.SubElement(u, f"{{{xh}}}link", rel="alternate", hreflang=lang, href=base + href)
+    for d in _ledger().list_decisions(limit=200):
+        add(f"/r/{d['id']}", d["created_at"])
+    return Response(ET.tostring(root, encoding="unicode", xml_declaration=True), media_type="application/xml")
+
+
+FEED_TITLE = "Nota: decision receipts and settled RYO plans"
+
+
+def _settled_locks(led: Ledger) -> list[dict[str, Any]]:
+    """Every settled scorecard plan at both horizons, newest first; empty for a ledger without the tables."""
+    from nota.scorecard import HORIZONS_H, summary
+
+    try:
+        rows = [{**r, "horizon_h": h} for h in HORIZONS_H for r in summary(led, h, stats=False)["settled"]]
+    except sqlite3.OperationalError:
+        return []
+    return sorted(rows, key=lambda r: r["settles_at"], reverse=True)
+
+
+def _feed_items(request: Request) -> list[dict[str, Any]]:
+    """The newest 50 receipts and every settled plan, as neutral items both feed formats are written from."""
+    base, led = _base(request), _ledger()
+    items = []
+    for d in led.list_decisions(limit=50):
+        r = _receipt(led, d["id"])
+        text = f"Council: {r.verdict.action}, p_up_7d {r.verdict.p_up_7d:.2f}."
+        down = sorted(k for k, v in r.availability.items() if v not in OK)
+        text += f" Degraded sections: {', '.join(down)}." if down else " Every evidence section answered."
+        updated = r.created_at
+        out = led.get_outcome(r.id)
+        if out:
+            o = json.loads(out)
+            updated = o.get("resolved_at") or updated
+            text += (f" Resolved: {'up' if o['went_up'] else 'down'} {o['return_pct']:+.2f}% after 7 days,"
+                     f" judge Brier {o['brier'].get('judge')}.")
+        items.append({"id": f"urn:nota:receipt:{r.id}", "url": f"{base}/r/{r.id}", "title": r.headline,
+                      "summary": text, "published": r.created_at, "updated": updated, "tags": [r.symbol, "receipt"]})
+    for s in _settled_locks(led):
+        ret = s.get("return_at_horizon_pct")
+        items.append({"id": f"urn:nota:lock:{s['id']}:{s['horizon_h']}", "url": f"{base}/scorecard?h={s['horizon_h']}",
+                      "title": f"{s['symbol']}: RYO {s['verdict'] or 'no verdict'} plan ({s['side']}) settled {s['result']} at {s['horizon_h']}h",
+                      "summary": (f"Locked {s['locked_at']}, confluence {s['confluence_state']}. First touch: {s['result']}"
+                                  + (f" after {s['hours_to_touch']} h" if s.get("hours_to_touch") is not None else "")
+                                  + (f"; return at the horizon {ret:+.2f}%." if isinstance(ret, (int, float)) else ".")
+                                  + " Settled on OKX hourly candles."),
+                      "published": s["settles_at"], "updated": s["settles_at"], "tags": [s["symbol"], "scorecard"]})
+    return items
+
+
+@app.get("/feed.xml", include_in_schema=False)
+def feed_atom(request: Request) -> Response:
+    """Atom 1.0 (RFC 4287): subscribe once and see each receipt, its outcome, and each settled RYO plan."""
+    a = "http://www.w3.org/2005/Atom"
+    ET.register_namespace("", a)
+    base, items = _base(request), _feed_items(request)
+    root = ET.Element(f"{{{a}}}feed")
+    ET.SubElement(root, f"{{{a}}}id").text = "urn:nota:feed"
+    ET.SubElement(root, f"{{{a}}}title").text = FEED_TITLE
+    ET.SubElement(root, f"{{{a}}}updated").text = max((i["updated"] for i in items), default=now_iso())
+    ET.SubElement(ET.SubElement(root, f"{{{a}}}author"), f"{{{a}}}name").text = "Nota"
+    ET.SubElement(root, f"{{{a}}}link", rel="self", href=f"{base}/feed.xml")
+    ET.SubElement(root, f"{{{a}}}link", rel="alternate", href=f"{base}/")
+    for i in items:
+        e = ET.SubElement(root, f"{{{a}}}entry")
+        ET.SubElement(e, f"{{{a}}}id").text = i["id"]
+        ET.SubElement(e, f"{{{a}}}title").text = i["title"]
+        ET.SubElement(e, f"{{{a}}}link", rel="alternate", href=i["url"])
+        ET.SubElement(e, f"{{{a}}}published").text = i["published"]
+        ET.SubElement(e, f"{{{a}}}updated").text = i["updated"]
+        ET.SubElement(e, f"{{{a}}}summary").text = i["summary"]
+        for t in i["tags"]:
+            ET.SubElement(e, f"{{{a}}}category", term=t)
+    return Response(ET.tostring(root, encoding="unicode", xml_declaration=True), media_type="application/atom+xml")
+
+
+@app.get("/feed.json", include_in_schema=False)
+def feed_json(request: Request) -> JSONResponse:
+    """The same items as JSON Feed 1.1."""
+    base = _base(request)
+    return JSONResponse({
+        "version": "https://jsonfeed.org/version/1.1", "title": FEED_TITLE, "home_page_url": f"{base}/",
+        "feed_url": f"{base}/feed.json", "language": "en", "authors": [{"name": "Nota", "url": "https://github.com/PugarHuda/nota"}],
+        "description": "Each council decision as a replayable receipt, its 7-day outcome once resolved, and each of RYO's "
+                       "own trade plans once settled on OKX candles.",
+        "items": [{"id": i["id"], "url": i["url"], "title": i["title"], "content_text": i["summary"], "summary": i["summary"],
+                   "date_published": i["published"], "date_modified": i["updated"], "tags": i["tags"]}
+                  for i in _feed_items(request)]}, media_type="application/feed+json")
+
+
+def _csv(header: list[str], rows: list[list[Any]], name: str) -> Response:
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(header)
+    w.writerows(["" if v is None else v for v in r] for r in rows)
+    return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'inline; filename="{name}"'})
+
+
+@app.get("/api/scorecard.csv")
+def scorecard_csv() -> Response:
+    """Every lock at both horizons, one row each, failures included: the scorecard's raw table. Levels are
+    RYO's stop and first target re-applied to OKX's price at lock time, the bracket the settlement used."""
+    from nota.scorecard import HORIZONS_H, bracket
+
+    led = _ledger()
+    try:
+        locks = [json.loads(j) for _, j in led.list_locks()]
+    except sqlite3.OperationalError:
+        locks = []
+    rows = []
+    for r in locks:
+        b = bracket(r) if r["status"] == "locked" else {}
+        for h in HORIZONS_H:
+            raw = led.get_settlement(r["id"], h)
+            s = json.loads(raw) if raw else {}
+            source = ("okx:1H+1m" if s.get("resolved_by") == "1m" else "okx:1H") if s.get("status") == "settled" else None
+            rows.append([r["id"], r["symbol"], r["locked_at"], h, r["status"], r.get("verdict"), r.get("confluence_state"),
+                         b.get("side"), b.get("entry"), b.get("stop"), b.get("target"),
+                         s.get("status") or ("open" if r["status"] == "locked" else None), s.get("result"),
+                         s.get("hours_to_touch"), s.get("return_at_horizon_pct"), source])
+    return _csv(["lock_id", "symbol", "locked_at", "horizon_h", "lock_status", "verdict", "confluence_state", "side",
+                 "entry", "stop", "target", "settlement_status", "result", "hours_to_touch", "return_at_horizon_pct",
+                 "settlement_source"], rows, "nota-scorecard.csv")
+
+
+@app.get("/api/outcomes.csv")
+def outcomes_csv() -> Response:
+    """Every resolved decision: what each role said, the base rate it had to beat, what happened, and Brier."""
+    from nota.council import ROLES
+
+    led = _ledger()
+    roles = [*ROLES, "judge"]
+    rows = []
+    for raw in led.list_outcomes():
+        o = json.loads(raw)
+        rec = led.get_decision(o["decision_id"])
+        r = Receipt.model_validate_json(rec) if rec else None
+        said = {op.role: op.p_up_7d for op in r.opinions} if r else {}
+        if r:
+            said["judge"] = r.verdict.p_up_7d
+        rows.append([o["decision_id"], o["symbol"], r.created_at if r else None, r.verdict.action if r else None,
+                     *[said.get(k) for k in roles], o.get("base_rate_p"), o["went_up"], o.get("return_pct"),
+                     o.get("resolved_at"), o.get("price_now_source"), *[o["brier"].get(k) for k in roles]])
+    rows.sort(key=lambda x: x[2] or "")
+    return _csv(["decision_id", "symbol", "created_at", "action", *[f"p_up_7d_{k}" for k in roles], "base_rate_p",
+                 "went_up", "return_pct", "resolved_at", "price_now_source", *[f"brier_{k}" for k in roles]],
+                rows, "nota-outcomes.csv")
+
+
+# --- Nota as an A2A agent: the same skills, discoverable from an Agent Card --------------------------
+@app.get("/.well-known/agent-card.json", include_in_schema=False)
+def a2a_card(request: Request) -> JSONResponse:
+    return JSONResponse(agent_card(_base(request)), headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.post("/a2a", include_in_schema=False)
+async def a2a_endpoint(request: Request) -> Response:
+    """A2A 1.0 JSON-RPC binding. Same Origin allowlist, body cap and skill budget as /mcp, since
+    SendMessage reaches the same third-party sources."""
+    if not _origin_ok(request):
+        return _rpc_error(403, -32600, "origin not allowed")
+    if int(request.headers.get("content-length") or 0) > MCP_BODY_MAX:
+        return _rpc_error(413, -32600, f"body exceeds {MCP_BODY_MAX} bytes")
+    raw = bytearray()
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > MCP_BODY_MAX:
+            return _rpc_error(413, -32600, f"body exceeds {MCP_BODY_MAX} bytes")
+    try:
+        body = json.loads(raw)
+    except (ValueError, RecursionError):
+        return _rpc_error(200, -32700, "Invalid JSON payload")
+    if not isinstance(body, dict):
+        return _rpc_error(200, -32600, "Request payload validation error")
+    # spec 3.6: the version travels as a header or a query parameter; an empty one means 0.3
+    version = request.headers.get("a2a-version") or request.query_params.get("A2A-Version") or "0.3"
+    if version != A2A_VERSION:
+        return JSONResponse({"jsonrpc": "2.0", "id": body.get("id"),
+                             "error": A2AError(A2A_UNSUPPORTED, f"A2A version {version} is not supported; send "
+                                               f"A2A-Version: {A2A_VERSION}").body()})
+    cost = 0
+    if body.get("method") == "SendMessage" and "id" in body:
+        try:   # charged what the same skill call costs over REST and MCP; a malformed one is refused for free
+            cost = _skill_cost(*a2a_call_from(body["params"]["message"]))
+        except (A2AError, KeyError, TypeError):
+            cost = 0
+    if cost:
+        ip = request.client.host if request.client else "unknown"
+        wait = _throttle_n(f"skill:{ip}", cost, limit=60)
+        if wait is not None:
+            return _rpc_error(429, -32000, "rate limited", {"retry_after_s": wait}, headers={"Retry-After": str(wait)},
+                              id_=body.get("id"))
+
+    def run() -> dict[str, Any] | None:
+        try:
+            return a2a_handle(body)
+        except Exception:
+            logging.getLogger("nota.a2a").exception("a2a request failed")
+            return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32603, "message": "Internal error"}}
+
+    reply = await run_in_threadpool(run)
+    if reply is None:
+        return Response(status_code=202)
+    return JSONResponse(reply, headers={"A2A-Version": A2A_VERSION})
+
+
 @app.get("/r/{id}")
 def permalink(id: str, request: Request) -> HTMLResponse:
-    """Same page as `/`, with Open Graph / X card tags for this receipt so a shared link previews as a card."""
-    page = (STATIC / "index.html").read_text(encoding="utf-8")
+    """Same page as /app, with Open Graph / X card tags for this receipt so a shared link previews as a card."""
     raw = _ledger().get_decision(id)
     if raw is None:
         # the page still loads and says there is no such receipt, but the status says it too, so a
         # crawler or a link checker does not index a made-up id as a real receipt
+        page = (STATIC / "index.html").read_text(encoding="utf-8")
         return HTMLResponse(page.replace("<!--OG-->", '<meta name="robots" content="noindex">', 1), status_code=404)
     r = Receipt.model_validate_json(raw)
-    # the fallback comes from the Host header, so it is escaped like any other untrusted input
-    base = html.escape(os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/"))
     desc = html.escape(f"{r.verdict.action} (p_up_7d {r.verdict.p_up_7d:.2f}). {r.verdict.rationale}"[:200])
-    tags = "\n".join([
+    return _page("index.html", request, f"/r/{r.id}", [
         f'<meta property="og:title" content="{html.escape(r.headline)}">',
         f'<meta property="og:description" content="{desc}">',
-        f'<meta property="og:image" content="{base}/r/{r.id}.png">',
-        f'<meta property="og:url" content="{base}/r/{r.id}">',
         '<meta property="og:type" content="article">',
-        '<meta name="twitter:card" content="summary_large_image">',
         f'<meta name="twitter:title" content="{html.escape(r.headline)}">',
-        f'<meta name="twitter:image" content="{base}/r/{r.id}.png">',
-    ])
-    return HTMLResponse(page.replace("<!--OG-->", tags, 1))
+    ], image=f"/r/{r.id}.png")

@@ -765,3 +765,78 @@ def test_the_landing_verify_button_keeps_focus_while_it_runs(server, browser):
     assert "—" not in page.locator("#audit").inner_text()
     assert problems == [], problems
     page.close()
+
+
+def test_every_page_names_one_canonical_an_absolute_card_and_its_feed(server, browser):
+    """What a crawler or a link preview reads from the rendered head, not the raw file."""
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", f"/r/{RECEIPT}"):
+        page, problems = page_with_log(browser, viewport={"width": 1200, "height": 900})
+        page.goto(server + path, wait_until="domcontentloaded")
+        canon = page.eval_on_selector_all('link[rel="canonical"]', "els => els.map(e => e.href)")
+        assert canon == [server + path], (path, canon)
+        img = page.eval_on_selector_all('meta[property="og:image"]', "els => els.map(e => e.content)")
+        assert len(img) == 1 and img[0].startswith(server + "/"), (path, img)
+        assert page.request.get(img[0]).status == 200, (path, img)
+        feed = page.eval_on_selector('link[type="application/atom+xml"]', "e => e.href")
+        assert page.request.get(feed).headers["content-type"].startswith("application/atom+xml")
+        assert problems == [], (path, problems)
+        page.close()
+    page = browser.new_page()
+    page.goto(server + "/scorecard", wait_until="domcontentloaded")
+    ld = json.loads(page.eval_on_selector('script[type="application/ld+json"]', "e => e.textContent"))
+    assert ld["@type"] == "Dataset" and any(d["encodingFormat"] == "text/csv" for d in ld["distribution"])
+    assert page.request.get(ld["distribution"][-1]["contentUrl"]).status == 200
+    for lang in ("en", "ja", "x-default"):
+        page.goto(server + "/ja")
+        assert page.eval_on_selector(f'link[hreflang="{lang}"]', "e => e.href").startswith(server)
+    page.close()
+
+
+def test_the_walkthrough_has_a_caption_track_with_one_cue_per_chapter(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 1440, "height": 900})
+    page.goto(server + "/demo", wait_until="networkidle")
+    chapters = page.evaluate("async () => (await (await fetch('/demo.json')).json()).chapters.length")
+    cues = page.evaluate("""() => new Promise(done => {
+        const t = document.getElementById('v').textTracks[0];
+        t.mode = 'showing';
+        const read = () => t.cues && t.cues.length ? done(t.cues.length) : setTimeout(read, 50);
+        read();
+    })""")
+    assert cues == chapters
+    assert page.evaluate("() => document.getElementById('v').textTracks[0].kind") == "captions"
+    # the spoken line stays in sight inside the transcript box, and the page itself does not move
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.wait_for_selector("#script button")
+    before = page.evaluate("() => window.scrollY")
+    page.evaluate("() => { const v = document.getElementById('v'); v.currentTime = v.duration - 2; "
+                  "v.dispatchEvent(new Event('timeupdate')); }")
+    page.wait_for_timeout(200)
+    visible = page.evaluate("""() => {
+        const box = document.getElementById('script').getBoundingClientRect();
+        const cur = document.querySelector('#script button[aria-current="true"]').getBoundingClientRect();
+        return cur.top >= box.top && cur.bottom <= box.bottom + 1;
+    }""")
+    assert visible and page.evaluate("() => window.scrollY") == before
+    assert problems == [], problems
+    page.close()
+
+
+def test_feeds_csv_and_agent_card_answer_over_the_wire(server, browser):
+    import defusedxml.ElementTree as DET
+
+    ctx = browser.new_context().request
+    atom = DET.fromstring(ctx.get(server + "/feed.xml").body())
+    assert len(atom.findall("{http://www.w3.org/2005/Atom}entry")) >= min(50, SHIPPED)
+    assert ctx.get(server + "/feed.json").json()["version"] == "https://jsonfeed.org/version/1.1"
+    csv_text = ctx.get(server + "/api/scorecard.csv").text()
+    locks = sqlite3.connect(DEMO).execute("SELECT COUNT(*) FROM locks").fetchone()[0]
+    assert len(csv_text.strip().splitlines()) == 1 + 2 * locks
+    card = ctx.get(server + "/.well-known/agent-card.json").json()
+    assert card["supportedInterfaces"][0]["url"] == server + "/a2a"
+    task = ctx.post(server + "/a2a", headers={"A2A-Version": "1.0"}, data={
+        "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
+        "params": {"message": {"messageId": "m", "role": "ROLE_USER",
+                               "parts": [{"data": {"skill": "verdict_track_record", "args": {"horizon_hours": 24}}}]}}}).json()
+    art = task["result"]["task"]["artifacts"][0]["parts"][0]["data"]
+    assert art["tool"] == "verdict_track_record"
+    assert "Sitemap: " + server + "/sitemap.xml" in ctx.get(server + "/robots.txt").text()
