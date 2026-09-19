@@ -92,6 +92,7 @@ class Ledger:
             sql += " WHERE symbol=?"
             params = (symbol,)
         sql += " ORDER BY created_at DESC LIMIT ?"
+        limit = max(1, min(int(limit), 200))  # SQLite reads LIMIT -1 as "no limit"
         return [dict(r) for r in self.conn.execute(sql, params + (limit,)).fetchall()]
 
     # outcomes -------------------------------------------------------------------------

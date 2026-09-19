@@ -80,3 +80,35 @@ def test_once_a_day_skips_a_symbol_already_decided_today(monkeypatch, tmp_path):
     monkeypatch.setenv("NOTA_DB", str(db))
     res = runner.invoke(cli.app, ["decide", "sol", "--once-a-day", "--source", "fixture"])
     assert res.exit_code == 0 and "already decided today; skipped" in res.output
+
+
+def test_bad_input_is_a_usage_error_not_a_traceback(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    for argv in (["replay", "nope"], ["resolve", "nope", "--source", "fixture"], ["skill", "run", "nope"],
+                 ["skill", "run", "price_crosscheck", "{bad"], ["skill", "run", "price_crosscheck", "[1]"],
+                 ["skill", "run", "price_crosscheck", '{"symbol": "../x"}'], ["serve", "--port", "99999"],
+                 ["decide", "", "--source", "fixture"], ["decide", "BTC?x", "--source", "fixture"], ["watch", "SOL,../x"]):
+        res = runner.invoke(cli.app, argv)
+        assert res.exit_code == 2 and "Traceback" not in res.output, (argv, res.output)
+
+
+def test_record_writes_nothing_unless_every_tool_answered(tmp_path, monkeypatch):
+    from nota.ryo_client import RecordedRyoClient, RyoError
+    from tests.test_decide_replay import FIXTURES
+
+    monkeypatch.chdir(tmp_path)  # RECORDED_ROOT is relative: the repo's committed fixtures are never touched
+    assert runner.invoke(cli.app, ["record", ""]).exit_code == 2 and not (tmp_path / "fixtures").exists()
+
+    class Flaky(RecordedRyoClient):
+        def call(self, tool, args=None):
+            if tool == "scan_market":
+                raise RyoError(503, "UNAVAILABLE", "down")
+            return super().call(tool, args)
+
+    monkeypatch.setattr(cli, "_source", lambda kind: Flaky(FIXTURES))
+    res = runner.invoke(cli.app, ["record", "sol"])
+    assert res.exit_code == 1 and "left unchanged" in res.output and not (tmp_path / "fixtures").exists()
+    monkeypatch.setattr(cli, "_source", lambda kind: RecordedRyoClient(FIXTURES))
+    res = runner.invoke(cli.app, ["record", "sol"])
+    assert res.exit_code == 0, res.output
+    assert len(list((tmp_path / "fixtures" / "recorded").rglob("*.json"))) == 6

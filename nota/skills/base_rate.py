@@ -27,7 +27,7 @@ from typing import Any
 import httpx
 
 from nota.envelope import Envelope
-from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, clean_symbol, make_envelope
 from nota.skills.sources import UA
 from nota.skills.technicals import PERIOD
 
@@ -139,9 +139,11 @@ DRIFT_WARN = 0.10
 
 def move_base_rate(symbol: str, k: float = 1.0, horizon_days: int = 3, direction: str = "up", event: str = "touch",
                    atr_14_pct: float | None = None, as_of: str | None = None, http: httpx.Client | None = None) -> Envelope:
-    symbol = symbol.upper()
+    symbol = clean_symbol(symbol)
     h = max(1, min(int(horizon_days), 14))
     k = max(0.0, float(k))
+    if k == 0 and event == "touch":  # the day's own close already sits 0 ATR away, so every day "touches": a 99% that says nothing
+        raise ValueError("k must be above 0 for event=touch; use event=close for k=0")
     request = {"symbol": symbol, "k": k, "horizon_days": h, "direction": direction, "event": event, "atr_14_pct": atr_14_pct, "as_of": as_of}
     warnings: list[str] = []
     data: dict[str, Any] = {"symbol": symbol, "p": None, "event": event, "direction": direction, "k": k, "horizon_days": h,
@@ -172,9 +174,10 @@ def move_base_rate(symbol: str, k: float = 1.0, horizon_days: int = 3, direction
             if hd["fit_p"] is not None and hd["recent_p"] is not None and abs(hd["fit_p"] - hd["recent_p"]) > DRIFT_WARN:
                 warnings.append(f"base rate drifted: {hd['fit_p']:.0%} before {hd['recent_from']}, {hd['recent_p']:.0%} since")
     if k:
-        what = f"{'reach' if event == 'touch' else 'close beyond'} {'+' if direction == 'up' else '-'}{k:g} ATR within {h}d"
+        dist = f"{'+' if direction == 'up' else '-'}{k:g} ATR {'above' if direction == 'up' else 'below'}"
+        what = f"touch {dist} within {h}d" if event == "touch" else f"close {dist} after {h}d"
     else:
-        what = f"{'touch above' if event == 'touch' else 'close'} {'higher' if direction == 'up' else 'lower'} after {h}d"
+        what = f"close {'higher' if direction == 'up' else 'lower'} after {h}d"
     headline = (f"{symbol}: {data['p']:.0%} of {data['n_days']} {data['tercile']}-volatility days {what}"
                 if data.get("p") is not None else f"{symbol}: base rate unavailable")
     return make_envelope("move_base_rate", request, data, availability, warnings, headline, primary=["okx_daily"])

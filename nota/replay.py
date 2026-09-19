@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from nota.calibration import role_scores, role_weights
-from nota.council import run_council
+from nota.council import council_without_primary, run_council
 from nota.evidence import EvidencePack
 from nota.ledger import Ledger
 from nota.llm import LLM
@@ -83,8 +83,11 @@ def replay(decision_id: str, ledger: Ledger, llm: LLM | None = None, limits: Ris
         llm = CacheOnlyLLM(original.model)
     elif llm is None:
         raise ValueError("a fresh replay calls the model again, so it needs a configured LLM")
-    weights = role_weights(role_scores(ledger))
-    council = run_council(pack, llm, ledger, weights=weights, use_cache=not fresh, prompt_version=original.prompt_version)
+    if not pack.primary_ok and not original.opinions:  # decided without convening the council (nota.decide); so is its replay
+        council = council_without_primary(original.model, original.prompt_version)
+    else:  # older receipts without primary evidence did convene it, and replay from their cached outputs
+        weights = role_weights(role_scores(ledger))
+        council = run_council(pack, llm, ledger, weights=weights, use_cache=not fresh, prompt_version=original.prompt_version)
     trade = size_trade(council.verdict, pack, limits)
     replayed = build_receipt(pack, council, trade)
     diff = diff_receipts(original, replayed)

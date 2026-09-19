@@ -8,6 +8,7 @@ without new code. The definition mirrors RYO's internal `SkillDefinition`
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -17,6 +18,16 @@ from nota.envelope import DataMode, Envelope, Status, Summary
 
 SCHEMA_VERSION = "nota-skill-1"
 ArgType = Literal["string", "integer", "number", "boolean", "array", "object"]
+# A symbol ends up in exchange URL paths, LLM prompts and the ledger, so it is checked once, here.
+SYMBOL_RE = re.compile(r"[A-Z0-9]{1,15}")
+
+
+def clean_symbol(raw: Any) -> str:
+    """`" sol "` -> `"SOL"`; anything that is not 1-15 letters/digits is refused, never passed on."""
+    s = raw.strip().upper() if isinstance(raw, str) else None
+    if s is None or not SYMBOL_RE.fullmatch(s):
+        raise ValueError(f"symbol must be 1-15 letters/digits, got {raw!r}")
+    return s
 
 
 class SkillArg(BaseModel):

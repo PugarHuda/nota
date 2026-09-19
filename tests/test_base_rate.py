@@ -52,7 +52,7 @@ def test_the_envelope_prints_rys_atr_ratio_and_reads_every_page():
     env = move_base_rate("sol", k=1, horizon_days=3, atr_14_pct=round(atr_okx * 0.9, 4), http=httpx.Client())
     assert env.status == "ok" and env.data["atr_scale"]["ryo_over_okx"] == 0.9 and env.data["k_in_okx_atr"] == 0.9
     assert route.calls[1].request.url.params["after"] == rows[99][0] and env.data["history"][0] < env.data["history"][1]
-    assert "days reach +1 ATR within 3d" in env.summary.headline
+    assert "days touch +1 ATR above within 3d" in env.summary.headline
 
 
 @respx.mock

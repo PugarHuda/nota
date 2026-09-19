@@ -91,3 +91,17 @@ def test_cached_replay_reports_a_cache_miss_instead_of_calling_a_model():
     import pytest
     with pytest.raises(RuntimeError, match="cache miss"):
         replay(r.id, led)
+
+
+def test_without_primary_evidence_the_council_is_not_convened_and_replays():
+    class NoCalls:
+        model = "m"
+
+        def complete_json(self, **_):
+            raise AssertionError("no model call without deep_analysis")
+
+    led = Ledger(":memory:")
+    r = decide("ZZZ", RecordedRyoClient(FIXTURES, name="fixture"), NoCalls(), led)  # no recorded deep_analysis for ZZZ
+    assert r.availability["deep_analysis"] != "ok" and r.opinions == [] and r.verdict.action == "no_trade"
+    assert r.spend["model_calls"] == 0 and r.trade.kind == "blocked"
+    assert replay(r.id, led).identical

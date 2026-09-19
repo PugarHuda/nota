@@ -109,6 +109,14 @@ strangers:
   that is a step towards making this server fetch somewhere of their choosing. Handles are letters,
   digits, underscore, dot and hyphen, up to 64 characters, and anything else is refused before a
   request is built.
+- Every skill argument is checked against the skill's own declared schema in one place
+  (`nota.skills.invoke`), which REST, MCP and the CLI all go through: wrong type, a value outside an
+  enum, a non-finite number, a string over 64 characters (500 for a news claim) or an array over 20
+  items is a 422, a JSON-RPC `-32602`, or a CLI usage error, never a 500. A symbol must be 1-15
+  letters or digits before it can reach an exchange URL, a prompt or the ledger, so `../x` or
+  `BTC?x` never leaves the process. `GET /api/decisions` takes `limit` from 1 to 200, and a backing
+  handle is one line: `@Abc` and `abc` are the same backer, `abc
+` is refused.
 - `tools/call` over MCP is metered per address exactly like the REST route, 60 an hour, because it
   reaches third-party APIs. `initialize`, `tools/list` and `resources/*` stay free: they touch
   nothing outside the process.
@@ -156,7 +164,7 @@ uv run nota replay <id>        # identical: True
 uv run nota replay <id> --fresh
 uv run nota resolve --all      # after 7 days: Brier scores per agent
 uv run nota scores
-uv run nota record SOL         # capture all six live tools into fixtures/recorded
+uv run nota record SOL         # capture all six live tools into fixtures/recorded (all or nothing)
 uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
 uv run nota positions                      # open practice positions vs the latest independent price
 uv run nota serve                          # http://127.0.0.1:8000 overview, /app dashboard, /mcp
@@ -380,7 +388,8 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 - RYO client: exponential backoff with jitter on 429/503/network, honours `Retry-After`,
   never retries 4xx argument errors, records `X-RateLimit-*` headers.
 - Evidence gathering continues past failed tools and skills; the judge is told which sections
-  are missing and is instructed to prefer `no_trade` when primary evidence is gone.
+  are missing. When the primary evidence (`deep_analysis`) is gone, the council is not convened at
+  all: the receipt is `no_trade` with zero model calls, stored and replayable like any other.
 - SQLite ledger in WAL mode; every write is idempotent by content hash, so a restart resumes.
 - `watch` survives a failing symbol, a failing notifier and a failing resolution.
 - RSS is parsed with `defusedxml` (no entity expansion from untrusted feeds).

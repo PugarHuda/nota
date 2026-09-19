@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
@@ -162,9 +162,9 @@ def _previous(led: Ledger, r: Receipt) -> Receipt | None:
 
 
 @app.get("/api/decisions")
-def list_decisions(symbol: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+def list_decisions(symbol: str | None = None, limit: int = Query(50, ge=1, le=200)) -> list[dict[str, Any]]:
     led = _ledger()
-    rows = led.list_decisions(limit=min(limit, 200), symbol=symbol.upper() if symbol else None)
+    rows = led.list_decisions(limit=limit, symbol=symbol.upper() if symbol else None)
     return [_summary(led, _receipt(led, d["id"])) for d in rows]
 
 
@@ -462,7 +462,7 @@ def invoke_skill(name: str, body: SkillCallRequest, request: Request) -> dict[st
 
 
 # --- SocialFi: public backing of calls, scored against outcomes ------------------------------
-HANDLE = re.compile(r"^[A-Za-z0-9_@.\-]{3,32}$")
+HANDLE = re.compile(r"[A-Za-z0-9_.\-]{3,32}")  # fullmatch: `$` would also accept a trailing newline
 
 
 class BackingIn(BaseModel):
@@ -492,8 +492,9 @@ def _throttle(ip: str, now: float | None = None, limit: int = BACKING_LIMIT) -> 
 @app.post("/api/decisions/{id}/back")
 def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
     """Unauthenticated by design for the hackathon: one stance per handle per receipt, latest wins."""
-    if not HANDLE.match(body.handle):
-        raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ @ . -")
+    handle = body.handle.strip(" ").lstrip("@").lower()  # "@Abc" and "abc" are one backer; a newline is refused, not trimmed
+    if not HANDLE.fullmatch(handle):
+        raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ . - (a leading @ is dropped)")
     _throttle(request.client.host if request.client else "unknown")
     led = _ledger()
     store = store_for(led)
@@ -501,7 +502,7 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
         raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot and no DATABASE_URL is set; "
                                  "backing works on a writable `nota serve`")
     _receipt(led, id)
-    store.add_backing(id, body.handle, body.stance)
+    store.add_backing(id, handle, body.stance)
     return _backing_counts(led, id)
 
 

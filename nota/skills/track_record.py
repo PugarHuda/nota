@@ -15,7 +15,7 @@ from typing import Any
 
 from nota.envelope import Envelope
 from nota.ledger import Ledger
-from nota.skills.contract import SkillArg, SkillDefinition, make_envelope
+from nota.skills.contract import SkillArg, SkillDefinition, clean_symbol, make_envelope
 
 DEFINITION = SkillDefinition(
     name="verdict_track_record",
@@ -24,7 +24,7 @@ DEFINITION = SkillDefinition(
     "against their own direction, and the latest locked verdict. Omit the symbol for all tokens.",
     args=[
         SkillArg(name="symbol", type="string", required=False, description="Token symbol, e.g. SOL; omit for every token"),
-        SkillArg(name="horizon_hours", type="integer", required=False, description="24 (default) or 72"),
+        SkillArg(name="horizon_hours", type="integer", required=False, enum=["24", "72"], description="24 (default) or 72"),
     ],
 )
 
@@ -38,10 +38,12 @@ def _tally(rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, int]]:
 
 
 def verdict_track_record(symbol: str | None = None, horizon_hours: int = 24, ledger: Ledger | None = None) -> Envelope:
-    from nota.scorecard import HORIZONS_H, summary
+    from nota.scorecard import HORIZONS_H, UNIVERSE, summary
 
-    h = horizon_hours if horizon_hours in HORIZONS_H else 24
-    sym = symbol.upper() if symbol else None
+    if horizon_hours not in HORIZONS_H:
+        raise ValueError(f"horizon_hours must be one of {list(HORIZONS_H)}")
+    sym = clean_symbol(symbol) if symbol else None
+    h = horizon_hours
     warnings: list[str] = []
     try:
         s = summary(ledger or Ledger(os.environ.get("NOTA_DB", "nota.db")), h)
@@ -62,7 +64,10 @@ def verdict_track_record(symbol: str | None = None, horizon_hours: int = 24, led
             "latest": None if latest is None else {k: latest.get(k) for k in ("symbol", "locked_at", "verdict", "confluence_state",
                                                                              "confluence_score", "side", "trace_id")},
             "method": "deep_analysis locked daily, bracket re-anchored to OKX, first touch on OKX 1H candles (nota.scorecard)"}
-    if availability["ledger"] == "ok" and not settled:
+    if sym and sym not in UNIVERSE:  # nothing is ever locked for it, so "none settled yet" would imply there will be
+        availability["ledger"] = "unavailable"
+        warnings.append(f"{sym} is not in the scorecard universe (25 majors): {', '.join(UNIVERSE)}")
+    elif availability["ledger"] == "ok" and not settled:
         availability["ledger"] = "partial"
         warnings.append(f"nothing settled at {h} h{' for ' + sym if sym else ''} yet; no rate is given")
     who = sym or "all tokens"

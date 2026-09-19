@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import tempfile
 from pathlib import Path
 
 import typer
@@ -22,6 +24,7 @@ from nota.replay import replay
 from nota.risk import RiskLimits, atr_usd as risk_atr_usd
 from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
+from nota.skills.contract import clean_symbol
 from nota.skills.narrative import narrative_convergence
 from nota.skills.news import news_verify
 from nota.skills.positioning import positioning_check
@@ -33,6 +36,14 @@ app = typer.Typer(help="Nota: council-of-agents decisions on RYO's read-only res
 
 RECORDED_ROOT = Path("fixtures/recorded")
 FIXTURE_ROOT = Path("tests/fixtures")
+
+
+def _sym(raw: str) -> str:
+    """A symbol goes into RYO calls, exchange URLs, prompts and fixture paths: refuse a bad one as a usage error."""
+    try:
+        return clean_symbol(raw)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from None
 
 
 def _ledger() -> Ledger:
@@ -113,8 +124,9 @@ def decide_cmd(
     once_a_day: bool = typer.Option(False, "--once-a-day", help="Skip when this symbol already has a decision today (UTC)"),
 ):
     """Gather evidence, run the council, size a practice trade, store the receipt."""
-    if once_a_day and any(d["created_at"][:10] == now_iso()[:10] for d in _ledger().list_decisions(limit=5, symbol=symbol.upper())):
-        typer.echo(f"{symbol.upper()}: already decided today; skipped")  # a second call the same day would count twice in the Brier scores
+    symbol = _sym(symbol)
+    if once_a_day and any(d["created_at"][:10] == now_iso()[:10] for d in _ledger().list_decisions(limit=5, symbol=symbol)):
+        typer.echo(f"{symbol}: already decided today; skipped")  # a second call the same day would count twice in the Brier scores
         raise typer.Exit()
     src = _source(source)
     receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=_extras(src, voices, news, price_check))
@@ -203,7 +215,7 @@ def watch(
     close_on_stop: bool = typer.Option(False, help="Exit practice positions whose stop or target the latest independent price has crossed"),
 ):
     """Autonomous loop: decide every symbol each cycle, exit practice positions at stop/target, score matured decisions, publish receipts."""
-    fixed = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    fixed = [_sym(s) for s in symbols.split(",") if s.strip()]
     if not fixed and not scan_top:
         raise typer.BadParameter("give symbols, --scan-top N, or both")
     n = 0
@@ -253,7 +265,9 @@ def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call th
     """Rebuild a receipt from stored evidence and report whether it is identical."""
     try:  # a cached replay reads the ledger only, so it needs no key and no LLM at all
         res = replay(decision_id, _ledger(), _llm(llm) if fresh else None, RiskLimits(), fresh=fresh)
-    except (RuntimeError, ValueError) as exc:
+    except (KeyError, ValueError, json.JSONDecodeError) as exc:  # no such receipt, or nothing to replay it with
+        raise typer.BadParameter(str(exc).strip("'\"")) from None
+    except RuntimeError as exc:  # a cache miss: the receipt exists but cannot be verified from the ledger
         typer.echo(str(exc))
         raise typer.Exit(1)
     typer.echo(f"identical: {res.identical}  (fresh={res.fresh})")
@@ -281,6 +295,8 @@ def resolve_cmd(decision_id: str = typer.Argument(None), all_: bool = typer.Opti
             typer.echo(f"{i} {out.symbol}: {out.return_pct:+.2f}% went_up={out.went_up} horizon_reached={out.horizon_reached} brier={out.brier}")
         except CannotResolve as exc:
             typer.echo(f"{i}: cannot resolve ({exc})")
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            raise typer.BadParameter(str(exc).strip("'\"")) from None
     for did, p in fill_base_rates(led):  # keyless, and also catches up outcomes scored before base rates existed
         typer.echo(f"{did}: base rate {p if p is not None else 'unavailable'}")
 
@@ -360,18 +376,30 @@ def list_cmd(limit: int = 20):
 
 @app.command("record")
 def record_cmd(symbol: str):
-    """Capture live RYO responses for SYMBOL (all six tools) into fixtures/recorded (needs RYO_MCP_KEY)."""
+    """Capture live RYO responses for SYMBOL (all six tools) into fixtures/recorded (needs RYO_MCP_KEY).
+    Nothing is written unless every tool answered: a half-recorded set would replace good fixtures with a mix."""
+    symbol = _sym(symbol)
     client = _source("live")
     calls = [(SECTIONS[key], args) for key, args in ryo_args(symbol).items()] + [("scan_market", {})]
-    for tool, args in calls:
-        try:
-            typer.echo(f"recorded {record(client, tool, args, RECORDED_ROOT)}")
-        except RyoError as exc:
-            typer.echo(f"{tool}: {exc}")
+    failed = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for tool, args in calls:
+            try:
+                record(client, tool, args, tmp)
+            except RyoError as exc:
+                failed.append(f"{tool}: {exc}")
+        if failed:
+            for f in failed:
+                typer.echo(f)
+            typer.echo(f"{len(failed)} of {len(calls)} tools failed; {RECORDED_ROOT} left unchanged")
+            raise typer.Exit(1)
+        shutil.copytree(tmp, RECORDED_ROOT, dirs_exist_ok=True)
+        for f in sorted(Path(tmp).rglob("*.json")):
+            typer.echo(f"recorded {RECORDED_ROOT / f.relative_to(tmp)}")
 
 
 @app.command()
-def serve(host: str = "127.0.0.1", port: int = 8000):
+def serve(host: str = "127.0.0.1", port: int = typer.Option(8000, min=1, max=65535)):
     """Serve the read-only API and the diff-first dashboard (Track 2)."""
     import uvicorn
 
@@ -391,14 +419,23 @@ def skill_spec():
 @skill_app.command("run")
 def skill_run(name: str, args_json: str = typer.Argument("{}", help="JSON object of arguments"), source: str = typer.Option("live", help="RYO source for market context")):
     """Invoke a skill and print its envelope."""
-    args = json.loads(args_json)
+    try:
+        args = json.loads(args_json)
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(f"ARGS_JSON is not valid JSON: {exc}") from None
+    if not isinstance(args, dict):
+        raise typer.BadParameter("""ARGS_JSON must be a JSON object, e.g. '{"symbol": "SOL"}'""")
     deps = {}
     if name == "news_verify" and args.get("symbol"):
         try:
             deps["ryo"] = _source(source)
         except typer.BadParameter:
             pass  # skill reports the missing market context itself
-    typer.echo(skill_invoke(name, args, **deps).model_dump_json(indent=1))
+    try:
+        env = skill_invoke(name, args, **deps)
+    except (KeyError, ValueError) as exc:
+        raise typer.BadParameter(str(exc).strip("'\"")) from None
+    typer.echo(env.model_dump_json(indent=1))
 
 
 if __name__ == "__main__":

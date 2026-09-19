@@ -15,7 +15,7 @@ from typing import Any
 import httpx
 
 from nota.envelope import Envelope
-from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, clean_symbol, make_envelope
 from nota.skills.sources import UA
 
 DEFINITION = SkillDefinition(
@@ -101,7 +101,7 @@ class ExchangePrices:
 
 def price_crosscheck(symbol: str, reference_price: float | None = None, reference_path: str | None = None,
                      reference_fear_greed: float | None = None, exchanges: ExchangePrices | None = None) -> Envelope:
-    symbol = symbol.upper()
+    symbol = clean_symbol(symbol)  # it goes into Coinbase's URL path, so nothing but letters and digits
     ex = exchanges or ExchangePrices()
     fetched_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     availability: dict[str, str] = {}

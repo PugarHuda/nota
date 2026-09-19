@@ -227,6 +227,16 @@ class _Spend:
         return out
 
 
+NO_PRIMARY = "primary evidence (deep_analysis) unavailable; the council was not convened and no trade is taken without it"
+
+
+def council_without_primary(model: str, prompt_version: str = PROMPT_VERSION) -> CouncilResult:
+    """What the judge's own rules decide when deep_analysis is missing, without asking four models to
+    reason over evidence that is not there: no_trade, no forecast (0.5), zero model calls."""
+    return CouncilResult(opinions=[], verdict=Verdict(action="no_trade", p_up_7d=0.5, rationale=NO_PRIMARY),
+                         model=model, prompt_version=prompt_version, spend=_Spend().as_dict())
+
+
 def run_council(
     pack: EvidencePack, llm: LLM, ledger: Ledger, weights: dict[str, float] | None = None, use_cache: bool = True,
     prompt_version: str = PROMPT_VERSION,

@@ -38,7 +38,7 @@ def input_schema(definition) -> dict[str, Any]:
     for a in definition.args:
         prop: dict[str, Any] = {"type": _JSON_TYPE.get(a.type, "string"), "description": a.description}
         if a.enum:
-            prop["enum"] = list(a.enum)
+            prop["enum"] = [int(x) for x in a.enum] if a.type == "integer" else list(a.enum)  # stored as text, typed on the wire
         if a.type == "array":
             prop["items"] = {"type": _JSON_TYPE.get((a.items or {}).get("type", "string"), "string")}
         props[a.name] = prop

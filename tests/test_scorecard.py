@@ -138,3 +138,11 @@ def test_track_record_reads_the_settled_record_back_in_ryos_envelope():
     assert "1 of 2 decided RYO plans" in env.summary.headline
     empty = verdict_track_record("BTC", ledger=led)
     assert empty.status == "partial" and empty.data["target_first"]["of_decided"] == 0 and "none decided" in empty.summary.headline
+
+
+def test_track_record_says_when_a_symbol_is_never_locked():
+    from nota.ledger import Ledger
+    from nota.skills.track_record import verdict_track_record
+
+    env = verdict_track_record("FOO", ledger=Ledger(":memory:"))
+    assert env.status == "unavailable" and "not in the scorecard universe" in " ".join(env.warnings)

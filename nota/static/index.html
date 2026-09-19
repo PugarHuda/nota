@@ -295,7 +295,7 @@ async function open(id, push = true) {
   try { $('#handle').value = localStorage.getItem('nota.handle') || ''; } catch (_) {}
   $('#backing').querySelectorAll('[data-stance]').forEach(b => b.onclick = async () => {
     const handle = $('#handle').value.trim();
-    if (!/^[A-Za-z0-9_@.\-]{3,32}$/.test(handle)) { $('#back-out').textContent = 'handle: 3-32 letters, digits, _ @ . -'; return; }
+    if (!/^@?[A-Za-z0-9_.\-]{3,32}$/.test(handle)) { $('#back-out').textContent = 'handle: 3-32 letters, digits, _ . - (a leading @ is fine)'; return; }
     try { localStorage.setItem('nota.handle', handle); } catch (_) {}
     try {
       const res = await fetch(`/api/decisions/${r.id}/back`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ handle, stance: b.dataset.stance }) });

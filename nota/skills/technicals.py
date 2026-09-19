@@ -8,13 +8,14 @@ candles means `null`, and the candle count and window are printed with every num
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 
 from nota.envelope import Envelope
-from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, clean_symbol, make_envelope
 from nota.skills.price_check import COINGECKO_IDS
 from nota.skills.sources import UA
 
@@ -31,6 +32,7 @@ DEFINITION = SkillDefinition(
 )
 
 PERIOD = 14
+COINGECKO_ID = re.compile(r"[a-z0-9-]{1,80}")  # the id comes back from CoinGecko's search and goes into a URL path
 RSI_WARN_POINTS = 10.0
 ATR_WARN_PCT = 25.0
 
@@ -55,6 +57,8 @@ def fetch_ohlc(symbol: str, days: int, http: httpx.Client | None = None) -> list
     """CoinGecko `/coins/{id}/ohlc`: [[ms, open, high, low, close], ...]; 4h candles for 3-30 days, 4-day candles beyond."""
     http = http or httpx.Client(timeout=20.0, headers={"User-Agent": UA})
     cid = coingecko_id(symbol, http)
+    if not COINGECKO_ID.fullmatch(str(cid)):
+        raise SourceUnavailable(f"coingecko: unexpected coin id {str(cid)[:80]!r}")
     try:
         resp = http.get(f"https://api.coingecko.com/api/v3/coins/{cid}/ohlc", params={"vs_currency": "usd", "days": days})
     except httpx.HTTPError as exc:
@@ -110,7 +114,7 @@ def atr(daily: list[dict[str, float]], period: int = PERIOD) -> float | None:
 
 def technicals_crosscheck(symbol: str, reference_rsi_14: float | None = None, reference_atr_14: float | None = None,
                           days: int = 30, http: httpx.Client | None = None) -> Envelope:
-    symbol = symbol.upper()
+    symbol = clean_symbol(symbol)
     days = max(15, min(int(days), 90))
     availability: dict[str, str] = {}
     warnings: list[str] = []

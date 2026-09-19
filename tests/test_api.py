@@ -208,3 +208,21 @@ def test_the_walkthrough_answers_a_head_probe():
 
     r = TestClient(app).head("/demo.mp4")
     assert r.status_code in (200, 404) and r.status_code != 405   # 404 only in a checkout without the video
+
+
+def test_decision_list_limit_is_bounded(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    assert c.get("/api/decisions?limit=-1").status_code == 422 and c.get("/api/decisions?limit=0").status_code == 422
+    assert c.get("/api/decisions?limit=201").status_code == 422 and len(c.get("/api/decisions?limit=1").json()) == 1
+    assert len(Ledger(str(tmp_path / "t.db")).list_decisions(limit=-1)) == 1  # SQLite's LIMIT -1 would mean "all"; clamped to 1..200
+
+
+def test_backing_handle_is_one_line_and_normalised(tmp_path, monkeypatch):
+    _, second = _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    for bad in ("abc\n", "abc\r\n", "a b c", "@@"):
+        assert c.post(f"/api/decisions/{second.id}/back", json={"handle": bad, "stance": "agree"}).status_code == 422, bad
+    c.post(f"/api/decisions/{second.id}/back", json={"handle": "@Abc", "stance": "agree"})
+    counts = c.post(f"/api/decisions/{second.id}/back", json={"handle": "abc", "stance": "disagree"}).json()
+    assert counts["handles"] == [{"handle": "abc", "stance": "disagree"}]
