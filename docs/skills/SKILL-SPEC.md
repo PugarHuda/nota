@@ -11,9 +11,13 @@ as_of · request · data · summary{headline,key_points} · availability · warn
 
 Honesty convention as implemented:
 
-- A failed dependency becomes `availability[<section>] = "unavailable"` plus a warning that
-  names the cause. `status` is derived from availability (`nota/skills/contract.py`), never
-  set by hand.
+- Each section's availability uses RYO's words: `available`, `partial`, `unavailable`, `error`,
+  and `outlier` for a price source excluded from the median. A failed dependency becomes
+  `unavailable` plus a warning that names the cause. `status` is derived from the primary
+  sections' availability (`nota/skills/contract.py`), never set by hand: `ok` when every primary
+  section is available, `unavailable` when every one failed, else `partial`. An optional
+  section failing (fear/greed next to prices) is a warning, not a downgrade. Receipts stored
+  before 2026-09-19 say `ok` for available and still render and replay.
 - A measurement that cannot be made is `null`. Sentiment with no sentiment-bearing words is
   `null`, not `0`. Timestamps the source does not supply are `null` and a warning says so.
 - The method is named in the output (`data.method.sentiment = "lexicon_v1"`), and thresholds
@@ -79,11 +83,18 @@ Independent spot prices next to RYO's read, never instead of it.
 | `reference_price` | number | no | RYO's price to compare against |
 | `reference_path` | string | no | where the reference came from |
 
-`data`: `sources[]{name,price_usd,as_of,status,error}` (CoinGecko, Coinbase, Kraken; no keys),
+`data`: `sources[]{name,price_usd,as_of,status,error}` (CoinGecko, Coinbase, Kraken, Binance's
+`data-api.binance.vision` USDT pair, DefiLlama `coins.llama.fi` at confidence 0.9 or more; no keys),
+`coingecko_id` (search hits with the symbol ranked by market-cap rank, unranked last),
 `median_usd`, `spread_pct`, `sources_ok`, `reference{price_usd,path,deviation_pct}`,
 `fear_greed{value,classification,as_of,source,reference_value,delta}` (alternative.me, optional
 `reference_fear_greed` arg; a 10-point gap becomes a warning), `thresholds`.
-A deviation of 2% or more becomes a warning. `availability` is per exchange. The council's
+A deviation of 2% or more becomes a warning. When the sources spread more than 2% and at
+least three independent ones answered, the one farthest from the median of the others is marked
+`outlier`, shown but left out of the median, with both prices in a warning. DefiLlama is looked up
+by CoinGecko's id, so it does not vote and is excluded with CoinGecko. A CoinGecko 429 is retried
+once after its Retry-After (at most 10 s); `COINGECKO_API_KEY` sends a demo key.
+`availability` is per source; every price source is primary, fear/greed is not. The council's
 Technician sees this section as `price_check`; the calibration step uses the median only when
 RYO cannot supply a price, and records that in the outcome.
 
@@ -96,13 +107,19 @@ RYO's indicators recomputed from an independent source so a reader can audit the
 | `symbol` | string | yes | e.g. SOL |
 | `reference_rsi_14` | number | no | RYO's `technicals.rsi_14` |
 | `reference_atr_14` | number | no | RYO's `technicals.atr_14` (USD) |
-| `days` | integer | no | look-back, default 30 (15..90) |
+| `days` | integer | no | lookback for performance, 7..90 (indicators always use 200 closed daily candles); clamped with a warning |
 
-`data`: `method{indicators: wilder, period: 14, candles}`, `daily_candles`, `as_of` (last candle),
-`close`, `rsi_14`, `atr_14`, `atr_pct`, `performance_pct{1d,7d,30d}`,
+`data`: `method{indicators: wilder, period: 14, candles}`, `candle_source`, `warmup_candles`,
+`daily_candles`, `as_of` (close of the last closed candle),
+`close`, `rsi_14`, `atr_14`, `atr_pct`, `performance_pct{1d,7d,30d,<days>d}`,
 `reference{rsi_14, atr_14, rsi_diff_points, atr_diff_pct}`, `thresholds` (10 RSI points, 25% ATR).
-Source: CoinGecko `/coins/{id}/ohlc` (no key; 4-hour candles for up to 30 days, aggregated to UTC
-days here). Fewer than 15 daily candles means `rsi_14`/`atr_14` are `null` with a warning.
+Source: 200 closed UTC-day candles from OKX `history-candles` `1Dutc` (`method.candles =
+okx_1Dutc`); if OKX fails, Binance `data-api.binance.vision` `klines` `1d` (`binance_1d`); if both
+fail, CoinGecko `/coins/{id}/ohlc?days=30` 4-hour candles aggregated to UTC days
+(`coingecko_ohlc_4h_to_utc_daily`, with the warning that fewer than 100 candles do not converge).
+The day in progress is always dropped. Wilder smoothing forgets its seed geometrically, so 100
+closes already agree with 200 to 0.1 RSI point. Fewer than 15 daily candles means
+`rsi_14`/`atr_14` are `null` with a warning.
 `availability.ohlc` is the primary section.
 
 ## Calling them

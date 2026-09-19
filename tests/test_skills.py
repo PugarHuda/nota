@@ -79,7 +79,7 @@ def test_narrative_convergence_detects_convergence_and_reports_failures():
     env = narrative_convergence(["tg:alpha", "tg:beta", "tg:private", "x:someone"], hours=24,
                                 telegram=TelegramPublic(httpx.Client()), tavily=Tavily(api_key=""))
     assert isinstance(env, Envelope) and env.tool == "narrative_convergence" and env.status == "partial"
-    assert env.availability == {"tg:alpha": "ok", "tg:beta": "ok", "tg:private": "unavailable", "x:someone": "unavailable"}
+    assert env.availability == {"tg:alpha": "available", "tg:beta": "available", "tg:private": "unavailable", "x:someone": "unavailable"}
     assert any("TAVILY_API_KEY" in w for w in env.warnings) and any("no public preview" in w for w in env.warnings)
     tokens = {t["symbol"]: t for t in env.data["tokens"]}
     sol = tokens["SOL"]
@@ -126,7 +126,7 @@ def test_news_verify_corroboration_and_market_context():
     assert env.status == "ok" and env.data["verdict"] == "weak"  # coindesk + theblock = 2 relevant domains
     assert env.data["distinct_domains"] == 2 and env.data["top_score"] == 0.9
     assert env.data["market_context"]["symbol"] == "SOL" and env.data["market_context"]["headline"] == "SOL steady"
-    assert env.availability == {"search": "ok", "market": "ok"}
+    assert env.availability == {"search": "available", "market": "available"}
     assert "Claim weak" in env.summary.headline
 
 
@@ -134,7 +134,7 @@ def test_news_verify_corroboration_and_market_context():
 def test_news_verify_search_down_is_unavailable_but_market_still_attached():
     respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(503))
     env = news_verify("anything", symbol="SOL", rss=False, tavily=Tavily(api_key="tvly-test", http=httpx.Client()), ryo=RecordedRyoClient(FIXTURES, name="fixture"))
-    assert env.status == "unavailable" and env.data["verdict"] is None and env.availability["market"] == "ok"
+    assert env.status == "unavailable" and env.data["verdict"] is None and env.availability["market"] == "available"
 
 
 def test_news_verify_without_key_and_without_ryo():

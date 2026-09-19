@@ -47,7 +47,7 @@ def verdict_track_record(symbol: str | None = None, horizon_hours: int = 24, led
     warnings: list[str] = []
     try:
         s = summary(ledger or Ledger(os.environ.get("NOTA_DB", "nota.db")), h)
-        availability = {"ledger": "ok"}
+        availability = {"ledger": "available"}
     except Exception as exc:  # an old snapshot without scorecard tables, or no ledger at all
         s = {"open": [], "settled": [], "lock_days": 0}
         availability = {"ledger": "unavailable"}
@@ -67,7 +67,7 @@ def verdict_track_record(symbol: str | None = None, horizon_hours: int = 24, led
     if sym and sym not in UNIVERSE:  # nothing is ever locked for it, so "none settled yet" would imply there will be
         availability["ledger"] = "unavailable"
         warnings.append(f"{sym} is not in the scorecard universe (25 majors): {', '.join(UNIVERSE)}")
-    elif availability["ledger"] == "ok" and not settled:
+    elif availability["ledger"] == "available" and not settled:
         availability["ledger"] = "partial"
         warnings.append(f"nothing settled at {h} h{' for ' + sym if sym else ''} yet; no rate is given")
     who = sym or "all tokens"

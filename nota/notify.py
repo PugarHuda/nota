@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 from nota.receipt import Receipt
+from nota.skills.contract import OK
 from nota.risk import PracticeTrade
 
 
@@ -26,7 +27,7 @@ def _lines(r: Receipt) -> list[str]:
     t = r.trade
     trade = (f"{t.side.upper()} {t.size_usd:.0f} USD at {t.entry_price:g}, stop {t.stop_price:g}, target {t.target_price:g}"
              if isinstance(t, PracticeTrade) else f"no trade: {t.reason}")
-    degraded = [k for k, s in r.availability.items() if s != "ok"]
+    degraded = [k for k, s in r.availability.items() if s not in OK]
     return [
         r.headline,
         f"verdict {r.verdict.action} (p_up_7d {r.verdict.p_up_7d:.2f}); practice trade: {trade}",

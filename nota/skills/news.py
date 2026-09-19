@@ -54,7 +54,7 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
     if rss:
         try:
             results += rss.search(claim, max_results=max_results, time_range="week")
-            availability["headlines"] = "ok" if not rss.failed else "partial"
+            availability["headlines"] = "available" if not rss.failed else "partial"
             warnings += [f"rss: {f}" for f in rss.failed]
         except SourceUnavailable as exc:
             availability["headlines"] = "unavailable"
@@ -73,7 +73,7 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
         data.update(sources=sources, distinct_domains=len(domains), domains=domains,
                     top_score=max(scores) if scores else None, verdict=verdict,
                     thresholds={"corroborated_domains": CORROBORATED_DOMAINS, "min_score": MIN_SCORE})
-        availability["search"] = "ok"
+        availability["search"] = "available"
     except SourceUnavailable as exc:
         availability["search"] = "unavailable"
         warnings.append(str(exc))
@@ -90,7 +90,7 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
                                           "headline": env.summary.headline, "key_points": env.summary.key_points,
                                           "performance": env.get("performance"), "verdict": env.get("verdict"),
                                           "warnings": env.warnings}
-                availability["market"] = env.status if env.status != "unavailable" else "unavailable"
+                availability["market"] = {"ok": "available"}.get(env.status, env.status)
             except RyoError as exc:
                 availability["market"] = "unavailable"
                 warnings.append(f"analyze_token failed: {exc.code}: {exc.message}")

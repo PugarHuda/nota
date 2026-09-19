@@ -11,6 +11,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
 from nota.receipt import Receipt
+from nota.skills.contract import OK
 from nota.risk import PracticeTrade
 
 W, H = 1200, 630
@@ -93,7 +94,7 @@ def render_card(r: Receipt) -> bytes:
     council = "   ".join(f"{o.role} {o.stance} {o.p_up_7d:.2f}" for o in r.opinions)
     d.text((60, y), _wrap(d, council, _font(24), TEXT_W, 1)[0], font=_font(24), fill=DIM)
     y += 40
-    degraded = [k for k, s in r.availability.items() if s != "ok"]
+    degraded = [k for k, s in r.availability.items() if s not in OK]
     avail = f"evidence: {len(r.availability)} sections" + (f", degraded: {', '.join(degraded)}" if degraded else ", all ok")
     for line in _wrap(d, avail, _font(24), TEXT_W, 2):
         d.text((60, y), line, font=_font(24), fill=WARN if degraded else DIM)

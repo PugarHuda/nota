@@ -10,7 +10,7 @@ judge running `uv run pytest -q` gets the same result every time.
 import pytest
 
 from nota import api
-from nota.skills import sources
+from nota.skills import price_check, sources
 
 
 @pytest.fixture(autouse=True)
@@ -19,8 +19,10 @@ def _clear_rate_limiter():
     # response mocked in one test must not answer for the next
     api._BACKING_HITS.clear()
     sources._CACHE.clear()
+    price_check._CG_IDS.clear()
     api._health_cache = None
     yield
     api._BACKING_HITS.clear()
     sources._CACHE.clear()
+    price_check._CG_IDS.clear()
     api._health_cache = None

@@ -60,7 +60,7 @@ def test_news_verify_combines_rss_and_backend(monkeypatch):
         {"title": "dup", "url": "https://www.coindesk.com/a", "content": "y", "score": 0.9}]}))
     rss = RssNews(feeds={"coindesk.com": "https://www.coindesk.com/arc/outboundfeeds/rss/"})
     env = news_verify("SEC approves spot Solana ETF", tavily=Tavily(api_key="t", http=httpx.Client()), rss=rss)
-    assert env.availability == {"headlines": "ok", "search": "ok"} and env.status == "ok"
+    assert env.availability == {"headlines": "available", "search": "available"} and env.status == "ok"
     assert env.data["method"] == {"search": "tavily", "headlines": "rss_headlines"}
     assert [s["domain"] for s in env.data["sources"]] == ["coindesk.com", "theblock.co"]  # de-duplicated by url
     assert env.data["sources"][0]["published_date"] == _NEW.isoformat() and env.data["verdict"] == "weak"
@@ -84,7 +84,7 @@ def test_x_voice_reads_syndication_and_falls_back_when_a_handle_cannot_be_read(m
     respx.get(f"{base}/dead").mock(return_value=Response(429))
     env = narrative_convergence(["x:ryodigital", "x:dead"], hours=24 * 400, x=XPublic(),
                                 tavily=Tavily(api_key=""))
-    assert env.availability == {"x:ryodigital": "ok", "x:dead": "unavailable"}
+    assert env.availability == {"x:ryodigital": "available", "x:dead": "unavailable"}
     assert any("syndication" in w for w in env.warnings)
     assert any("x:dead" in w for w in env.warnings)
 
@@ -96,7 +96,9 @@ def test_vader_handles_negation_and_null():
     assert pos > 0.5 and neg < 0 and none is None
 
 
-def _prices(cg=150.0, cb=151.0, kr=None):
+def _prices(cg=150.0, cb=151.0, kr=None, bn=None, ll=None):
+    respx.get("https://data-api.binance.vision/api/v3/ticker/price").mock(return_value=Response(200, json={"symbol": "SOLUSDT", "price": str(bn)}) if bn else Response(451))
+    respx.get("https://coins.llama.fi/prices/current/coingecko:solana").mock(return_value=Response(200, json={"coins": {"coingecko:solana": {"price": ll, "symbol": "SOL", "timestamp": 1788678000, "confidence": 0.99}}}) if ll else Response(502))
     respx.get("https://api.alternative.me/fng/").mock(return_value=Response(200, json={"data": [{"value": "73", "value_classification": "Greed", "timestamp": "1788652800"}]}))
     respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(200, json={"solana": {"usd": cg, "last_updated_at": 1788678000}}))
     respx.get("https://api.coinbase.com/v2/prices/SOL-USD/spot").mock(return_value=Response(200, json={"data": {"amount": str(cb), "base": "SOL", "currency": "USD"}}))
@@ -105,16 +107,17 @@ def _prices(cg=150.0, cb=151.0, kr=None):
 
 @respx.mock
 def test_price_crosscheck_reports_sources_median_and_deviation():
-    _prices(kr=152.0)
+    _prices(kr=152.0, bn=151.0, ll=151.0)
     env = price_crosscheck("sol", reference_price=160.0, reference_path="deep_analysis.data.market.price_usd", exchanges=ExchangePrices(http=httpx.Client()))
     assert env.status == "ok" and env.data["median_usd"] == 151.0 and env.data["spread_pct"] == pytest.approx(1.325, abs=0.001)
-    assert env.data["sources"][0]["as_of"] == "2026-09-06T07:00:00+00:00"
+    assert env.data["sources"][0]["as_of"] == "2026-09-06T07:00:00+00:00" and env.data["coingecko_id"] == "solana"
+    assert set(env.availability.values()) == {"available"} and "binance: USDT used as USD proxy" in env.warnings
     assert env.data["reference"]["deviation_pct"] == pytest.approx(5.96, abs=0.01) and any("deviates" in w for w in env.warnings)
 
 
 @respx.mock
 def test_price_crosscheck_partial_and_unavailable():
-    _prices()  # kraken unknown pair
+    _prices()  # kraken unknown pair, binance geo-blocked, defillama down
     env = price_crosscheck("SOL", exchanges=ExchangePrices(http=httpx.Client()))
     assert env.status == "partial" and env.availability["kraken"] == "unavailable" and env.data["sources_ok"] == 2
     respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(429))
@@ -161,3 +164,74 @@ def test_resolve_prices_then_from_the_exchange_median_when_ryo_answered_nothing(
     shutil.copy(Path(__file__).parent.parent / "data" / "demo.db", db)
     out = resolve("2ae531ec2c9b", Ledger(str(db)), None)
     assert out.price_then == 101.0 and out.price_now == 151.0 and out.went_up and out.horizon_reached
+
+
+@pytest.fixture
+def slept(monkeypatch):
+    from nota.skills import price_check
+
+    out: list[float] = []
+    monkeypatch.setattr(price_check.time, "sleep", out.append)
+    return out
+
+
+@respx.mock
+def test_a_symbol_search_that_lands_on_another_coin_is_an_outlier(slept):
+    """AI: CoinGecko's first 'AI' hit is not the exchanges' AI (0.2854 vs 0.0201). It used to pass with a 1317% spread."""
+    respx.get("https://api.coingecko.com/api/v3/search").mock(return_value=Response(200, json={"coins": [
+        {"id": "unranked-ai", "symbol": "AI", "market_cap_rank": None},
+        {"id": "artificial-inu-3", "symbol": "AI", "market_cap_rank": 149},
+        {"id": "ai-something-else", "symbol": "AIX", "market_cap_rank": 3},
+    ]}))
+    respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(200, json={"artificial-inu-3": {"usd": 0.2854}}))
+    respx.get("https://coins.llama.fi/prices/current/coingecko:artificial-inu-3").mock(return_value=Response(200, json={
+        "coins": {"coingecko:artificial-inu-3": {"price": 0.2854, "timestamp": 1788678000, "confidence": 0.99}}}))
+    respx.get("https://api.coinbase.com/v2/prices/AI-USD/spot").mock(return_value=Response(200, json={"data": {"amount": "0.0201"}}))
+    respx.get("https://api.kraken.com/0/public/Ticker").mock(return_value=Response(200, json={"error": [], "result": {"AIUSD": {"c": ["0.0201", "1"]}}}))
+    respx.get("https://data-api.binance.vision/api/v3/ticker/price").mock(return_value=Response(200, json={"price": "0.0202"}))
+    respx.get("https://api.alternative.me/fng/").mock(return_value=Response(503))
+    env = price_crosscheck("AI", exchanges=ExchangePrices(http=httpx.Client()))
+    assert env.data["coingecko_id"] == "artificial-inu-3"  # ranked by market cap, unranked last
+    assert env.availability["coingecko"] == "outlier" and env.availability["defillama"] == "outlier"  # same id, same wrong coin
+    assert env.data["median_usd"] == 0.0201 and env.data["sources_ok"] == 3 and env.status == "partial"
+    assert any("coingecko 0.2854" in w and "0.0201" in w and "outlier" in w for w in env.warnings)
+    assert "coingecko id artificial-inu-3 may be a different asset" in env.warnings
+    assert env.availability["fear_greed"] == "unavailable" and slept == []
+
+
+@respx.mock
+def test_coingecko_429_is_retried_once_after_retry_after(slept, monkeypatch):
+    monkeypatch.setenv("COINGECKO_API_KEY", "demo-key")
+    route = respx.get("https://api.coingecko.com/api/v3/simple/price").mock(side_effect=[
+        Response(429, headers={"Retry-After": "60"}), Response(200, json={"solana": {"usd": 150.0}})])
+    assert ExchangePrices(http=httpx.Client()).coingecko("SOL") == (150.0, None)
+    assert route.call_count == 2 and slept == [10.0]  # capped
+    assert route.calls[0].request.headers["x-cg-demo-api-key"] == "demo-key"
+    route.side_effect = [Response(429, headers={"Retry-After": "2"}), Response(429)]
+    with pytest.raises(SourceUnavailable, match="HTTP 429"):
+        ExchangePrices(http=httpx.Client()).coingecko("SOL")
+    assert route.call_count == 4 and slept == [10.0, 2.0]  # one retry, not a loop
+
+
+def test_status_ignores_optional_sections_and_counts_outliers_as_partial():
+    from nota.skills.contract import status_from
+
+    assert status_from({"a": "ok", "b": "available", "c": "ok", "fear_greed": "unavailable"}, primary=["a", "b", "c"]) == "ok"
+    assert status_from({"a": "available", "b": "outlier"}) == "partial"
+    assert status_from({"a": "error", "b": "unavailable"}) == "unavailable"
+
+
+@respx.mock
+def test_every_skill_speaks_ryos_availability_vocabulary(monkeypatch, slept):
+    """RYO's envelopes say 'available'; ours said 'ok'. Every section value, success or failure, is RYO's word."""
+    from nota.skills import SKILLS
+
+    for key in ("TAVILY_API_KEY", "VENICE_API_KEY", "RYO_MCP_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    respx.route().mock(return_value=Response(503))
+    allowed = {"available", "partial", "unavailable", "error", "outlier"}
+    args = {"narrative_convergence": {"voices": ["tg:nobody"]}, "news_verify": {"claim": "SOL ETF approved"},
+            "verdict_track_record": {}}
+    for name, (_, fn) in SKILLS.items():
+        env = fn(**args.get(name, {"symbol": "SOL"}))
+        assert env.availability and set(env.availability.values()) <= allowed, (name, env.availability)

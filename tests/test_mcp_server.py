@@ -307,7 +307,7 @@ def test_every_tool_is_read_only_titled_and_declares_its_output_and_view():
 
 def test_the_output_schema_is_the_envelope_every_recorded_ryo_answer_fits():
     assert tool_list()[0]["outputSchema"] == Envelope.model_json_schema()
-    fixtures = list((Path(__file__).parent / "fixtures").glob("*/*.json"))
+    fixtures = [f for f in (Path(__file__).parent / "fixtures").glob("*/*.json") if f.parent.name != "market"]  # market/ holds exchange candles
     assert fixtures
     for f in fixtures:
         env = parse_rest(json.loads(f.read_text(encoding="utf-8")))

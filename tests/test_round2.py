@@ -70,7 +70,7 @@ def test_bluesky_voice_parses_and_scores():
     msgs = BlueskyPublic(http=httpx.Client()).fetch("@alpha.bsky.social")
     assert msgs[0].url == "https://bsky.app/profile/alpha.bsky.social/post/3k1" and msgs[0].at == "2026-09-06T01:00:00.000Z" and msgs[0].views == "12"
     env = narrative_convergence(["bs:alpha.bsky.social"], hours=24 * 30, bluesky=BlueskyPublic(http=httpx.Client()))
-    assert env.availability == {"bs:alpha.bsky.social": "ok"} and env.data["tokens"][0]["symbol"] == "SOL" and env.data["tokens"][0]["sentiment_mean"] > 0
+    assert env.availability == {"bs:alpha.bsky.social": "available"} and env.data["tokens"][0]["symbol"] == "SOL" and env.data["tokens"][0]["sentiment_mean"] > 0
     respx.get("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed").mock(return_value=Response(400, json={"message": "Profile not found"}))
     with pytest.raises(SourceUnavailable, match="Profile not found"):
         BlueskyPublic(http=httpx.Client()).fetch("nobody")
@@ -82,10 +82,12 @@ def test_fear_greed_crosscheck_in_price_check():
     respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(500))
     respx.get("https://api.coinbase.com/v2/prices/SOL-USD/spot").mock(return_value=Response(500))
     respx.get("https://api.kraken.com/0/public/Ticker").mock(return_value=Response(500))
+    respx.get("https://data-api.binance.vision/api/v3/ticker/price").mock(return_value=Response(500))
+    respx.get("https://coins.llama.fi/prices/current/coingecko:solana").mock(return_value=Response(500))
     env = price_crosscheck("SOL", reference_fear_greed=55, exchanges=ExchangePrices(http=httpx.Client()))
     fg = env.data["fear_greed"]
     assert fg["value"] == 73 and fg["delta"] == 18 and fg["as_of"] == "2026-09-06T00:00:00+00:00" and any("differs" in w for w in env.warnings)
-    assert env.status == "unavailable" and env.availability["fear_greed"] == "ok"  # exchanges are the primary sections
+    assert env.status == "unavailable" and env.availability["fear_greed"] == "available"  # exchanges are the primary sections
 
 
 def test_reliability_bins_judge_probabilities():

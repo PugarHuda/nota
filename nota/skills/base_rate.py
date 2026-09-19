@@ -72,7 +72,7 @@ def okx_daily(symbol: str, http: httpx.Client, pages: int = PAGES) -> list[dict[
         after = page[-1][0]
     if not rows:
         raise SourceUnavailable(f"okx: no daily candles for {symbol}-USDT")
-    out = {int(r[0]): {"ts": int(r[0]), "high": float(r[2]), "low": float(r[3]), "close": float(r[4])} for r in rows if r[8] == "1"}
+    out = {int(r[0]): {"ts": int(r[0]), "open": float(r[1]), "high": float(r[2]), "low": float(r[3]), "close": float(r[4])} for r in rows if r[8] == "1"}
     return [out[k] for k in sorted(out)]
 
 
@@ -153,7 +153,7 @@ def move_base_rate(symbol: str, k: float = 1.0, horizon_days: int = 3, direction
         if as_of:
             cutoff = datetime.fromisoformat(as_of).replace(tzinfo=timezone.utc).timestamp() * 1000
             daily = [d for d in daily if d["ts"] < cutoff]
-        availability = {"okx_daily": "ok"}
+        availability = {"okx_daily": "available"}
     except SourceUnavailable as exc:
         daily, availability = [], {"okx_daily": "unavailable"}
         warnings.append(str(exc))

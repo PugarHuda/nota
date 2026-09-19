@@ -152,7 +152,7 @@ const drawBroken = async (summaries) => {
   // stored, in every language: those are data, not copy.
   const cells = [[panel.dataset.colSection || 'Evidence section', 'h'], [panel.dataset.colStatus || 'status', 'h']];
   for (const [name, status] of Object.entries(receipt.availability)) {
-    cells.push([name, ''], [status, status === 'ok' ? 'ok' : 'bad']);
+    cells.push([name, ''], [status, status === 'ok' || status === 'available' ? 'ok' : 'bad']);
   }
   panel.replaceChildren(...cells.map(([text, cls]) => {
     const el = document.createElement('div');

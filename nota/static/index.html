@@ -61,7 +61,7 @@
 
   .badge { font-size:11px; line-height:1.6; color:var(--ink-2) }
   .badge.long { color:var(--long) } .badge.short, .badge.no_trade { color:var(--short) }
-  .badge.ok { color:var(--long) } .badge.partial { color:var(--warn) }
+  .badge.ok, .badge.available { color:var(--long) } .badge.partial, .badge.outlier { color:var(--warn) }
   .badge.unavailable, .badge.error { color:var(--short) }
   button.badge { cursor:pointer; background:var(--paper); border:1.5px solid var(--form-2); border-radius:3px; padding:5px 11px;
                  color:var(--ink); font:700 12px/1.2 var(--text) }
@@ -212,7 +212,7 @@ async function open(id, push = true) {
   $('#detail').classList.remove('stamped');   // a newly opened receipt has not been checked yet
   if (push) history.pushState({}, '', `/r/${id}`);
   sel = Math.max(0, shown.findIndex(x => x.id === id)); renderList();
-  const degraded = Object.entries(r.availability).filter(([, s]) => s !== 'ok');
+  const degraded = Object.entries(r.availability).filter(([, s]) => s !== 'ok' && s !== 'available');
   const t = r.trade;
   $('#detail').innerHTML = `
     <div class="sheet-title"><strong>RECEIPT</strong><span>${esc(r.id)}</span></div>

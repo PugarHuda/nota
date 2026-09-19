@@ -227,12 +227,15 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
 - `news_verify`: dated headlines from CoinDesk, Cointelegraph, The Block and Decrypt RSS,
   plus Tavily or Venice web search for breadth; counts independent domains and attaches RYO
   `analyze_token` context.
-- `price_crosscheck`: keyless CoinGecko, Coinbase and Kraken spot prices, median, spread, and
-  deviation of a reference price (RYO's) from the exchanges, plus the alternative.me Fear &
-  Greed index against RYO's reading.
+- `price_crosscheck`: keyless CoinGecko, Coinbase, Kraken, Binance (public data mirror, USDT as the
+  USD proxy) and DefiLlama spot prices, median, spread, and deviation of a reference price (RYO's)
+  from the exchanges, plus the alternative.me Fear & Greed index against RYO's reading. A source
+  more than 2% from the others is marked `outlier` and left out of the median, so a CoinGecko
+  symbol search that lands on a different coin cannot move the price.
 - `technicals_crosscheck`: RSI(14), ATR(14) and 1d/7d/30d performance recomputed with Wilder's
-  method from CoinGecko public OHLC (4-hour candles aggregated to UTC days), with the deviation
-  of reference values (RYO's `technicals.rsi_14` / `atr_14`) from the independent calculation.
+  method from 200 closed UTC-day candles (OKX, else Binance, else CoinGecko 4-hour OHLC aggregated
+  to days, which warns that 30 days do not converge; today's unfinished candle is never used), with
+  the deviation of reference values (RYO's `technicals.rsi_14` / `atr_14`) from the independent calculation.
   The Technician sees it as `technicals_check` on every decision.
 - `positioning_check`: the derivatives gate above, plus OKX's perp premium (the funding rate sits at
   the 1 bp interest component and says nothing), open-interest change in coins, the long/short
@@ -474,8 +477,8 @@ defusedxml, pillow; dev: pytest, respx, playwright (browser end-to-end tests in
 `tests/test_dashboard_e2e.py` and QA in `tests/test_qa_browser.py`, run after
 `uv run playwright install chromium`), edge-tts and Remotion (walkthrough only, see below). Data sources:
 RYO MCP, t.me/s previews, Bluesky public AppView, X public syndication, CoinDesk /
-Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken, OKX and Hyperliquid public
-APIs, alternative.me, Tavily or Venice web search. Typefaces, self-hosted under `nota/static/fonts`
+Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken, Binance (data-api.binance.vision),
+DefiLlama coins, OKX and Hyperliquid public APIs, alternative.me, Tavily or Venice web search. Typefaces, self-hosted under `nota/static/fonts`
 and served from an allow-list: Dela Gothic One (Latin, plus a 76-character Japanese subset for the
 `/ja` headings) and BIZ UDPGothic / BIZ UDGothic (Morisawa), all SIL Open Font License 1.1, taken
 as Latin subsets from Google Fonts.

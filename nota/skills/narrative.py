@@ -141,15 +141,15 @@ def narrative_convergence(
             voice_rows.append({"id": voice, "status": "unavailable", "messages": 0, "error": str(exc)})
             continue
         kept = [m for m in msgs if _within(m, since)]
-        availability[voice] = "ok"
-        voice_rows.append({"id": voice, "status": "ok", "messages": len(kept), "fetched": len(msgs)})
+        availability[voice] = "available"
+        voice_rows.append({"id": voice, "status": "available", "messages": len(kept), "fetched": len(msgs)})
         for m in kept:
             toks, sent, conv, urg = score_text(m.text, tracked)
             if toks:
                 scored.append(Scored(voice=m.voice, id=m.id, url=m.url, at=m.at, text=m.text[:280], tokens=toks,
                                      sentiment=sent, conviction=conv, urgency=urg))
 
-    ok_voices = [v for v, s in availability.items() if s == "ok"]
+    ok_voices = [v for v, s in availability.items() if s == "available"]
     by_token: dict[str, list[Scored]] = defaultdict(list)
     for s in scored:
         for t in s.tokens:

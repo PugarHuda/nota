@@ -26,6 +26,8 @@ def test_invoke_returns_skill_call_response(tmp_path, monkeypatch):
     respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(200, json={"solana": {"usd": 100.0, "last_updated_at": 1788678000}}))
     respx.get("https://api.coinbase.com/v2/prices/SOL-USD/spot").mock(return_value=Response(200, json={"data": {"amount": "101"}}))
     respx.get("https://api.kraken.com/0/public/Ticker").mock(return_value=Response(200, json={"error": [], "result": {"SOLUSD": {"c": ["102", "1"]}}}))
+    respx.get("https://data-api.binance.vision/api/v3/ticker/price").mock(return_value=Response(503))
+    respx.get("https://coins.llama.fi/prices/current/coingecko:solana").mock(return_value=Response(503))
     c = TestClient(api.app)
     res = c.post("/api/skills/price_crosscheck/invoke", json={"name": "price_crosscheck", "args": {"symbol": "sol", "reference_price": 150}})
     assert res.status_code == 200

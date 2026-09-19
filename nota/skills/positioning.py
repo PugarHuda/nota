@@ -81,7 +81,7 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
                    interest_bps_8h=round(float(f["interestRate"]) * 1e4, 3))
         p = out["premium_bps"]
         out["premium_state"] = "at_default" if abs(p) < AT_DEFAULT_BPS else ("above_spot" if p > 0 else "below_spot")
-        availability["okx_premium"] = "ok"
+        availability["okx_premium"] = "available"
     except (SourceUnavailable, KeyError, ValueError) as exc:
         availability["okx_premium"] = "unavailable"
         warnings.append(f"okx premium: {exc}")
@@ -90,7 +90,7 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
         coins = [float(r[2]) for r in rows]  # newest first: [ts, oi, oiCcy, oiUsd]
         if len(coins) >= 25 and coins[24]:
             out["oi_change_24h_pct_coin"] = round((coins[0] / coins[24] - 1) * 100, 2)
-            availability["okx_open_interest"] = "ok"
+            availability["okx_open_interest"] = "available"
         else:
             availability["okx_open_interest"] = "partial"
             warnings.append(f"okx open interest: {len(coins)} hourly points, need 25 for a 24 h change")
@@ -103,7 +103,7 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
         now = ratios[0]
         out.update(long_short_ratio=round(now, 4), long_short_hours=len(ratios),
                    long_short_percentile_100h=round(sum(r <= now for r in ratios) / len(ratios) * 100, 1))
-        availability["okx_long_short"] = "ok"
+        availability["okx_long_short"] = "available"
     except (SourceUnavailable, IndexError, ValueError) as exc:
         availability["okx_long_short"] = "unavailable"
         warnings.append(f"okx long/short: {exc}")
@@ -211,7 +211,7 @@ def positioning_check(symbol: str, reference_derivatives: dict[str, Any] | None 
     try:
         hl["premium_bps"] = hl_premium(symbol, http)
         hl["premium_state"] = _state(hl["premium_bps"])
-        availability["hyperliquid_premium"] = "ok"
+        availability["hyperliquid_premium"] = "available"
     except (SourceUnavailable, KeyError, ValueError, TypeError) as exc:
         availability["hyperliquid_premium"] = "unavailable"
         warnings.append(f"hyperliquid premium: {exc}")

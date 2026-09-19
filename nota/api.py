@@ -42,6 +42,7 @@ from nota.ryo_client import RyoClient
 from nota.mcp_server import (HEADER_MISMATCH, SUPPORTED_PROTOCOLS, UNSUPPORTED_VERSION, VERSION_META,
                              handle as mcp_handle)
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
+from nota.skills.contract import OK
 
 load_dotenv()
 app = FastAPI(title="Nota", description="Read-only view over decision receipts. No orders, no wallets.")
@@ -119,7 +120,7 @@ def _receipt(led: Ledger, id: str) -> Receipt:
 
 
 def _degraded(r: Receipt) -> bool:
-    return any(s != "ok" for s in r.availability.values())
+    return any(s not in OK for s in r.availability.values())
 
 
 def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:

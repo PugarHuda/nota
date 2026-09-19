@@ -52,15 +52,20 @@ class SourceUnavailable(Exception):
     """A dependency (network source) failed. The skill reports it; it never fabricates."""
 
 
+OK = frozenset({"ok", "available"})  # RYO answers "available"; receipts stored before 2026-09-19 carry "ok"
+FAILED = frozenset({"unavailable", "error"})
+
+
 def status_from(availability: dict[str, str], primary: list[str] | None = None) -> Status:
-    """ok when every section is ok; unavailable when every primary section failed; else partial."""
+    """ok when every primary section is available; unavailable when every primary section failed; else partial.
+    An optional section (fear/greed next to prices) failing is a warning, not a downgrade; `outlier` is partial."""
     keys = primary or list(availability)
     if not keys:
         return "unavailable"
     vals = [availability.get(k, "unavailable") for k in keys]
-    if all(v == "ok" for v in availability.values()):
+    if all(v in OK for v in vals):
         return "ok"
-    if all(v in ("unavailable", "error") for v in vals):
+    if all(v in FAILED for v in vals):
         return "unavailable"
     return "partial"
 
