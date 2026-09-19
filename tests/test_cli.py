@@ -70,3 +70,13 @@ def test_decide_without_an_llm_key_says_so_instead_of_raising_from_the_sdk(monke
     res = runner.invoke(cli.app, ["decide", "SOL", "--source", "fixture", "--llm", "anthropic"])
     assert res.exit_code != 0
     assert "ANTHROPIC_API_KEY is not set" in res.output and "no key at all" in res.output
+
+
+def test_once_a_day_skips_a_symbol_already_decided_today(monkeypatch, tmp_path):
+    from nota.ledger import Ledger
+
+    db = tmp_path / "l.db"
+    Ledger(str(db)).save_decision("abc", "h", "SOL", "m", "{}")
+    monkeypatch.setenv("NOTA_DB", str(db))
+    res = runner.invoke(cli.app, ["decide", "sol", "--once-a-day", "--source", "fixture"])
+    assert res.exit_code == 0 and "already decided today; skipped" in res.output

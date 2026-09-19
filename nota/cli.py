@@ -110,8 +110,12 @@ def decide_cmd(
     notify: bool = typer.Option(False, help="Post the receipt to configured Telegram/Discord channels"),
     price_check: bool = typer.Option(True, help="Add price_check: keyless CoinGecko/Coinbase/Kraken spot prices vs RYO's price"),
     as_json: bool = typer.Option(False, "--json"),
+    once_a_day: bool = typer.Option(False, "--once-a-day", help="Skip when this symbol already has a decision today (UTC)"),
 ):
     """Gather evidence, run the council, size a practice trade, store the receipt."""
+    if once_a_day and any(d["created_at"][:10] == now_iso()[:10] for d in _ledger().list_decisions(limit=5, symbol=symbol.upper())):
+        typer.echo(f"{symbol.upper()}: already decided today; skipped")  # a second call the same day would count twice in the Brier scores
+        raise typer.Exit()
     src = _source(source)
     receipt = decide(symbol, src, _llm(llm), _ledger(), RiskLimits(), use_cache=not no_cache, extras=_extras(src, voices, news, price_check))
     typer.echo(receipt.model_dump_json(indent=1) if as_json else render_markdown(receipt))

@@ -67,7 +67,7 @@ jobs:
         if: env.RYO_MCP_KEY != '' && env.OPENAI_API_KEY != ''
         run: |
           for s in SOL BTC ETH; do
-            uv run nota decide "$s" || echo "::warning::decide $s failed; the cycle continues"
+            uv run nota decide "$s" --once-a-day || echo "::warning::decide $s failed; the cycle continues"
           done
 
       - name: Commit the snapshot if it moved
