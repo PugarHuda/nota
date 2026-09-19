@@ -24,24 +24,23 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 
 ## project_description (≤ 1000 chars, paste as is)
 
-Nota makes an AI trading opinion auditable. Every decision is a receipt you can re-run:
-`nota replay <id>` rebuilds it from the stored evidence and the model outputs cached beside it,
-keyed by the model that produced them, and prints identical: true - no API key, no network, no
-drift. Each cited number carries its dotted RYO path and is read back out of the evidence, never
-retyped by the model; citations pointing at absent evidence are dropped in code; null is never
-turned into 0. Independent sources audit RYO itself - exchange medians check its price, Wilder
-RSI/ATR recomputed from public OHLC check its indicators - and the judge refuses to size a trade
-when they disagree. Three specialists (macro, technician, narrative) debate the five tools a
-decision reads; the sixth, scan_market, drives the `nota scan` funnel. Track 3: seven skills on
-RYO's own /api/skills paths. Track 2: a dashboard that diffs each receipt against the last, ranked
-by impact. Read-only; no orders.
+Nota makes RYO's research auditable. An AI council argues over live RYO evidence and stores each
+call as a receipt: `nota replay <id>` rebuilds it offline and prints identical: true. Every cited
+number is read back from its RYO path; null never becomes 0. It audits RYO too. Its Verdict
+Scorecard locks deep_analysis verdicts and trade plans for 25 majors daily and settles them on
+OKX candles, asking whether a verdict changes how often RYO's own plan works (day 0: 7 of 25 plans
+were long under a "cautious" verdict). A gate stops agents citing RYO derivatives fields that are
+not about the token: one OI figure repeated across unrelated tokens. Each agent is scored against
+the token's own base rate, not a coin flip. Track 1: council, gate, receipts. Track 2: diff
+dashboard and /scorecard. Track 3: seven skills in RYO's envelope, also an MCP server. Read-only;
+no orders.
 
 ## X post (draft)
 
 > Built Nota for the @ryodigital #RYOCHAN hackathon: an AI council over live RYO market
 > evidence where every call is a receipt you can re-run and get identical output - and it audits
 > RYO's own price and RSI against independent sources, refusing to trade when they disagree.
-> Diff-first dashboard + 7 skills. https://nota-ryo.vercel.app/demo
+> Diff-first dashboard + 4 skills. https://nota-ryo.vercel.app/demo
 
 
 (264 characters with a 23-character link. Lead with "re-run it and get the same answer" - the
@@ -63,7 +62,7 @@ link then points at `/demo`, where the same file sits beside its transcript.
 >
 > → It audits RYO itself. RSI(14) and ATR(14) recomputed from public candles with Wilder's method: 4.347 against RYO's 4.3762, 0.67% apart. Price checked against three exchanges. When sources disagree, the judge refuses to size anything. A value that couldn't be fetched stays null — it never quietly becomes zero.
 >
-> It's also an MCP server, so Claude Desktop or Cursor can call all seven research skills directly.
+> It's also an MCP server, so Claude Desktop or Cursor can call all four research skills directly.
 >
 > Read-only research on RYO evidence. No order is ever placed. Not financial advice.
 >
