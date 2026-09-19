@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- Nota's MCP Apps view (ui://nota/receipt). A host renders it in a sandboxed iframe beside any
+     Nota tool call and pushes the result in over postMessage. Self-contained on purpose: it loads
+     nothing, so the resource declares an empty CSP allow-list. Data is written with textContent only;
+     a tool result is third-party text and never becomes markup. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nota receipt</title>
+<style>
+:root { color-scheme:light;
+  --desk:light-dark(#edf0f5,#0e1322); --paper:light-dark(#ffffff,#161c30); --ink:light-dark(#1e2b5e,#e4e8f4);
+  --ink-2:light-dark(#586074,#a3abc2); --form:light-dark(#c8d0e4,#2c3554); --seal:light-dark(#d23f29,#f06a52);
+  --long:light-dark(#23714f,#5fbf91); --short:light-dark(#9c2a3c,#ee8595);
+  --text:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --fig:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace }
+:root[data-theme="dark"] { color-scheme:dark }
+body { margin:0; background:var(--desk); color:var(--ink); font:15px/1.6 var(--text) }
+.sheet { background:var(--paper); margin:12px; padding:14px 18px; border-top:3px double var(--ink); position:relative }
+.top { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; font-family:var(--fig); font-size:.85em; color:var(--ink-2) }
+#tool { color:var(--ink); font-weight:700 }
+#status { border:2px solid currentColor; border-radius:4px; padding:0 6px; font-weight:700; text-transform:uppercase }
+#status.ok { color:var(--long) } #status.partial { color:var(--seal) } #status.unavailable { color:var(--short) }
+h1 { font-size:1.15em; margin:.5em 0; overflow-wrap:anywhere }
+ul { margin:.3em 0; padding-left:1.2em } li { overflow-wrap:anywhere }
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin:.5em 0 }
+.chip { font-family:var(--fig); font-size:.8em; border:1px solid var(--form); padding:0 6px; border-radius:3px }
+.chip.bad { color:var(--short); border-color:currentColor }
+#warnings li { color:var(--seal) }
+#empty { color:var(--ink-2) }
+</style></head>
+<body><div class="sheet">
+  <p id="empty">Waiting for a Nota tool result.</p>
+  <div class="top"><span id="tool"></span><span id="status"></span><span id="as_of"></span></div>
+  <h1 id="headline"></h1>
+  <div class="chips" id="availability"></div>
+  <ul id="points"></ul>
+  <ul id="warnings"></ul>
+</div>
+<script>
+// MCP Apps handshake (spec 2026-01-26): ui/initialize request, then ui/notifications/initialized;
+// the host then sends ui/notifications/tool-result with the CallToolResult.
+const $ = id => document.getElementById(id);
+const post = msg => window.parent.postMessage({ jsonrpc: "2.0", ...msg }, "*");
+const put = (el, items, cls) => { el.replaceChildren(...items.map(t => {
+  const li = document.createElement(el.tagName === "UL" ? "li" : "span");
+  li.textContent = String(t.text ?? t); li.className = t.cls ?? cls ?? ""; return li; })); };
+function theme(ctx) { if (ctx && ctx.theme) document.documentElement.dataset.theme = ctx.theme; }
+function render(result) {
+  let env = result && result.structuredContent;
+  if (!env) { try { env = JSON.parse(result.content.find(c => c.type === "text").text); } catch { env = null; } }
+  if (!env || typeof env !== "object") { $("empty").textContent = "This result carries no Nota envelope."; return; }
+  $("empty").hidden = true;
+  $("tool").textContent = String(env.tool ?? "");
+  $("status").textContent = String(env.status ?? "");
+  $("status").className = ["ok", "partial", "unavailable"].includes(env.status) ? env.status : "";
+  $("as_of").textContent = env.as_of ? String(env.as_of) : "";
+  const s = env.summary || {};
+  $("headline").textContent = String(s.headline ?? "");
+  put($("points"), Array.isArray(s.key_points) ? s.key_points : []);
+  put($("availability"), Object.entries(env.availability || {}).map(([k, v]) => {
+    const st = typeof v === "object" && v ? v.status : v;
+    return { text: `${k}: ${st}`, cls: "chip" + (["ok", "live", "available", true].includes(st) ? "" : " bad") }; }));
+  put($("warnings"), Array.isArray(env.warnings) ? env.warnings : []);
+  post({ method: "ui/notifications/size-changed",
+         params: { width: document.body.scrollWidth, height: document.body.scrollHeight } });
+}
+window.addEventListener("message", e => {
+  if (e.source !== window.parent) return;          // only the host speaks to this view
+  const m = e.data || {};
+  if (m.id === 1 && m.result) { theme(m.result.hostContext); post({ method: "ui/notifications/initialized", params: {} }); }
+  else if (m.method === "ui/notifications/tool-result") render(m.params);
+  else if (m.method === "ui/notifications/host-context-changed") theme(m.params);
+});
+post({ id: 1, method: "ui/initialize", params: { protocolVersion: "2026-01-26",
+       clientInfo: { name: "nota-receipt", version: "0.1.0" }, appCapabilities: { availableDisplayModes: ["inline"] } } });
+</script></body></html>

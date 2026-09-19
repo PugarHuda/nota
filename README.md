@@ -118,10 +118,17 @@ strangers:
   handle is one line: `@Abc` and `abc` are the same backer, `abc
 ` is refused.
 - `tools/call` over MCP is metered per address exactly like the REST route, 60 an hour, because it
-  reaches third-party APIs. `initialize`, `tools/list` and `resources/*` stay free: they touch
-  nothing outside the process.
-- A JSON-RPC batch is capped at 25 messages, and `Origin` is validated on every MCP request as the
-  transport spec's security section requires.
+  reaches third-party APIs. `initialize`, `tools/list`, `resources/*` and the ledger-only
+  `verdict_track_record` stay free: they touch nothing outside the process. A batch is checked
+  whole before any of it is charged, and a refusal is a JSON-RPC `429` with `Retry-After`.
+- A JSON-RPC batch is capped at 25 messages and a body at 1 MB (checked while it streams, so a
+  chunked upload cannot slip past), a body nested too deep to parse is a `-32700`, and `Origin` is
+  validated on every MCP request as the transport spec's security section requires. Every refusal,
+  transport-level ones included, comes back as a JSON-RPC error body.
+- A message without an `id` is a notification: it gets `202` and does nothing, so it cannot run a
+  tool or spend the budget. Params of the wrong JSON type are a `-32602`, a skill that fails in an
+  unexpected way is an `isError` result naming the tool (the detail goes to the server log, not the
+  caller), and skills run in a worker thread so one slow source never stalls the endpoint.
 - Backing is capped at 30 an hour per address. It used to answer 503 on the hosted deployment, which
   meant the one place anyone could try it was the one place it did not work: a serverless filesystem
   cannot be written, and the ledger there is a snapshot. Backings now go to Postgres when
@@ -246,7 +253,19 @@ It serves all four MCP primitives, not just the easy one:
   cross-check RYO against the independent sources and carries the honesty rules with it, including
   that a null stays null. `read_a_receipt` walks a stored decision.
 - **completions**: `completion/complete` offers the receipt ids and symbols this deployment actually
-  holds, so a client never has to guess one.
+  holds, so a client never has to guess one, and only for an argument the referenced prompt or
+  template declares.
+
+Each tool carries a `title`, `annotations` (`readOnlyHint: true`, `destructiveHint: false`) and an
+`outputSchema`, the RYO envelope's own JSON Schema, so a client knows before calling that nothing is
+written and what shape comes back. Lists page with an opaque `cursor` 50 at a time.
+
+It also ships an **MCP Apps** view. Every tool links `ui://nota/receipt` in `_meta.ui.resourceUri`,
+and `resources/read` on that URI returns one self-contained HTML page (`nota/static/mcp_app.html`,
+`text/html;profile=mcp-app`, empty CSP allow-list: it loads nothing). A host that renders MCP Apps
+runs the `ui/initialize` handshake with it and pushes the tool result in; the view draws the
+envelope as a stamped card: status, `as_of`, availability per source, headline, key points and
+warnings, all written as text, never as markup.
 
 Nota is **published in the official MCP registry** as `io.github.PugarHuda/nota` (version 0.1.0,
 2026-09-10), so a client can find it without being handed the URL:
@@ -265,7 +284,10 @@ how to call the MCP endpoint, which skills exist and which receipts the ledger h
 from the routes and the ledger, so it cannot drift from them.
 
 One endpoint, POST only, stateless. It negotiates the protocol version the client asks for
-(`2026-07-28`, `2025-06-18`, `2025-03-26` or RYO's own `2024-11-05`), validates the `Origin` header
+(`2026-07-28`, `2025-11-25`, `2025-06-18`, `2025-03-26` or RYO's own `2024-11-05`, and the newest
+when it asks for one it does not know), answers `server/discover` with the versions, capabilities and
+server info, refuses an `MCP-Protocol-Version` header it does not speak with a `400` and the spec's
+`UnsupportedProtocolVersionError` (`-32022`, listing what it does), validates the `Origin` header
 against DNS rebinding as the transport spec requires, answers a batch with one response per request,
 returns `202 Accepted` with no body when the body holds only notifications, and answers `405` to GET
 and DELETE because there is no stream to open and no session to delete. Each tool's `inputSchema` is

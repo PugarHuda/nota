@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import html
 import json
+import logging
+import math
 import os
 from urllib.parse import urlparse
 import re
@@ -20,6 +22,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from nota import paths
 from nota.backings import store_for
@@ -31,7 +34,8 @@ from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
 from nota.risk import PracticeTrade
 from nota.ryo_client import RyoClient
-from nota.mcp_server import handle as mcp_handle
+from nota.mcp_server import (HEADER_MISMATCH, SUPPORTED_PROTOCOLS, UNSUPPORTED_VERSION, VERSION_META,
+                             handle as mcp_handle)
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 
 load_dotenv()
@@ -298,37 +302,85 @@ def _origin_ok(request: Request) -> bool:
     return host in ALLOWED_ORIGIN_HOSTS
 
 
+MCP_BODY_MAX = 1_000_000
+
+
+def _rpc_error(status: int, code: int, message: str, data: Any = None, headers: dict[str, str] | None = None,
+               id_: Any = None) -> JSONResponse:
+    """A transport-level refusal, still as JSON-RPC: an MCP client parses the body, not {detail}."""
+    err: dict[str, Any] = {"code": code, "message": message}
+    if data is not None:
+        err["data"] = data
+    return JSONResponse({"jsonrpc": "2.0", "id": id_, "error": err}, status_code=status, headers=headers)
+
+
+def _metered(m: dict[str, Any]) -> bool:
+    """The calls that reach third-party APIs: a tools/call request, except the ledger-only lookup."""
+    params = m.get("params")
+    name = params.get("name") if isinstance(params, dict) else None
+    return "id" in m and m.get("method") == "tools/call" and name != "verdict_track_record"
+
+
+def _safe_handle(m: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any] | None:
+    try:
+        return mcp_handle(m, deps)
+    except Exception:          # one broken message must not take the batch, or the process, with it
+        logging.getLogger("nota.mcp").exception("mcp message failed")
+        return {"jsonrpc": "2.0", "id": m.get("id"), "error": {"code": -32603, "message": "internal error"}}
+
+
 @app.post("/mcp", include_in_schema=False)
 async def mcp_endpoint(request: Request) -> Response:
     if not _origin_ok(request):
-        raise HTTPException(403, "origin not allowed")
+        return _rpc_error(403, -32600, "origin not allowed")
+    version = request.headers.get("mcp-protocol-version")
+    if version is not None and version not in SUPPORTED_PROTOCOLS:
+        return _rpc_error(400, UNSUPPORTED_VERSION, "Unsupported protocol version",
+                          {"supported": list(SUPPORTED_PROTOCOLS), "requested": version})
+    if int(request.headers.get("content-length") or 0) > MCP_BODY_MAX:
+        return _rpc_error(413, -32600, f"body exceeds {MCP_BODY_MAX} bytes")
+    raw = bytearray()
+    async for chunk in request.stream():   # chunked bodies carry no length, so cap while reading
+        raw += chunk
+        if len(raw) > MCP_BODY_MAX:
+            return _rpc_error(413, -32600, f"body exceeds {MCP_BODY_MAX} bytes")
     try:
-        body = json.loads(await request.body())
-    except ValueError as exc:
-        return JSONResponse({"jsonrpc": "2.0", "id": None,
-                             "error": {"code": -32700, "message": f"parse error: {exc}"}}, status_code=400)
+        body = json.loads(raw)
+    except (ValueError, RecursionError):
+        return _rpc_error(400, -32700, "parse error: body is not JSON this server can read")
     batch = body if isinstance(body, list) else [body]
     if not batch or not all(isinstance(m, dict) for m in batch):
-        return JSONResponse({"jsonrpc": "2.0", "id": None,
-                             "error": {"code": -32600, "message": "expected a JSON-RPC message or a batch"}},
-                            status_code=400)
+        return _rpc_error(400, -32600, "expected a JSON-RPC message or a batch")
     if len(batch) > MCP_BATCH_MAX:
-        return JSONResponse({"jsonrpc": "2.0", "id": None,
-                             "error": {"code": -32600,
-                                       "message": f"batch of {len(batch)} exceeds the limit of {MCP_BATCH_MAX}"}},
-                            status_code=400)
+        return _rpc_error(400, -32600, f"batch of {len(batch)} exceeds the limit of {MCP_BATCH_MAX}")
+    if version is not None:                # 2026-07-28: the header must match the body's own claim
+        for m in batch:
+            meta = m.get("params", {}).get("_meta") if isinstance(m.get("params"), dict) else None
+            claimed = meta.get(VERSION_META) if isinstance(meta, dict) else None
+            if claimed is not None and claimed != version:
+                return _rpc_error(400, HEADER_MISMATCH, f"Header mismatch: MCP-Protocol-Version {version!r} "
+                                  f"does not match body {claimed!r}", id_=m.get("id"))
     # tools/call reaches third-party APIs, so it is metered exactly like the REST skill route. The
     # endpoint is public and unauthenticated by design, which makes it an amplifier without this.
-    calls = sum(1 for m in batch if m.get("method") == "tools/call")
+    # The whole batch is checked before any of it is charged, so a refused batch costs nothing.
+    calls = sum(1 for m in batch if _metered(m))
     if calls:
         ip = request.client.host if request.client else "unknown"
-        for _ in range(calls):
-            _throttle(f"skill:{ip}", limit=60)
+        wait = _throttle_n(f"skill:{ip}", calls, limit=60)
+        if wait is not None:
+            return _rpc_error(429, -32000, "rate limited", {"retry_after_s": wait},
+                              headers={"Retry-After": str(wait)})
     deps: dict[str, Any] = {}
-    replies = [r for r in (mcp_handle(m, deps) for m in batch) if r is not None]
+    # skills do blocking network I/O; off the event loop so one slow source does not stall the server
+    replies = [r for r in await run_in_threadpool(lambda: [_safe_handle(m, deps) for m in batch]) if r is not None]
     if not replies:                       # only notifications or responses came in
         return Response(status_code=202)
-    return JSONResponse(replies if isinstance(body, list) else replies[0])
+    if isinstance(body, list):
+        return JSONResponse(replies)
+    code = replies[0].get("error", {}).get("code")
+    # 2026-07-28 transport: an unknown method is 404, a version problem is 400, both with the JSON-RPC body
+    status = 404 if code == -32601 else 400 if code in (UNSUPPORTED_VERSION, HEADER_MISMATCH) else 200
+    return JSONResponse(replies[0], status_code=status)
 
 
 @app.get("/mcp", include_in_schema=False)
@@ -374,10 +426,12 @@ judge refuses to size a trade when they disagree.
 ## Call the skills over MCP
 
 POST {base}/mcp speaks the Model Context Protocol over Streamable HTTP (stateless; versions
-2026-07-28, 2025-06-18, 2025-03-26 and 2024-11-05 are all accepted).
+{', '.join(SUPPORTED_PROTOCOLS)} are all accepted, and `server/discover` lists them).
 
-- `tools/list`, `tools/call` for the seven research skills below
-- `resources/list`, `resources/read` for every receipt, addressed as `nota://receipt/<id>`
+- `tools/list`, `tools/call` for the seven research skills below; each is read-only and declares its
+  output schema
+- `resources/list`, `resources/read` for every receipt, addressed as `nota://receipt/<id>` (markdown)
+  or `nota://receipt/<id>.json`, plus `ui://nota/receipt`, an MCP Apps view that renders any tool result
 
 ```
 curl -s {base}/mcp -H 'content-type: application/json' \
@@ -480,13 +534,23 @@ _BACKING_HITS: dict[str, list[float]] = {}
 BACKING_LIMIT, BACKING_WINDOW = 30, 3600.0  # ponytail: in-process per-IP throttle; a shared store if ever run on >1 worker
 
 
-def _throttle(ip: str, now: float | None = None, limit: int = BACKING_LIMIT) -> None:
+def _throttle_n(key: str, n: int, limit: int, now: float | None = None) -> int | None:
+    """Record n hits if all n fit in the window; otherwise record nothing and return the seconds until
+    the oldest hit ages out, which is when a retry can succeed."""
     now = now if now is not None else time.time()
-    hits = [t for t in _BACKING_HITS.get(ip, []) if now - t < BACKING_WINDOW]
-    if len(hits) >= limit:
-        raise HTTPException(429, f"too many requests from this address; limit {limit} per hour")
-    hits.append(now)
-    _BACKING_HITS[ip] = hits
+    hits = [t for t in _BACKING_HITS.get(key, []) if now - t < BACKING_WINDOW]
+    if len(hits) + n > limit:
+        _BACKING_HITS[key] = hits
+        return max(1, math.ceil(hits[0] + BACKING_WINDOW - now)) if hits else int(BACKING_WINDOW)
+    _BACKING_HITS[key] = hits + [now] * n
+    return None
+
+
+def _throttle(ip: str, now: float | None = None, limit: int = BACKING_LIMIT) -> None:
+    wait = _throttle_n(ip, 1, limit, now)
+    if wait is not None:
+        raise HTTPException(429, f"too many requests from this address; limit {limit} per hour",
+                            headers={"Retry-After": str(wait)})
 
 
 @app.post("/api/decisions/{id}/back")

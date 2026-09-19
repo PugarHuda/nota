@@ -99,7 +99,8 @@ def test_receipts_are_readable_as_mcp_resources(tmp_path, monkeypatch):
     listed = rpc({"jsonrpc": "2.0", "id": 10, "method": "resources/list"}).json()["result"]["resources"]
     uris = [r["uri"] for r in listed]
     assert f"nota://receipt/{first.id}" in uris and f"nota://receipt/{second.id}" in uris
-    assert all(r["mimeType"] == "text/markdown" and r["name"] and r["description"] for r in listed)
+    receipts = [r for r in listed if r["uri"].startswith("nota://")]
+    assert all(r["mimeType"] == "text/markdown" and r["name"] and r["description"] for r in receipts)
 
     read = rpc({"jsonrpc": "2.0", "id": 11, "method": "resources/read",
                 "params": {"uri": f"nota://receipt/{second.id}"}}).json()["result"]["contents"]
@@ -195,4 +196,233 @@ def test_completion_offers_only_what_this_deployment_actually_holds(tmp_path, mo
 def test_initialize_advertises_all_four_primitives():
     caps = rpc({"jsonrpc": "2.0", "id": 28, "method": "initialize",
                 "params": {"protocolVersion": "2026-07-28", "capabilities": {}}}).json()["result"]["capabilities"]
-    assert set(caps) == {"tools", "resources", "prompts", "completions"}
+    assert set(caps) == {"tools", "resources", "prompts", "completions", "extensions"}
+    assert caps["extensions"]["io.modelcontextprotocol/ui"]["mimeTypes"] == ["text/html;profile=mcp-app"]
+
+
+# --- transport hardening and the 2025-06-18 .. 2026-07-28 rules ---------------------------------
+import base64
+import socket
+import threading
+import time
+from pathlib import Path
+
+import httpx
+import pytest
+import uvicorn
+
+from nota import mcp_server
+from nota.envelope import Envelope, parse_rest
+from nota.skills import SKILLS
+
+
+@pytest.mark.parametrize("method,params", [
+    ("tools/call", {"name": ["price_crosscheck"], "arguments": {}}),
+    ("tools/call", {"name": {"x": 1}, "arguments": {}}),
+    ("tools/call", {"name": "price_crosscheck", "arguments": ["SOL"]}),
+    ("resources/read", {"uri": 5}),
+    ("resources/read", {"uri": None}),
+    ("prompts/get", {"name": "audit_a_token", "arguments": ["SOL"]}),
+    ("prompts/get", {"name": 7}),
+    ("completion/complete", {"ref": {"type": "ref/prompt", "name": "audit_a_token"}, "argument": "symbol"}),
+    ("completion/complete", {"ref": "ref/prompt", "argument": {"name": "symbol"}}),
+    ("initialize", ["2025-06-18"]),
+    ("initialize", "2025-06-18"),
+    ("tools/list", {"cursor": "not base64!"}),
+])
+def test_malformed_params_are_invalid_params_not_500(method, params):
+    r = rpc({"jsonrpc": "2.0", "id": 40, "method": method, "params": params})
+    assert r.status_code == 200 and r.json()["error"]["code"] == -32602 and r.json()["id"] == 40
+
+
+def test_a_deeply_nested_body_is_a_parse_error_not_a_crash():
+    r = client.post("/mcp", content=b"[" * 100000, headers={"content-type": "application/json"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == -32700
+
+
+def test_an_oversized_body_is_refused_before_it_is_parsed():
+    r = client.post("/mcp", content=b" " * 2_000_000, headers={"content-type": "application/json"})
+    assert r.status_code == 413 and r.json()["error"]["code"] == -32600
+
+
+def test_requests_without_an_id_are_notifications_with_no_reply_and_no_charge():
+    from nota.api import _BACKING_HITS
+
+    for method in ("ping", "tools/list", "tools/call"):
+        r = rpc({"jsonrpc": "2.0", "method": method, "params": {"name": "price_crosscheck",
+                                                               "arguments": {"symbol": "SOL"}}})
+        assert r.status_code == 202 and r.content == b""
+    assert not _BACKING_HITS
+
+
+def test_protocol_version_header_is_checked_against_what_the_server_speaks():
+    ping = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
+    bad = rpc(ping, headers={"mcp-protocol-version": "1999-01-01"})
+    assert bad.status_code == 400 and bad.json()["error"]["code"] == -32022
+    assert bad.json()["error"]["data"]["supported"] == list(SUPPORTED_PROTOCOLS)
+    assert rpc(ping, headers={"mcp-protocol-version": "2026-07-28"}).status_code == 200
+    assert rpc(ping).status_code == 200                      # pre-2025-06-18 clients send none
+    # the header must agree with the version the body claims
+    meta = {**ping, "params": {"_meta": {"io.modelcontextprotocol/protocolVersion": "2025-11-25"}}}
+    assert rpc(meta, headers={"mcp-protocol-version": "2026-07-28"}).json()["error"]["code"] == -32020
+    unknown = {**ping, "params": {"_meta": {"io.modelcontextprotocol/protocolVersion": "1900-01-01"}}}
+    r = rpc(unknown)
+    assert r.status_code == 400 and r.json()["error"]["data"]["requested"] == "1900-01-01"
+
+
+def test_initialize_echoes_a_supported_version_and_offers_the_newest_otherwise():
+    def asked(v):
+        return rpc({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                    "params": {"protocolVersion": v, "capabilities": {}}}).json()["result"]
+    assert asked("2025-11-25")["protocolVersion"] == "2025-11-25"
+    res = asked("1999-01-01")
+    assert res["protocolVersion"] == "2026-07-28"
+    count = int(res["instructions"].split()[0])              # "7 read-only research skills..."
+    assert count == len(rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).json()["result"]["tools"])
+
+
+def test_server_discover_has_the_2026_07_28_shape():
+    res = rpc({"jsonrpc": "2.0", "id": "d", "method": "server/discover", "params": {"_meta": {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28"}}}).json()["result"]
+    assert res["resultType"] == "complete"
+    assert res["supportedVersions"] == list(SUPPORTED_PROTOCOLS)
+    assert {"tools", "resources", "prompts"} <= set(res["capabilities"])
+    assert res["_meta"]["io.modelcontextprotocol/serverInfo"]["name"] == "nota"
+    assert res["instructions"]
+
+
+def test_an_unknown_method_is_404_with_its_json_rpc_body():
+    r = rpc({"jsonrpc": "2.0", "id": 1, "method": "does/not/exist"})
+    assert r.status_code == 404 and r.json()["error"]["code"] == -32601
+
+
+def test_every_tool_is_read_only_titled_and_declares_its_output_and_view():
+    tools = rpc({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).json()["result"]["tools"]
+    for t in tools:
+        assert t["annotations"]["readOnlyHint"] is True and t["annotations"]["destructiveHint"] is False
+        assert t["title"] and t["outputSchema"]["type"] == "object"
+        assert t["_meta"]["ui"]["resourceUri"] == "ui://nota/receipt"
+    assert {t["name"]: t["annotations"]["openWorldHint"] for t in tools}["verdict_track_record"] is False
+
+
+def test_the_output_schema_is_the_envelope_every_recorded_ryo_answer_fits():
+    assert tool_list()[0]["outputSchema"] == Envelope.model_json_schema()
+    fixtures = list((Path(__file__).parent / "fixtures").glob("*/*.json"))
+    assert fixtures
+    for f in fixtures:
+        env = parse_rest(json.loads(f.read_text(encoding="utf-8")))
+        dumped = env.model_dump(mode="json")
+        assert Envelope.model_validate(dumped).model_dump(mode="json") == dumped
+
+
+def test_a_skill_that_blows_up_leaks_no_exception_detail(monkeypatch):
+    definition, _ = SKILLS["verdict_track_record"]
+
+    def boom(**_):
+        raise RuntimeError("password=hunter2 at /srv/secret")
+    monkeypatch.setitem(SKILLS, "verdict_track_record", (definition, boom))
+    res = rpc({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+               "params": {"name": "verdict_track_record", "arguments": {}}}).json()["result"]
+    text = res["content"][0]["text"]
+    assert res["isError"] is True and "verdict_track_record" in text
+    assert "hunter2" not in text and "RuntimeError" not in text
+
+
+def test_completion_only_for_declared_refs_and_arguments():
+    def comp(ref, name):
+        return rpc({"jsonrpc": "2.0", "id": 1, "method": "completion/complete",
+                    "params": {"ref": ref, "argument": {"name": name, "value": ""}}}).json()
+    assert comp({"type": "ref/prompt", "name": "nope"}, "id")["error"]["code"] == -32602
+    assert comp({"type": "ref/prompt", "name": "audit_a_token"}, "id")["error"]["code"] == -32602
+    assert comp({"type": "ref/resource", "uri": "nota://other/{id}"}, "id")["error"]["code"] == -32602
+    assert "completion" in comp({"type": "ref/resource", "uri": "nota://receipt/{id}"}, "id")["result"]
+
+
+def test_the_json_uri_reads_back_as_the_json_alone(tmp_path, monkeypatch):
+    from tests.test_api import _seed
+
+    first, _ = _seed(tmp_path, monkeypatch)
+    got = rpc({"jsonrpc": "2.0", "id": 1, "method": "resources/read",
+               "params": {"uri": f"nota://receipt/{first.id}.json"}}).json()["result"]["contents"]
+    assert [c["mimeType"] for c in got] == ["application/json"] and json.loads(got[0]["text"])["id"] == first.id
+
+
+def test_the_app_view_is_listed_and_served_with_an_empty_csp():
+    listed = rpc({"jsonrpc": "2.0", "id": 1, "method": "resources/list"}).json()["result"]["resources"]
+    assert listed[0]["uri"] == "ui://nota/receipt" and listed[0]["mimeType"] == "text/html;profile=mcp-app"
+    got = rpc({"jsonrpc": "2.0", "id": 2, "method": "resources/read",
+               "params": {"uri": "ui://nota/receipt"}}).json()["result"]["contents"][0]
+    assert got["text"].startswith("<!doctype html>") and "ui/initialize" in got["text"]
+    assert got["_meta"]["ui"]["csp"] == {"connectDomains": [], "resourceDomains": []}
+    assert "http" not in got["text"].split("<script>")[1]     # the view fetches nothing
+
+
+def test_lists_page_with_an_opaque_cursor(monkeypatch):
+    monkeypatch.setattr(mcp_server, "resource_list", lambda: [{"uri": f"nota://receipt/{i}"} for i in range(120)])
+    seen, cursor = [], None
+    while True:
+        params = {"cursor": cursor} if cursor else {}
+        res = rpc({"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": params}).json()["result"]
+        seen += res["resources"]
+        cursor = res.get("nextCursor")
+        if not cursor:
+            break
+    assert len(seen) == 120 and len({r["uri"] for r in seen}) == 120
+    neg = base64.b64encode(b"-5").decode()
+    assert rpc({"jsonrpc": "2.0", "id": 1, "method": "resources/list",
+                "params": {"cursor": neg}}).json()["error"]["code"] == -32602
+
+
+def test_the_61st_call_is_a_json_rpc_429_with_retry_after_and_ledger_lookups_are_free():
+    call = {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "price_crosscheck", "arguments": {}}}
+    for i in range(60):
+        assert rpc({**call, "id": i}).status_code == 200
+    r = rpc({**call, "id": 61})
+    assert r.status_code == 429 and r.json()["error"]["code"] == -32000
+    assert int(r.headers["retry-after"]) == r.json()["error"]["data"]["retry_after_s"] > 0
+    free = rpc({"jsonrpc": "2.0", "id": 62, "method": "tools/call",
+                "params": {"name": "verdict_track_record", "arguments": {}}})
+    assert free.status_code == 200 and "result" in free.json()
+
+
+def test_a_batch_over_budget_is_refused_whole_and_charges_nothing():
+    from nota.api import _BACKING_HITS
+
+    call = {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "price_crosscheck", "arguments": {}}}
+    for i in range(50):
+        rpc({**call, "id": i})
+    assert rpc([{**call, "id": 100 + i} for i in range(11)]).status_code == 429
+    assert len(next(iter(_BACKING_HITS.values()))) == 50
+
+
+def test_a_slow_tool_call_does_not_block_the_event_loop(monkeypatch):
+    definition, _ = SKILLS["verdict_track_record"]
+
+    def slow(**_):
+        time.sleep(1)
+        raise RuntimeError("slow source")
+    monkeypatch.setitem(SKILLS, "verdict_track_record", (definition, slow))
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    srv = uvicorn.Server(uvicorn.Config(api.app, host="127.0.0.1", port=port, log_level="warning"))
+    thread = threading.Thread(target=srv.run, daemon=True)
+    thread.start()
+    try:
+        for _ in range(120):
+            if srv.started:
+                break
+            time.sleep(0.05)
+        base = f"http://127.0.0.1:{port}"
+        caller = threading.Thread(target=lambda: httpx.post(base + "/mcp", timeout=10, json={
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": {"name": "verdict_track_record", "arguments": {}}}))
+        caller.start()
+        time.sleep(0.2)                                      # the call is now inside the slow skill
+        started = time.perf_counter()
+        assert httpx.get(base + "/api/skills/", timeout=10).status_code == 200
+        assert time.perf_counter() - started < 0.5
+        caller.join()
+    finally:
+        srv.should_exit = True
+        thread.join(timeout=5)

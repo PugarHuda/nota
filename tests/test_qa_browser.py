@@ -406,7 +406,7 @@ def test_the_mcp_server_serves_all_four_primitives_over_the_wire(server, browser
     caps = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 1, "method": "initialize",
                                            "params": {"protocolVersion": "2026-07-28", "capabilities": {}}}
                     ).json()["result"]["capabilities"]
-    assert set(caps) == {"tools", "resources", "prompts", "completions"}
+    assert set(caps) == {"tools", "resources", "prompts", "completions", "extensions"}
 
     prompts = ctx.post(server + "/mcp", data={"jsonrpc": "2.0", "id": 2, "method": "prompts/list"}).json()
     assert len(prompts["result"]["prompts"]) == 2
@@ -446,5 +446,44 @@ def test_the_japanese_landing_is_the_same_page_in_another_language(server, brows
     # the stylesheet really arrived: an unstyled page has no serif body and no rules
     assert "serif" in page.evaluate("getComputedStyle(document.body).fontFamily")
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "sideways scroll at 390px"
+    assert problems == [], problems
+    page.close()
+
+
+def test_the_mcp_apps_view_completes_the_handshake_and_renders_data_as_text(browser, tmp_path):
+    """A real host page embeds the view in a sandboxed iframe, answers ui/initialize, and pushes a
+    recorded RYO envelope in as a tool result, with markup planted in the data."""
+    from nota.mcp_server import APP_HTML
+
+    env = json.loads((ROOT / "tests" / "fixtures" / "deep_analysis" / "SOL.json").read_text(encoding="utf-8"))
+    env["warnings"] = [*env.get("warnings", []), "<script>window.parent.pwned=1</script><img src=x onerror=alert(1)>"]
+    page, problems = page_with_log(browser, viewport={"width": 520, "height": 700})
+    page.set_content("<!doctype html><body style='margin:0'><iframe id=v sandbox='allow-scripts' "
+                     "style='width:500px;height:640px;border:0'></iframe></body>")
+    page.evaluate("""([html, env]) => new Promise(done => {
+        window.seen = [];
+        const f = document.getElementById('v');
+        window.addEventListener('message', e => {
+          const m = e.data; window.seen.push(m.method || ('reply:' + m.id));
+          if (m.method === 'ui/initialize')
+            f.contentWindow.postMessage({jsonrpc: '2.0', id: m.id, result: {protocolVersion: '2026-01-26',
+              hostCapabilities: {}, hostInfo: {name: 'qa-host', version: '1'}, hostContext: {theme: 'light'}}}, '*');
+          if (m.method === 'ui/notifications/initialized')
+            f.contentWindow.postMessage({jsonrpc: '2.0', method: 'ui/notifications/tool-result',
+              params: {content: [{type: 'text', text: JSON.stringify(env)}], structuredContent: env}}, '*');
+          if (m.method === 'ui/notifications/size-changed') done();
+        });
+        f.srcdoc = html;
+    })""", [APP_HTML, env])
+    view = page.frame_locator("#v")
+    assert view.locator("#headline").inner_text() == env["summary"]["headline"]
+    assert view.locator("#status").inner_text().lower() == env["status"]
+    assert view.locator("#points li").count() == len(env["summary"]["key_points"])
+    assert view.locator("#availability .chip").count() == len(env["availability"])
+    assert "<script>" in view.locator("#warnings li").last.inner_text()   # shown as text, not run
+    assert view.locator("#warnings script, #warnings img").count() == 0
+    assert page.evaluate("window.pwned") is None
+    assert page.evaluate("window.seen")[:2] == ["ui/initialize", "ui/notifications/initialized"]
+    page.screenshot(path=os.environ.get("NOTA_SHOT_DIR", str(tmp_path)) + "/mcp_app.png")
     assert problems == [], problems
     page.close()
