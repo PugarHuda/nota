@@ -426,3 +426,11 @@ body > nav + header.wrap::after { content:"実\A演" / ""; white-space:pre; posi
   display:grid; place-items:center; border:3px solid var(--seal); border-radius:50%; color:var(--seal); font:400 22px/1.05 var(--display);
   text-align:center; transform:rotate(8deg); opacity:.88; pointer-events:none }
 @media (max-width:760px) { body > nav + header.wrap::after { width:56px; height:56px; font-size:17px } }
+
+/* On the narrowest phones a label may take two lines rather than push the page sideways: Japanese falls
+   back to a wider face on Linux than on Windows or macOS, and a nowrap button that fits here overflowed there. */
+@media (max-width:420px) {
+  body > nav .wrap { gap:12px }
+  body > nav .cta, .btn { white-space:normal; text-align:center; line-height:1.3 }
+  body > nav .right, body > nav .right > * { min-width:0 }
+}

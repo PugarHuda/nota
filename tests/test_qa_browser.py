@@ -200,7 +200,12 @@ def test_no_horizontal_overflow_on_either_page_at_any_width(server, browser, wid
         page.goto(server + path, wait_until="networkidle")
         page.wait_for_timeout(400)
         overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
-        assert overflow <= 1, f"{path} at {width}px scrolls sideways by {overflow}px"
+        # name the elements past the edge, so a failure on CI's fonts says what to fix without a rerun
+        culprits = page.evaluate("""() => [...document.querySelectorAll('body *')]
+          .filter(e => e.getBoundingClientRect().right > document.documentElement.clientWidth + 0.5)
+          .map(e => `${e.tagName.toLowerCase()}.${typeof e.className === 'string' ? e.className : ''} "${(e.textContent || '').trim().slice(0, 30)}"`)
+          .slice(0, 6)""") if overflow > 1 else []
+        assert overflow <= 1, f"{path} at {width}px scrolls sideways by {overflow}px: {culprits}"
     assert problems == [], problems
     page.close()
 

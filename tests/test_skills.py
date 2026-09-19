@@ -1,3 +1,4 @@
+import time
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -182,7 +183,8 @@ def test_a_source_fetch_is_cached_for_five_minutes_and_a_failure_is_not():
     status["code"] = 200
     assert tg.fetch("chan")[0].id == "chan/1" and tg.fetch("@chan")[0].id == "chan/1"
     assert len(hits) == 3                       # the repeat came from the cache
-    sources._CACHE["https://t.me/s/chan"] = (0.0, [])   # older than the TTL
+    # older than the TTL: relative to now, since monotonic time on a freshly booted runner can be under the TTL
+    sources._CACHE["https://t.me/s/chan"] = (time.monotonic() - sources.CACHE_TTL - 1, [])
     tg.fetch("chan")
     assert len(hits) == 4
 
