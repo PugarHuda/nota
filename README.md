@@ -420,8 +420,11 @@ defusedxml, pillow; dev: pytest, respx, playwright (browser end-to-end tests in
 `tests/test_dashboard_e2e.py` and QA in `tests/test_qa_browser.py`, run after
 `uv run playwright install chromium`), edge-tts and Remotion (walkthrough only, see below). Data sources:
 RYO MCP, t.me/s previews, Bluesky public AppView, X public syndication, CoinDesk /
-Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken and alternative.me public
-APIs, Tavily or Venice web search.
+Cointelegraph / The Block / Decrypt RSS, CoinGecko, Coinbase, Kraken, OKX and Hyperliquid public
+APIs, alternative.me, Tavily or Venice web search. Typefaces, self-hosted under `nota/static/fonts`
+and served from an allow-list: Dela Gothic One (Latin, plus a 76-character Japanese subset for the
+`/ja` headings) and BIZ UDPGothic / BIZ UDGothic (Morisawa), all SIL Open Font License 1.1, taken
+as Latin subsets from Google Fonts.
 
 No starter template was used: the repository began empty and every line of application code was
 written during the hackathon. Two external things touched the work without entering it, and are
