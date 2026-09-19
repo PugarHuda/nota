@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS settlements (
   PRIMARY KEY (lock_id, horizon_h));
 CREATE TABLE IF NOT EXISTS handle_claims (
   handle TEXT PRIMARY KEY, token_sha256 TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS stamps (
+  subject TEXT PRIMARY KEY, kind TEXT NOT NULL, digest TEXT NOT NULL, ots BLOB NOT NULL, status TEXT NOT NULL,
+  stamped_at TEXT NOT NULL, upgraded_at TEXT, block INTEGER);
 """
 
 
@@ -155,6 +158,10 @@ class Ledger:
             sql, params = sql + " WHERE locked_at >= ? AND locked_at < ?", (day, nxt)
         return [(r["id"], r["row_json"]) for r in self.conn.execute(sql + " ORDER BY locked_at", params).fetchall()]
 
+    def get_lock(self, id: str) -> str | None:
+        row = self.conn.execute("SELECT row_json FROM locks WHERE id=?", (id,)).fetchone()
+        return row["row_json"] if row else None
+
     def unsettled_locks(self) -> list[tuple[str, str]]:
         rows = self.conn.execute(
             "SELECT id, row_json FROM locks l WHERE status='locked' AND "
@@ -167,3 +174,28 @@ class Ledger:
     def get_settlement(self, lock_id: str, horizon_h: int) -> str | None:
         row = self.conn.execute("SELECT result_json FROM settlements WHERE lock_id=? AND horizon_h=?", (lock_id, horizon_h)).fetchone()
         return row["result_json"] if row else None
+
+    # OpenTimestamps proofs of locks and receipts (nota.stamp) -------------------------------
+    def unstamped(self) -> list[tuple[str, str, str]]:
+        """(kind, id, stored json) for every good lock and every decision without a proof yet. A failed
+        lock row is replaced on retry, so only `locked` rows are final enough to anchor."""
+        rows = self.conn.execute(
+            "SELECT 'lock' AS kind, id, row_json AS body FROM locks WHERE status='locked' AND id NOT IN (SELECT subject FROM stamps) "
+            "UNION ALL SELECT 'decision', id, receipt_json FROM decisions WHERE id NOT IN (SELECT subject FROM stamps)").fetchall()
+        return [(r["kind"], r["id"], r["body"]) for r in rows]
+
+    def save_stamp(self, subject: str, kind: str, digest: str, ots: bytes, status: str, stamped_at: str,
+                   upgraded_at: str | None = None, block: int | None = None) -> None:
+        self.conn.execute("INSERT OR REPLACE INTO stamps VALUES (?,?,?,?,?,?,?,?)",
+                          (subject, kind, digest, ots, status, stamped_at, upgraded_at, block))
+
+    def get_stamp(self, subject: str) -> dict[str, Any] | None:
+        try:
+            row = self.conn.execute("SELECT * FROM stamps WHERE subject=?", (subject,)).fetchone()
+        except sqlite3.OperationalError:  # a read-only snapshot from before proofs existed
+            return None
+        return dict(row) if row else None
+
+    def pending_stamps(self, older_than: str) -> list[dict[str, Any]]:
+        rows = self.conn.execute("SELECT * FROM stamps WHERE status='pending' AND stamped_at < ? ORDER BY stamped_at", (older_than,))
+        return [dict(r) for r in rows.fetchall()]

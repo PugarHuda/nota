@@ -479,3 +479,36 @@ def test_markdown_receipt_never_prints_trace_none(tmp_path, monkeypatch):
             "compare": {**first.provenance["compare"], "trace_id": None}}
     md = render_markdown(first.model_copy(update={"provenance": prov}))
     assert "trace None" not in md and "no RYO trace (Nota skill)" in md and "no trace recorded" in md
+
+
+def test_proofs_are_served_beside_the_exact_bytes_they_anchor(tmp_path, monkeypatch):
+    """/r/<id>.json and /api/scorecard/locks/<id>.json are the rows as stored, so their SHA-256 is the digest
+    in the .ots next to them; pages state only the stored proof status."""
+    import hashlib
+
+    from nota import stamp as S
+    from tests.test_stamp import calendars
+
+    first, second = _seed_open_data(tmp_path, monkeypatch)
+    led = Ledger(str(tmp_path / "t.db"))
+    c = TestClient(api.app)
+    assert c.get(f"/r/{second.id}.ots").status_code == 404 and c.get(f"/api/decisions/{second.id}").json()["stamp"] is None
+    real = S.stamp  # real calendar replies (tests/fixtures/ots), re-rooted on whatever digest is asked
+    monkeypatch.setattr(S, "stamp", lambda d, http=None: S.pack_ots(d, S.read_ots(real(hashlib.sha256(b"nota ots fixture 2026-09-19").digest(), calendars()[0]))[1]))
+    S.stamp_ledger(led, calendars()[0])
+    body = c.get(f"/r/{second.id}.json")
+    assert body.headers["content-type"].startswith("application/json") and body.content == led.get_decision(second.id).encode()
+    proof = c.get(f"/r/{second.id}.ots")
+    assert proof.headers["content-type"] == "application/octet-stream" and f'filename="{second.id}.json.ots"' in proof.headers["content-disposition"]
+    assert S.read_ots(proof.content)[0] == hashlib.sha256(body.content).digest()
+    st = c.get(f"/api/decisions/{second.id}").json()["stamp"]
+    assert st["status"] == "pending" and st["block"] is None and st["ots_url"] == f"/r/{second.id}.ots"
+
+    lock = c.get("/api/scorecard/locks/lk1.json")
+    assert lock.content == led.get_lock("lk1").encode()
+    assert S.read_ots(c.get("/api/scorecard/locks/lk1.ots").content)[0] == hashlib.sha256(lock.content).digest()
+    row = c.get("/api/scorecard?horizon=24").json()["settled"][0]
+    assert row["stamp"]["status"] == "pending" and row["stamp"]["ots_url"] == "/api/scorecard/locks/lk1.ots"
+    led.conn.execute("UPDATE stamps SET status='bitcoin', block=967726 WHERE subject='lk1'")
+    assert c.get("/api/scorecard?horizon=72").json()["open"][0]["stamp"]["block"] == 967726
+    assert c.get("/api/scorecard/locks/nope.ots").status_code == 404 and c.get("/api/scorecard/locks/nope.json").status_code == 404

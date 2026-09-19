@@ -250,3 +250,23 @@ def test_weights_move_little_on_one_scored_call():
     assert all(abs(v - 1.0) <= 0.05 for v in w.values()) and w["macro"] == 1.0
     many = role_weights({"macro": {"n": 200.0, "brier_mean": 0.0}, "technician": {"n": 200.0, "brier_mean": 1.0}})
     assert many["technician"] < 0.3
+
+
+def test_the_judge_is_scored_against_the_crowds_price_on_the_same_calls():
+    """crowd_odds in the pack (here read off the real Polymarket ladder of 2026-09-19) becomes the outcome's
+    market_p (a BTC read in a SOL pack: only the plumbing is under test), and vs_market compares the judge's Brier with the market's on the same resolved decisions."""
+    from nota.calibration import skill_vs_base
+    from nota.skills.crowd_odds import crowd_odds
+    from tests.test_skills import _markets
+
+    btc = crowd_odds("BTC", 7, spot=81530.15, http=_markets(), now=datetime(2026, 9, 18, 17, 30, tzinfo=timezone.utc))
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led, extras={"crowd_odds": lambda sym, pack: btc})
+    out = resolve(r.id, led, PriceSource(165.0))  # went up
+    m = btc.data["market_p"]
+    assert out.market_p == m
+    assert skill_vs_base(led)["vs_market"]["n"] == 0  # resolved but not yet at its seven-day horizon
+    _week_later(led, r.id)
+    v = skill_vs_base(led)["vs_market"]
+    assert v["n"] == 1 and v["judge_brier_mean"] == 0.09 and v["market_brier_mean"] == round((m - 1) ** 2, 4)
+    assert v["skill"] == round(1 - 0.09 / (m - 1) ** 2, 4) and v["enough_to_read"] is False

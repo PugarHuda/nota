@@ -41,6 +41,11 @@ AVAILABILITY: dict[str, list[tuple[str, bool, str]]] = {
                           ("deribit_dvol", False, "Deribit DVOL for BTC/ETH; `unavailable` for every other token")],
     "move_base_rate": [("okx_daily", True, "about 400 closed OKX UTC-day candles")],
     "verdict_track_record": [("ledger", True, "the scorecard's locks and settlements")],
+    "liquidity_check": [("stablecoins", True, "DefiLlama total USD stablecoin supply"),
+                        ("tvl", True, "DefiLlama DeFi TVL on the token's own chain; primary only for a token that has one")],
+    "crowd_odds": [("polymarket", True, "Polymarket 'above ___ on <date>' ladder; the answering venue is the primary key"),
+                   ("kalshi", True, "Kalshi KX<coin>D ladder, asked when Polymarket has no usable ladder"),
+                   ("market", True, "`unavailable` when no venue had a readable ladder (market_p null)")],
 }
 
 

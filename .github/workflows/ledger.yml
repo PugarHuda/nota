@@ -74,13 +74,19 @@ jobs:
             uv run nota decide "$s" --once-a-day || echo "::warning::decide $s failed; the cycle continues"
           done
 
+      - name: Anchor new locks and receipts in Bitcoin
+        # Keyless: OpenTimestamps calendars and mempool.space. Every cycle, so a proof submitted at 09:00
+        # is upgraded to its Bitcoin block within the hour after a calendar has one. A calendar outage
+        # leaves the subject for the next cycle.
+        run: uv run nota stamp || echo "::warning::stamp failed; the cycle continues"
+
       - name: Commit the snapshot if it moved
         env:
           HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
         run: |
           python -c "import sqlite3; sqlite3.connect('data/demo.db').execute('PRAGMA wal_checkpoint(TRUNCATE)')"
           if git diff --quiet -- data/demo.db; then
-            echo "ledger unchanged: nothing came due, locked or decided."
+            echo "ledger unchanged: nothing came due, locked, decided or stamped."
             exit 0
           fi
           git config user.name "github-actions[bot]"

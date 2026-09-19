@@ -26,7 +26,7 @@ from nota.llm import LLM
 
 # v2: explicit list-index path syntax + cite-only-existing; v3: derivatives gated by positioning_check;
 # v4: third-party text framed as `untrusted`, token-profile prose shown once (narrative's deep_analysis)
-PROMPT_VERSION = "v4"
+PROMPT_VERSION = "v5"
 ROLES: tuple[str, ...] = ("macro", "technician", "narrative")
 Confidence = Literal["low", "medium", "high"]
 
@@ -80,6 +80,8 @@ Rules you must follow:
 ROLE_SYSTEM: dict[str, str] = {
     "macro": "[role:macro] You are the Macro agent. You read market regime, Fear & Greed, breadth, dominance, "
     "the seven-day sentiment shift, and `compare` (this token against BTC/ETH peers on momentum, activity and volatility), "
+    "and, when present, `liquidity` (DefiLlama: 7- and 30-day change of the total stablecoin supply, fresh buying power, and "
+    "of DeFi TVL on this token's own chain), "
     "and judge whether broad conditions and relative strength favour or oppose a position in this token." + COMMON_RULES,
     "technician": "[role:technician] You are the Technician. You read price, multi-window performance, RSI(14), ATR(14), "
     "confluence, derivatives and the tool's own verdict, plus `compare` (peers) and `price_check` (independent exchange prices "
@@ -99,7 +101,7 @@ ROLE_SYSTEM: dict[str, str] = {
 
 # Which sections each role sees. ponytail: everyone gets availability/warnings; slices keep prompts small.
 ROLE_SECTIONS: dict[str, tuple[str, ...]] = {
-    "macro": ("market_overview", "sentiment_shift", "compare"),
+    "macro": ("market_overview", "sentiment_shift", "compare", "liquidity"),
     "technician": ("deep_analysis", "analyze_token", "compare", "price_check", "technicals_check", "positioning_check", "scan"),
     "narrative": ("deep_analysis", "analyze_token", "narrative_signal", "news_check", "scan"),
 }

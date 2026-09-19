@@ -29,4 +29,4 @@ def test_every_skill_and_every_argument_is_documented():
     for name, (d, _) in SKILLS.items():
         assert f"### `{name}`" in doc
         assert all(f"| `{a.name}` |" in doc for a in d.args), name
-    assert doc.splitlines()[2].startswith("Seven research tools")
+    assert doc.splitlines()[2].startswith("Nine research tools")

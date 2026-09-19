@@ -36,7 +36,8 @@ def test_status_from():
 
 def test_registry_definitions_and_arg_validation():
     names = {d.name for d in definitions()}
-    assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck", "positioning_check", "move_base_rate", "verdict_track_record"}
+    assert names == {"narrative_convergence", "news_verify", "price_crosscheck", "technicals_crosscheck", "positioning_check", "move_base_rate",
+                     "verdict_track_record", "liquidity_check", "crowd_odds"}
     assert all(not d.requires_guard and d.read_only for d in definitions())
     with pytest.raises(ValueError, match="missing required"):
         invoke("news_verify", {})
@@ -281,3 +282,112 @@ def test_a_topic_query_with_only_an_asset_matches_on_the_asset_and_its_name():
     rss = _rss({"coindesk.com": [("Solana speeds up blocks by 17%", "")], "decrypt.co": [("Fed holds rates", "")]})
     env = news_verify("SOL crypto news this week", rss=rss, tavily=_NoSearch())
     assert [s["domain"] for s in env.data["sources"]] == ["coindesk.com"]
+
+
+# --- liquidity_check (real DefiLlama responses, 2026-09-19, trimmed to the last 60 rows) -----------------
+MARKET = FIXTURES / "market"
+
+
+def _llama(fail_tvl=False, fail_all=False):
+    def handler(req):
+        if fail_all or (fail_tvl and "historicalChainTvl" in req.url.path):
+            return httpx.Response(502, text="bad gateway")
+        if req.url.host == "stablecoins.llama.fi":
+            return httpx.Response(200, content=(MARKET / "defillama_stablecoincharts_all_last60.json").read_bytes())
+        assert req.url.path == "/v2/historicalChainTvl/Ethereum"
+        return httpx.Response(200, content=(MARKET / "defillama_historicalChainTvl_Ethereum_last60.json").read_bytes())
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_liquidity_reads_stablecoin_supply_and_chain_tvl():
+    from nota.skills.liquidity import liquidity_check
+
+    stables = json.loads((MARKET / "defillama_stablecoincharts_all_last60.json").read_text())
+    tvl = json.loads((MARKET / "defillama_historicalChainTvl_Ethereum_last60.json").read_text())
+    env = liquidity_check("eth", http=_llama())
+    assert env.status == "ok" and env.availability == {"stablecoins": "available", "tvl": "available"}
+    s, t = env.data["stablecoins"], env.data["tvl"]
+    last, week = stables[-1]["totalCirculatingUSD"]["peggedUSD"], stables[-8]["totalCirculatingUSD"]["peggedUSD"]
+    assert s["latest_usd"] == last and s["change_7d_pct"] == round((last / week - 1) * 100, 3)
+    assert s["as_of"] == datetime.fromtimestamp(int(stables[-1]["date"]), timezone.utc).isoformat(timespec="seconds")
+    assert t["chain"] == "Ethereum" and t["change_30d_pct"] == round((tvl[-1]["tvl"] / tvl[-31]["tvl"] - 1) * 100, 3)
+    assert "Ethereum TVL" in env.summary.headline
+
+
+def test_liquidity_btc_has_no_borrowed_tvl_and_a_failed_leg_stays_null():
+    from nota.skills.liquidity import liquidity_check
+
+    btc = liquidity_check("BTC", http=_llama())
+    assert btc.status == "ok" and btc.availability["tvl"] == "unavailable" and btc.data["tvl"] is None
+    assert any("restaking" in w for w in btc.warnings)
+    eth = liquidity_check("ETH", http=_llama(fail_tvl=True))
+    assert eth.status == "partial" and eth.data["tvl"] is None and eth.data["stablecoins"]["change_7d_pct"] is not None
+    down = liquidity_check("ETH", http=_llama(fail_all=True))
+    assert down.status == "unavailable" and down.data["stablecoins"] is None and down.data["tvl"] is None
+
+
+# --- crowd_odds (real Polymarket and Kalshi responses captured 2026-09-19 17:30 UTC) --------------------
+def _markets(polymarket=True, kalshi=True):
+    def handler(req):
+        if req.url.host == "gamma-api.polymarket.com":
+            f = MARKET / f"polymarket_{req.url.params['slug']}.json"
+            if not polymarket:
+                return httpx.Response(503)
+            return httpx.Response(200, content=f.read_bytes() if f.exists() else b"[]")
+        if req.url.host == "api.elections.kalshi.com":
+            assert req.url.params["series_ticker"] == "KXBTCD"
+            return httpx.Response(200, content=(MARKET / "kalshi_KXBTCD_open_2026-09-19.json").read_bytes()) if kalshi else httpx.Response(503)
+        if req.url.host == "data-api.binance.vision":
+            return httpx.Response(200, json={"symbol": "BTCUSDT", "price": "81530.15000000"})
+        raise AssertionError(req.url)
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_crowd_odds_reads_the_polymarket_ladder_at_spot():
+    from nota.skills.crowd_odds import crowd_odds
+
+    # 2026-09-18 17:30 + 7 d: the September 25 ladder (noon ET) is 1.5 h from the target
+    env = crowd_odds("BTC", 7, http=_markets(), now=datetime(2026, 9, 18, 17, 30, tzinfo=timezone.utc))
+    d = env.data
+    assert env.status == "ok" and d["source"] == "polymarket" and d["event_slug"] == "bitcoin-above-on-september-25-2026"
+    assert d["spot"] == 81530.15 and d["spot_source"] == "binance" and not d["extrapolated"]
+    # the ladder's own 80,000 and 82,000 Yes prices, interpolated at 81,530.15
+    i = d["strikes"].index(80000.0)
+    assert d["strikes"][i + 1] == 82000.0 and (d["prices"][i], d["prices"][i + 1]) == (0.71, 0.465)
+    assert d["market_p"] == round(0.71 + (0.465 - 0.71) * 1530.15 / 2000, 4)
+    assert all(a >= b for a, b in zip(d["prices"], d["prices"][1:]))
+
+
+def test_crowd_odds_skips_an_empty_book_and_falls_back_to_kalshi():
+    from nota.skills.crowd_odds import crowd_odds, polymarket_ladder
+
+    fresh = json.loads((MARKET / "polymarket_bitcoin-above-on-september-26-2026.json").read_text(encoding="utf-8"))[0]
+    assert len(polymarket_ladder(fresh)) < 2  # a day-old ladder: 0.5 placeholders on one-sided books, never read
+    env = crowd_odds("BTC", 7, spot=81530.15, http=_markets(), now=datetime(2026, 9, 19, 17, 30, tzinfo=timezone.utc))
+    d = env.data
+    assert env.status == "ok" and d["source"] == "kalshi" and d["ticker"] == "KXBTCD-26SEP2517" and d["expiry"] == "2026-09-25T21:00:00Z"
+    assert d["spot_source"] == "request" and env.availability["polymarket"] == "unavailable"
+    i = d["strikes"].index(81499.99)
+    assert d["strikes"][i + 1] == 81999.99 and d["prices"][i] == 0.495 and d["prices"][i + 1] == 0.425
+    assert 0.425 < d["market_p"] < 0.495
+
+
+def test_crowd_odds_is_null_not_a_coin_flip_when_nothing_can_be_read():
+    from nota.skills.crowd_odds import crowd_odds
+
+    down = crowd_odds("BTC", 7, spot=81530.15, http=_markets(polymarket=False, kalshi=False),
+                      now=datetime(2026, 9, 19, 17, 30, tzinfo=timezone.utc))
+    assert down.status == "unavailable" and down.data["market_p"] is None
+    unlisted = crowd_odds("ADA", 7, spot=0.8, http=_markets(), now=datetime(2026, 9, 19, 17, 30, tzinfo=timezone.utc))
+    assert unlisted.status == "unavailable" and unlisted.data["market_p"] is None and "none is listed" in unlisted.summary.headline
+    far = crowd_odds("BTC", 14, spot=81530.15, http=_markets(), now=datetime(2026, 9, 19, 17, 30, tzinfo=timezone.utc))
+    assert far.data["market_p"] is None  # no ladder expires within a day of October 3
+
+
+def test_crowd_odds_monotone_and_clamped_interpolation():
+    from nota.skills.crowd_odds import monotone, p_above
+
+    assert monotone([0.9, 0.5, 0.6, 0.2]) == [0.9, 0.55, 0.55, 0.2]
+    assert p_above([10, 20], [0.8, 0.2], 15) == (0.5, False)
+    assert p_above([10, 20], [0.8, 0.2], 25) == (0.2, True)
+    assert p_above([10, 20], [0.8, 0.2], 10) == (0.8, False)

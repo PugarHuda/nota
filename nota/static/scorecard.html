@@ -176,6 +176,14 @@ function settledAnswer(s) {
   return out;
 }
 
+// The lock's OpenTimestamps proof, stated only as the ledger stored it: a block once `nota stamp` checked
+// it against the block header, "pending" before that.
+function stampNote(s) {
+  if (!s) return "";
+  const text = s.status === "bitcoin" ? `Bitcoin block ${num(s.block)}` : "timestamp pending";
+  return `<br><a class="muted" href="${esc(s.ots_url)}" title="${s.status === "bitcoin" ? "anchored in Bitcoin" : "submitted " + esc(when(s.stamped_at))}; OpenTimestamps proof of this lock's JSON">${text}</a>`;
+}
+
 function openTable(rows) {
   if (!rows.length) return `<caption>Nothing open.</caption>`;
   return `<caption>${num(rows.length)} open plans, nearest to settling first</caption>
@@ -185,7 +193,7 @@ function openTable(rows) {
       <td>${esc(r.verdict)}${r.verdict_contradicts_side ? ` <span class="flag" title="the verdict leans against its own plan">✕ vs ${esc(r.side)}</span>` : ""}</td>
       <td>${esc(r.confluence_state)} <span class="muted">${num(r.confluence_score)}</span></td><td>${esc(r.side)}</td>
       <td class="r">${num(r.atr_14_pct, "%")}</td><td${r.overdue ? ' class="muted"' : ""}>${untilText(r)}</td>
-      <td class="muted">${when(r.locked_at)}</td></tr>`).join("") + "</tbody>";
+      <td class="muted">${when(r.locked_at)}${stampNote(r.stamp)}</td></tr>`).join("") + "</tbody>";
 }
 
 function settledTable(rows) {
@@ -194,7 +202,7 @@ function settledTable(rows) {
   return `<caption>${num(rows.length)} settled, newest first</caption>
     <thead><tr><th scope="col">Token</th><th scope="col">Locked</th><th scope="col">Verdict</th><th scope="col">Confluence</th>
     <th scope="col">First touched</th><th scope="col" class="r">After</th><th scope="col" class="r">Close at horizon</th></tr></thead><tbody>` +
-    rows.map(r => `<tr><th scope="row">${esc(r.symbol)}</th><td class="muted">${when(r.locked_at)}</td>
+    rows.map(r => `<tr><th scope="row">${esc(r.symbol)}</th><td class="muted">${when(r.locked_at)}${stampNote(r.stamp)}</td>
       <td>${esc(r.verdict)}${r.verdict_contradicts_side ? ' <span class="flag">✕</span>' : ""}</td><td>${esc(r.confluence_state)}</td>
       <td class="${RESULT.has(r.result) ? esc(r.result) : ""}">${esc(r.result)}${r.resolved_by ? ` <span class="muted" title="both levels inside one hour; ordered on its 1-minute candles">(${esc(r.resolved_by)})</span>` : ""}</td>
       <td class="r">${num(r.hours_to_touch, " h")}</td>

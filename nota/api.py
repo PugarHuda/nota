@@ -48,6 +48,7 @@ from nota.mcp_server import (HEADER_MISMATCH, PROMPTS, SUPPORTED_PROTOCOLS, UNSU
                              handle as mcp_handle)
 from nota.skills import SKILLS, definitions as skill_definitions, invoke as skill_invoke, live_deps
 from nota.skills.contract import OK
+from nota.stamp import view as stamp_view
 
 load_dotenv()
 app = FastAPI(title="Nota", description="Read-only view over decision receipts. No orders, no wallets.")
@@ -283,7 +284,7 @@ def get_decision(id: str) -> dict[str, Any]:
     out = led.get_outcome(id)
     return {"receipt": r.model_dump(mode="json"), "previous_id": prev.id if prev else None,
             "changes": what_changed(led, r, prev), "outcome": json.loads(out) if out else None, "degraded": _degraded(r),
-            "backing": _backing_counts(led, id), **_pack_views(led, r)}
+            "backing": _backing_counts(led, id), "stamp": stamp_view(led.get_stamp(id), f"/r/{id}.ots"), **_pack_views(led, r)}
 
 
 def _finite(*vs: Any) -> bool:
@@ -388,7 +389,31 @@ def scorecard(horizon: int = 24) -> dict[str, Any]:
         if len(_scorecard_cache) > 16:
             _scorecard_cache.clear()
         _scorecard_cache[key] = summary(led, horizon)
-    return _scorecard_cache[key]
+    out = _scorecard_cache[key]
+    for r in out["open"] + out["settled"]:  # proofs upgrade on their own clock, so they are read fresh, not cached
+        r["stamp"] = stamp_view(led.get_stamp(r["id"]), f"/api/scorecard/locks/{r['id']}.ots")
+    return out
+
+
+def _ots(stamp: dict[str, Any] | None, name: str) -> Response:
+    if stamp is None:
+        raise HTTPException(404, f"no timestamp proof for {name} yet")
+    return Response(bytes(stamp["ots"]), media_type="application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{name}.ots"'})
+
+
+@app.get("/api/scorecard/locks/{id}.json")
+def lock_json(id: str) -> Response:
+    """The lock row exactly as stored: its SHA-256 is the digest its .ots proof anchors."""
+    raw = _ledger().get_lock(id)
+    if raw is None:
+        raise HTTPException(404, f"no lock {id}")
+    return Response(raw, media_type="application/json")
+
+
+@app.get("/api/scorecard/locks/{id}.ots")
+def lock_ots(id: str) -> Response:
+    return _ots(_ledger().get_stamp(id), f"lock-{id}.json")
 
 
 _scorecard_cache: dict[tuple[Any, ...], dict[str, Any]] = {}
@@ -510,7 +535,7 @@ def replay_check(id: str) -> dict[str, Any]:
     return {"identical": res.identical, "diff": res.diff, "error": None}
 
 
-# --- Nota as an MCP server: the same seven skills, over the Streamable HTTP transport ------------
+# --- Nota as an MCP server: the same nine skills, over the Streamable HTTP transport ------------
 MCP_BATCH_MAX = 25
 ALLOWED_ORIGIN_HOSTS = {"nota-ryo.vercel.app", "ryo-arena.vercel.app", "localhost", "127.0.0.1", "testserver"}
 
@@ -654,7 +679,7 @@ judge refuses to size a trade when they disagree.
 POST {base}/mcp speaks the Model Context Protocol over Streamable HTTP (stateless; versions
 {', '.join(SUPPORTED_PROTOCOLS)} are all accepted, and `server/discover` lists them).
 
-- `tools/list`, `tools/call` for the seven research skills below; each is read-only and declares its
+- `tools/list`, `tools/call` for the nine research skills below; each is read-only and declares its
   output schema
 - `resources/list`, `resources/read` for every receipt, addressed as `nota://receipt/<id>` (markdown)
   or `nota://receipt/<id>.json`, plus `ui://nota/receipt`, an MCP Apps view that renders any tool result
@@ -678,9 +703,10 @@ Each returns RYO's public envelope: `status`, `data_mode`, `as_of`, `availabilit
 
 {receipts}
 
-Each receipt is also available as `{base}/r/<id>.json` and as a card image at `{base}/r/<id>.png`,
-and `{base}/api/decisions/<id>/replay` re-runs it from the stored evidence and reports whether the
-result is identical.
+Each receipt is also available as `{base}/r/<id>.json` (the bytes as stored) and as a card image at
+`{base}/r/<id>.png`, and `{base}/api/decisions/<id>/replay` re-runs it from the stored evidence and
+reports whether the result is identical. `{base}/r/<id>.ots` is its OpenTimestamps proof: the SHA-256
+of `/r/<id>.json` anchored in Bitcoin (`ots verify`), once the ledger cycle has stamped it.
 
 ## Scorecard
 
@@ -691,6 +717,7 @@ and settled on OKX hourly candles (1 m candles inside an hour that touched both 
 - [Scorecard]({base}/scorecard): the page, with a schema.org Dataset description
 - `{base}/api/scorecard?horizon=24` and `?horizon=72`: the summary and every row as JSON
 - `{base}/api/scorecard.csv`: every lock at both horizons, failures included
+- `{base}/api/scorecard/locks/<id>.json` and `.ots`: one lock as stored, and its OpenTimestamps proof
 
 ## Agent to agent (A2A 1.0)
 
@@ -746,8 +773,17 @@ def receipt_markdown(id: str) -> PlainTextResponse:
 
 
 @app.get("/r/{id}.json")
-def receipt_json(id: str) -> dict[str, Any]:
-    return _receipt(_ledger(), id).model_dump(mode="json")
+def receipt_json(id: str) -> Response:
+    """The receipt exactly as stored, byte for byte, so its SHA-256 is the digest /r/<id>.ots anchors."""
+    raw = _ledger().get_decision(id)
+    if raw is None:
+        raise HTTPException(404, f"no decision {id}")
+    return Response(raw, media_type="application/json")
+
+
+@app.get("/r/{id}.ots")
+def receipt_ots(id: str) -> Response:
+    return _ots(_ledger().get_stamp(id), f"{id}.json")
 
 
 # --- Track 3: skills exposed on RYO's own paths (/api/skills, SkillCallRequest/Response) -------------

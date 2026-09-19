@@ -34,6 +34,21 @@ page also reports how often each lane of RYO's answer came back available, per R
 (one row per lock and horizon, failures included). The page carries a schema.org `Dataset`
 description (JSON-LD) naming both downloads; the data is offered under CC BY 4.0.
 
+**Anchored in Bitcoin, not in Nota's clock.** "Locked before the move" is only worth something if
+nobody, Nota included, can backdate a lock. `nota stamp` submits the SHA-256 of every good lock row and
+every receipt, exactly as stored, to three public OpenTimestamps calendars and keeps the `.ots` proof;
+a later run swaps in the Bitcoin attestation once the calendar has one, after checking that block's
+merkle root against mempool.space. The scorecard and the dashboard say "Bitcoin block N" or
+"timestamp pending (submitted …)" from that stored status and nothing else. To check one yourself:
+
+```bash
+curl -o lock.json https://nota-ryo.vercel.app/api/scorecard/locks/<id>.json    # the row as stored
+curl -o lock.json.ots https://nota-ryo.vercel.app/api/scorecard/locks/<id>.ots
+ots verify lock.json.ots        # pip install opentimestamps-client; or drop both files on opentimestamps.org
+```
+
+Receipts work the same way with `/r/<id>.json` and `/r/<id>.ots`.
+
 Day 0 (2026-09-18): 25 of 25 locked, 4 CONFIRMED and 21 MIXED, and **7 plans long while RYO's own
 verdict was `cautious`** (XRP, DOGE, ADA, LINK, SUI, BCH, WIF).
 
@@ -80,8 +95,9 @@ gather ──────────► council ──► judge ──► risk 
   losers for a short, and a decision on a scanned token keeps its own scan row (rank, 24 h change,
   turnover, momentum score, `established_asset`, RYO's reason) as a `scan` section inside the hashed
   pack. A failed tool becomes a section with status `error`;
-  the pack still exists. Own skills are added as further sections (`price_check` by default,
-  `narrative_signal` with `--voices`, `news_check` with `--news`).
+  the pack still exists. Own skills are added as further sections (`price_check`,
+  `technicals_check`, `positioning_check`, `liquidity` and `crowd_odds` by default, `narrative_signal`
+  with `--voices`, `news_check` with `--news`).
 - **Council**: three agents (macro, technician, narrative) each return a stance, a
   probability, and **citations as dotted paths into the evidence**. Citations that point at
   a missing or null value are dropped in code (after normalising `x[0].y` to `x.0.y`) and the
@@ -92,7 +108,9 @@ gather ──────────► council ──► judge ──► risk 
   every agent is told such text is evidence to weigh, never a request to follow. RYO's token-profile
   prose (about 2.7 KB, repeated in `deep_analysis` and in every `compare_tokens` row) is shown once,
   to the narrative agent; everyone else sees its status and missing inputs at the same paths, which
-  cuts the technician's prompt by more than 30% (prompts `v4`).
+  cuts the technician's prompt by more than 30% (prompts `v4`). Prompts `v5` give the macro agent
+  `liquidity` (stablecoin supply and chain TVL); no agent sees `crowd_odds`, which is kept as the
+  market's price to score the judge against.
 - **Judge**: weighs opinions by each agent's historical Brier score and decides
   long / short / no_trade.
 - **RYO's own plan is evidence, not an instruction**: `deep_analysis.data.trade_plan` carries RYO's
@@ -121,6 +139,9 @@ gather ──────────► council ──► judge ──► risk 
   `late:<hours>h:`. Calibration tables count only outcomes that reached the horizon, report how many
   of their calls are independent (one per token per week), and stay unreadable until 20 are. The
   judge's weights move towards each agent's Brier only as n/(n+20), so five scored calls cannot swing them.
+  Two baselines sit beside the Brier: the token's own base rate (`vs_base_rate`) and, harder, the
+  prediction markets' P(up) at decision time (`vs_base_rate.vs_market`, "Nota vs the crowd" on the
+  dashboard): the judge's Brier against the market's on the same resolved calls.
 - **Autonomy**: `nota watch SOL,BTC --every 3600 --notify` decides on a schedule, resolves
   matured decisions, and posts each new receipt to Telegram / Discord. `--scan-top 3` lets the
   loop pick its own candidates from `scan_market` every cycle.
@@ -235,6 +256,7 @@ uv run nota watch SOL,BTC --every 3600 --notify
 uv run nota replay <id>        # identical: True
 uv run nota replay <id> --fresh
 uv run nota resolve --all      # after 7 days: Brier scores per agent
+uv run nota stamp              # OpenTimestamps: anchor new locks and receipts, upgrade proofs pending over 3 h
 uv run nota scores
 uv run nota record SOL         # capture all six live tools into fixtures/recorded (all or nothing)
 uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
@@ -247,7 +269,7 @@ uv run pytest -q
 
 ## Skills (Track 3)
 
-All seven return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
+All nine return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are
 served on RYO's own skill paths, so plugging them into RYO is a route registration, not a port:
 `GET /api/skills/` (SkillDefinition list), `GET /api/skills/{name}`, and
 `POST /api/skills/{name}/invoke` taking `SkillCallRequest {name, args, conversation_id}` and
@@ -303,11 +325,21 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
 - `verdict_track_record`: the scorecard's settled record for a token, by verdict and confluence
   state, with denominators, the plans whose verdict leans against their own direction (a long under
   a cautious verdict or a short under a constructive one), and the latest locked verdict's trace id.
+- `liquidity_check`: DefiLlama, keyless: the 7- and 30-day change of the total USD stablecoin supply
+  (fresh buying power arriving or leaving) and of DeFi TVL on the token's own chain, each with the
+  date of its last row. BTC and tokens without a chain of their own get no TVL, with the reason, never
+  a neighbour's. The macro agent reads it as `liquidity`.
+- `crowd_odds`: the prediction markets' implied P(higher than now) at the horizon. Polymarket's
+  "<coin> above ___ on <date>" ladder expiring within a day of now + 7 d (BTC, ETH, SOL, XRP), else
+  Kalshi's KX<coin>D ladder (also DOGE). Only two-sided books at most 10 cents wide count, so a fresh
+  ladder's 0.5 placeholders are never read; prices are made monotone in the strike and interpolated at
+  spot. No readable ladder is `market_p: null`, never a coin flip. Stored in every pack, shown to no
+  agent, and scored against the judge.
 
 ## Nota is also an MCP server (Track 3)
 
 Nota is an MCP client of RYO. It is also an MCP server, so RYO, Claude Desktop, Cursor or any other
-MCP host can call the seven skills directly with no wrapper:
+MCP host can call the nine skills directly with no wrapper:
 
 ```jsonc
 // claude_desktop_config.json, or any MCP client that speaks Streamable HTTP
@@ -322,7 +354,7 @@ curl -s https://nota-ryo.vercel.app/mcp -H 'content-type: application/json'   -d
 
 It serves all four MCP primitives, not just the easy one:
 
-- **tools**: `tools/list` and `tools/call` for the seven skills, each `inputSchema` generated from the
+- **tools**: `tools/list` and `tools/call` for the nine skills, each `inputSchema` generated from the
   same definition the REST route and the dashboard form use.
 - **resources**: `resources/list`, `resources/templates/list` (`nota://receipt/{id}`) and
   `resources/read`, which returns a receipt as markdown plus its own JSON. A client that never
@@ -364,7 +396,7 @@ ledger holds. Its page list is filtered by the routes the app really serves, so 
 from them.
 
 **A2A.** Nota is also an Agent2Agent 1.0 agent. `/.well-known/agent-card.json` is its Agent Card
-(the seven skills with tags and an example call each, one JSON-RPC interface, no streaming, no push)
+(the nine skills with tags and an example call each, one JSON-RPC interface, no streaming, no push)
 and `POST /a2a` takes `SendMessage` with the header `A2A-Version: 1.0` (no header means 0.3, which
 is refused with `VersionNotSupportedError`, as the spec says). The message carries a data part
 `{"skill": ..., "args": {...}}`, or text such as `price_crosscheck SOL`; the call goes through the
@@ -541,6 +573,12 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 - Some ISPs DNS-block exchange domains (seen from Indonesia: Coinbase and Kraken resolve to a
   block page with a bad certificate). `price_crosscheck` then reports those sources
   `unavailable` and works from whatever remains; the hosted demo on Vercel reaches all three.
+  Polymarket and Kalshi are DNS-blocked the same way on the machine this was built on; `crowd_odds`
+  then comes back `market_p: null`, and its parsers were written against responses fetched over DNS
+  over HTTPS (`tests/fixtures/market/`).
+- `nota stamp` needs one of three OpenTimestamps calendars; with none answering the subject stays
+  unstamped for the next run, and a calendar's Bitcoin path is adopted only when mempool.space's block
+  header agrees with it.
 
 ## Layout
 
@@ -548,7 +586,8 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 nota/
   envelope.py     RYO public response contract + REST/MCP parsers
   ryo_client.py   RyoClient (httpx) + RecordedRyoClient + record()
-  ledger.py       SQLite: evidence, llm_cache, decisions, outcomes
+  ledger.py       SQLite: evidence, llm_cache, decisions, outcomes, locks, settlements, stamps
+  stamp.py        OpenTimestamps: .ots writer/parser, calendar submit, upgrade checked against mempool.space
   evidence.py     EvidencePack, ryo_args(), gather(), candidate_symbols(), path lookups
   paths.py        candidate paths for price / ATR (one place to fix when the live schema is recorded)
   llm.py          LLM protocol, AnthropicLLM (messages.parse), OpenAICompatLLM (Venice/OpenRouter)
@@ -557,7 +596,8 @@ nota/
   receipt.py      Receipt + markdown rendering
   notify.py       Telegram Bot API + Discord webhook publishing
   api.py          FastAPI read API + static/index.html dashboard
-  skills/         contract, sources (Telegram, Bluesky, X syndication, RSS, Tavily, Venice), narrative, news, price_check
+  skills/         contract, sources (Telegram, Bluesky, X syndication, RSS, Tavily, Venice), narrative, news, price_check,
+                  technicals, positioning, base_rate, track_record, liquidity (DefiLlama), crowd_odds (Polymarket, Kalshi)
   decide.py / replay.py / calibration.py / cli.py
   static/         landing.html + landing.ja.html (same page, `/` and `/ja`), index.html (dashboard),
                   demo.html (walkthrough + transcript), landing.css + landing.js shared by both languages

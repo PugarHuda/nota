@@ -47,6 +47,9 @@ class Outcome(BaseModel):
     # How often this token closed higher 7 days later, counted on candles closed before the decision day
     # (skill move_base_rate). The reference a p_up has to beat; None when it could not be counted.
     base_rate_p: float | None = None
+    # The prediction markets' P(up) at the decision (skill crowd_odds, stored in the pack): the crowd's price
+    # for the same question. None when no market listed the token or its book was too thin to read.
+    market_p: float | None = None
 
 
 def _price_then(receipt: Receipt, ledger: Ledger) -> float | None:
@@ -88,6 +91,12 @@ def _price_now(symbol: str, source: RyoSource | None) -> tuple[float | None, str
     return float(med), check.as_of, f"exchange_median:{check.get('sources_ok')}_sources"
 
 
+def _market_p(receipt: Receipt, ledger: Ledger) -> float | None:
+    pack_json = ledger.get_pack(receipt.pack_hash)
+    p = EvidencePack.model_validate_json(pack_json).get("crowd_odds.data.market_p") if pack_json else None
+    return float(p) if isinstance(p, (int, float)) and not isinstance(p, bool) and 0 <= p <= 1 else None
+
+
 def _build_outcome(receipt: Receipt, ledger: Ledger, price_now: float, as_of_now: str | None, price_source: str,
                    closed_reason: str | None = None, resolved_at: str | None = None) -> Outcome:
     price_then = _price_then(receipt, ledger)
@@ -106,7 +115,7 @@ def _build_outcome(receipt: Receipt, ledger: Ledger, price_now: float, as_of_now
         decision_id=receipt.id, symbol=receipt.symbol, resolved_at=resolved_at or now_iso(), decided_as_of=decided_as_of,
         horizon_reached=False, price_then=price_then, price_now=price_now, price_now_source=price_source, price_now_as_of=as_of_now,
         return_pct=round((price_now / price_then - 1.0) * 100.0, 4), went_up=went_up, brier=brier, trade_result_usd=trade_result,
-        closed_reason=closed_reason,
+        closed_reason=closed_reason, market_p=_market_p(receipt, ledger),
     )
     out.horizon_reached = _at_horizon(out.model_dump(), receipt)
     ledger.save_outcome(receipt.id, out.model_dump_json())
@@ -315,7 +324,27 @@ def skill_vs_base(ledger: Ledger) -> dict[str, Any]:
     n = min((v["n"] for v in roles.values()), default=0)
     n_ind = n_independent(_stamps(used))
     return {"roles": roles, "n": n, "n_independent": n_ind, "excluded_before_horizon": excluded,
-            "enough_to_read": _enough(n, n_ind), "meaningful_at": MEANINGFUL_N}
+            "enough_to_read": _enough(n, n_ind), "meaningful_at": MEANINGFUL_N, "vs_market": _vs_market(ledger)}
+
+
+def _vs_market(ledger: Ledger) -> dict[str, Any]:
+    """The judge against the prediction markets on the same decisions: those that reached the horizon and
+    had a market P(up) at decision time. Skill = 1 - Brier(judge) / Brier(market); above zero the council
+    knew something the people pricing the question did not. The harder bar of the two baselines."""
+    pairs, used = [], []
+    for o, rec in _scored_outcomes(ledger):
+        m = o.get("market_p")
+        if m is None or "judge" not in o["brier"] or not _at_horizon(o, rec):
+            continue
+        used.append((o, rec))
+        pairs.append((o["brier"]["judge"], (m - (1.0 if o["went_up"] else 0.0)) ** 2))
+    n = len(pairs)
+    b = sum(x for x, _ in pairs) / n if n else None
+    m = sum(y for _, y in pairs) / n if n else None
+    n_ind = n_independent(_stamps(used))
+    return {"n": n, "n_independent": n_ind, "judge_brier_mean": round(b, 4) if b is not None else None,
+            "market_brier_mean": round(m, 4) if m is not None else None,
+            "skill": round(1 - b / m, 4) if n and m else None, "enough_to_read": _enough(n, n_ind), "meaningful_at": MEANINGFUL_N}
 
 
 def skill_vs_ryo(ledger: Ledger) -> dict[str, Any]:

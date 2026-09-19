@@ -26,6 +26,8 @@ from nota.risk import RiskLimits, atr_usd as risk_atr_usd
 from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, check_args, record
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 from nota.skills.contract import clean_symbol
+from nota.skills.crowd_odds import crowd_odds
+from nota.skills.liquidity import liquidity_check
 from nota.skills.narrative import narrative_convergence
 from nota.skills.news import news_verify
 from nota.skills.positioning import positioning_check
@@ -60,7 +62,7 @@ def _source(kind: str):
     raise typer.BadParameter("source must be live or recorded")
 
 
-KEYLESS = ("Without one you can still run `nota health`, the seven skills (`nota skill run ...`), "
+KEYLESS = ("Without one you can still run `nota health`, the nine skills (`nota skill run ...`), "
            "`nota serve`, `nota positions`, and `nota replay <id>` - a cached replay reads the "
            "ledger only, so verifying a receipt needs no key at all.")
 
@@ -163,7 +165,7 @@ def decide_cmd(
     voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env NOTA_VOICES)"),
     news: bool = typer.Option(False, help="Add news_check via news_verify (Tavily or Venice web search)"),
     notify: bool = typer.Option(False, help="Post the receipt to configured Telegram/Discord channels"),
-    price_check: bool = typer.Option(True, help="Add price_check: keyless CoinGecko/Coinbase/Kraken spot prices vs RYO's price"),
+    price_check: bool = typer.Option(True, help="Add the keyless independent checks: exchange prices, technicals, positioning, DefiLlama liquidity, prediction-market odds"),
     as_json: bool = typer.Option(False, "--json"),
     once_a_day: bool = typer.Option(False, "--once-a-day", help="Skip when this symbol was decided less than 20 h ago"),
 ):
@@ -214,6 +216,15 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
                                      peer_derivatives=peer_derivatives(_ledger(), now_iso()[:10]),
                                      ryo_btc_funding_bps=fund if isinstance(fund, (int, float)) and not isinstance(fund, bool) else None)
         extras["positioning_check"] = _positioning
+
+        # macro's liquidity read; and the crowd's P(up), which no role is shown: it is the baseline the
+        # judge is scored against (calibration.skill_vs_base 'vs_market'), read at the decision's own price
+        extras["liquidity"] = lambda sym, _pack: liquidity_check(sym)
+
+        def _crowd(sym, pack):
+            _, price = first_present(pack, paths.PRICE_USD)
+            return crowd_odds(sym, horizon_days=7, spot=price if price and price > 0 else None)
+        extras["crowd_odds"] = _crowd
     return extras or None
 
 
@@ -434,6 +445,18 @@ def settle_cmd():
     for r in out:
         typer.echo(f"{r['lock_id']} {r['symbol']:5} {r['horizon_h']}h {r['status']} {r.get('result', r.get('error', ''))}")
 
+
+@app.command("stamp")
+def stamp_cmd():
+    """Anchor every unstamped scorecard lock and receipt in Bitcoin through OpenTimestamps calendars, and
+    upgrade proofs pending for over 3 h once their block is confirmed. Keyless."""
+    from nota.stamp import stamp_ledger
+
+    out = stamp_ledger(_ledger())
+    for line in out:
+        typer.echo(line)
+    if not out:
+        typer.echo("nothing to stamp or upgrade")
 
 
 @app.command()

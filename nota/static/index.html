@@ -255,6 +255,7 @@ async function open(id, push = true, user = false) {
     <div class="meta"><span>receipt <a href="/r/${esc(r.id)}">${esc(r.id)}</a></span><span>${esc(r.created_at)}</span>
       <span>source ${esc(r.source)}</span><span>model ${esc(r.model)} (${esc(r.prompt_version)})</span>
       <span>evidence ${esc(r.pack_hash.slice(0, 16))}</span>
+      ${stampLine(d.stamp)}
       ${spendLine(r.spend)}
       ${d.previous_id ? `<span>previous <a href="/r/${esc(d.previous_id)}" data-open="${esc(d.previous_id)}">${esc(d.previous_id)}</a></span>` : ''}</div>
 
@@ -452,6 +453,7 @@ async function loadSide() {
       ${sc.reliability.bins.map(b => `<tr><td>${esc(b.bin)}</td><td class="num">${esc(b.n)}</td><td class="num">${esc(b.mean_p ?? '—')}</td><td class="num">${esc(b.hit_rate ?? '—')}</td></tr>`).join('')}</table>
       <div class="small muted" id="calibration-n">judge Brier ${esc(sc.reliability.judge_brier ?? '—')} over ${esc(sc.reliability.n)} resolved at the 7-day horizon (${esc(sc.reliability.n_independent)} independent)${sc.reliability.excluded_before_horizon ? `, ${esc(sc.reliability.excluded_before_horizon)} closed earlier and left out` : ''}${tooFew(sc.reliability.n_independent, sc.reliability.meaningful_at)}</div>
       ${vsRyoLine(sc.vs_ryo)}
+      ${vsMarketLine(sc.vs_base_rate?.vs_market)}
       ${sourcesTable(sc.sources)}${baseRateTable(sc.vs_base_rate)}`
     : `<div class="muted small">No resolved decisions yet (${esc(sc.unresolved)} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
 }
@@ -471,11 +473,29 @@ function ryoSaid(r) {
 }
 
 // Did Nota beat RYO's own call? Hit rates over the scored calls where both took a direction.
+// What the ledger stored about this receipt's OpenTimestamps proof, and nothing more: "anchored" only
+// once `nota stamp` has checked the block's merkle root, "pending" with the time it was submitted.
+function stampLine(s) {
+  if (!s) return '';
+  const proof = `<a href="${esc(s.ots_url)}" title="OpenTimestamps proof of the SHA-256 of this receipt's JSON; check it with ots verify">proof</a>`;
+  return s.status === 'bitcoin' ? `<span>anchored in Bitcoin block ${esc(s.block)} (${proof})</span>`
+    : `<span>timestamp pending (submitted ${esc(s.stamped_at)}, ${proof})</span>`;
+}
+
 function vsRyoLine(s) {
   if (!s) return '';
   const body = s.n ? `council right ${esc(Math.round(s.council_hit_rate * 100))}%, RYO right ${esc(Math.round(s.ryo_hit_rate * 100))}% over ${esc(s.n)} scored call${s.n === 1 ? '' : 's'}; they disagreed ${esc(s.disagreed)} time${s.disagreed === 1 ? '' : 's'}${s.disagreed ? `, council right in ${esc(s.council_right_when_disagreeing)}` : ''}${s.enough_to_read ? '' : ` (too few to read; meaningful at ${esc(s.meaningful_at)})`}`
     : 'no scored call yet where both the council and RYO took a direction';
   return `<div class="small" id="vs-ryo"><b>Nota vs RYO:</b> ${body}</div>`;
+}
+
+// The judge against the prediction markets' own P(up) on the same decisions: the harder of the two
+// baselines, because the market has already priced everything public.
+function vsMarketLine(v) {
+  if (!v) return '';
+  const body = v.n ? `judge Brier ${esc(v.judge_brier_mean)} against the market's ${esc(v.market_brier_mean)} on ${esc(v.n)} scored call${v.n === 1 ? '' : 's'}, skill ${v.skill > 0 ? '+' : ''}${esc(v.skill ?? '—')}${v.enough_to_read ? '' : ` (too few to read; meaningful at ${esc(v.meaningful_at)})`}`
+    : 'no scored call yet had a prediction-market price at decision time (Polymarket or Kalshi, BTC ETH SOL XRP DOGE)';
+  return `<div class="small" id="vs-market"><b>Nota vs the crowd:</b> ${body}</div>`;
 }
 
 // Which sources earned their place: the judge's Brier when a section answered against when it did

@@ -1,6 +1,6 @@
 # Nota skills: contract and definitions (Track 3)
 
-Seven research tools RYO does not have. All of them follow the published tool specification:
+Nine research tools RYO does not have. All of them follow the published tool specification:
 the definition shape is RYO's own `SkillDefinition` (`name`, `description`, `args[]`,
 `requires_guard`, `xp`), and the response is RYO's public builder envelope, field for field:
 
@@ -164,6 +164,39 @@ How RYO's own deep_analysis plans have fared: locked daily for 25 majors and set
 
 `status`: `ok` when every primary key (`ledger`) is `available`, `unavailable` when every one failed, else `partial`. Read-only, `requires_guard: false`.
 
+### `liquidity_check`
+
+Macro liquidity from DefiLlama (no key): 7-day and 30-day change of the total USD stablecoin supply, and of DeFi TVL on the token's own chain (ETH, SOL, BNB, AVAX and other L1/L2 tokens). Each leg reports its own as_of and availability; a token without a chain of its own gets no TVL rather than a borrowed one.
+
+| arg | type | required | enum | description |
+|---|---|---|---|---|
+| `symbol` | string | yes |  | Token symbol, e.g. SOL |
+
+| availability key | primary | covers |
+|---|---|---|
+| `stablecoins` | yes | DefiLlama total USD stablecoin supply |
+| `tvl` | yes | DefiLlama DeFi TVL on the token's own chain; primary only for a token that has one |
+
+`status`: `ok` when every primary key (`stablecoins`, `tvl`) is `available`, `unavailable` when every one failed, else `partial`. Read-only, `requires_guard: false`.
+
+### `crowd_odds`
+
+Prediction-market implied probability that a token trades higher than now at a horizon: the Polymarket 'above $K on <date>' ladder (Kalshi's KX<coin>D ladder as fallback) expiring within a day of now + horizon, liquid strikes only, made monotone and interpolated at spot. BTC, ETH, SOL, XRP (and DOGE on Kalshi); null when no market.
+
+| arg | type | required | enum | description |
+|---|---|---|---|---|
+| `symbol` | string | yes |  | Token symbol, e.g. BTC |
+| `horizon_days` | integer | no |  | 1 to 14 (default 7) |
+| `spot` | number | no |  | Price to read the ladder at (default: Binance spot, which is what Polymarket's crypto ladders resolve on) |
+
+| availability key | primary | covers |
+|---|---|---|
+| `polymarket` | yes | Polymarket 'above ___ on <date>' ladder; the answering venue is the primary key |
+| `kalshi` | yes | Kalshi KX<coin>D ladder, asked when Polymarket has no usable ladder |
+| `market` | yes | `unavailable` when no venue had a readable ladder (market_p null) |
+
+`status`: `ok` when every primary key (`polymarket`, `kalshi`, `market`) is `available`, `unavailable` when every one failed, else `partial`. Read-only, `requires_guard: false`.
+
 <!-- generated:end -->
 
 ## Outputs and methods
@@ -297,6 +330,29 @@ before the split, so the fit never sees the holdout. A gap of more than 10 point
 bracket under `cautious`, `bearish`, `avoid` or `negative`, or a short bracket under `constructive`,
 `bullish`, `positive` or `accumulate`. A symbol outside the 25-major universe is `unavailable`;
 one with nothing settled yet is `partial` and gives no rate.
+
+### `liquidity_check`
+
+`data`: `symbol`, `stablecoins{latest_usd, as_of, change_7d_pct, change_30d_pct}`,
+`tvl{chain, latest_usd, as_of, change_7d_pct, change_30d_pct}`, `sources`. Stablecoins come from
+DefiLlama `stablecoincharts/all` (`totalCirculatingUSD.peggedUSD`), TVL from
+`v2/historicalChainTvl/<Chain>` for the token's own chain (ETH→Ethereum, SOL→Solana, BNB→BSC,
+AVAX→Avalanche and the other L1/L2 tokens in `nota/skills/liquidity.py`). A change compares the last
+row with the last row on or before 7 or 30 days earlier; a window the series does not reach is `null`.
+BTC and any token without a chain of its own get `tvl: null` and a warning naming why; no chain is
+borrowed. The macro agent reads this section.
+
+### `crowd_odds`
+
+`data`: `symbol`, `market_p`, `source` (`polymarket` | `kalshi` | null), `event_slug` or `ticker`,
+`expiry`, `strikes`, `prices` (monotone), `raw_prices`, `extrapolated`, `spot`, `spot_source`,
+`horizon_days`, `as_of`, `max_spread`, `window_days`. The ladder is Polymarket's "<coin> above ___ on
+<date>" event (BTC, ETH, SOL, XRP) or Kalshi's KX<coin>D series (also DOGE) whose expiry is within one
+day of now + `horizon_days`. A strike counts only when its book is two-sided and at most 0.10 wide;
+Yes prices are made non-increasing in the strike (pool adjacent violators) and interpolated linearly at
+`spot`, clamped at the ends with `extrapolated: true`. No readable ladder gives `market_p: null`,
+never 0.5. No agent is shown this section: it is the market's price for the judge's own question, and
+`/api/scores` compares the judge's Brier with it (`vs_base_rate.vs_market`).
 
 ## Calling them
 

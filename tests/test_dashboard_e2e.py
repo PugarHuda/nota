@@ -87,7 +87,7 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     assert "Now:" in page.locator("#summary").inner_text() and "Next:" in page.locator("#summary").inner_text()
     # RYO's real 2026-09-07 call on SOL beside the council's long
     assert "RYO said: constructive (confluence CONFIRMED) - council: long, agrees" in page.locator("#ryo-said").inner_text()
-    page.wait_for_function("() => document.querySelectorAll('#skill-name option').length === 7")
+    page.wait_for_function("() => document.querySelectorAll('#skill-name option').length === 9")
     page.select_option("#skill-name", "narrative_convergence")
     assert page.locator("#skill-args [data-arg='voices']").count() == 1 and page.locator("#skill-args [data-arg='hours']").count() == 1
     page.click("#skill-run")  # required arg missing: the API's 422 must surface, not a silent nothing
