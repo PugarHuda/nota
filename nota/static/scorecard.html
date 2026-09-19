@@ -9,38 +9,45 @@
 <meta property="og:description" content="Does RYO's verdict change how often RYO's own plan works? Locked daily, settled on independent candles, every failure counted.">
 <link rel="stylesheet" href="/landing.css">
 <style>
-  main { padding:clamp(28px,5vh,48px) 0 64px }
-  h1 { font-size:clamp(28px,4.2vw,42px); line-height:1.15; letter-spacing:-.015em; margin:0 0 14px; max-width:26ch }
-  h2 { font-size:21px; margin:44px 0 6px; letter-spacing:-.01em }
-  .hint { color:var(--ink-2); margin:0 0 14px; max-width:var(--measure); font-size:15px }
-  #answer { font-size:clamp(18px,2.2vw,21px); max-width:var(--measure); margin:0 0 18px }
-  #answer strong { font-weight:600 }
-  .horizon { display:flex; gap:8px; align-items:center; font:13px/1 var(--mono); color:var(--ink-2) }
-  .horizon button { font:13px/1 var(--mono); padding:8px 12px; border:1px solid var(--rule-2); background:var(--panel);
-                    color:var(--ink); border-radius:2px; cursor:pointer }
+  /* The scorecard is one document: RYO's plans entered on a form, one ruled line each, the outcome
+     written in when it arrives. Same sheet, rules and faces as every other page (landing.css). */
+  main.wrap { background:var(--paper); border:1px solid var(--form); border-radius:2px; margin:22px auto 40px;
+              padding-top:clamp(28px,4vw,48px); padding-bottom:clamp(30px,4vw,52px) }
+  @media (max-width:1240px) { main.wrap { margin:14px var(--pad) 32px; padding-left:clamp(16px,4vw,40px); padding-right:clamp(16px,4vw,40px) } }
+  h1 { font-size:clamp(28px,3.6vw,42px); line-height:1.2; max-width:24ch; padding-bottom:16px; margin:0 0 20px;
+       border-bottom:3px double var(--ink) }
+  h2 { font-size:clamp(20px,2vw,24px); margin:44px 0 8px; max-width:none }
+  .hint { color:var(--ink-2); margin:0 0 16px; max-width:var(--measure); font-size:15px }
+  #answer { font-size:clamp(18px,1.9vw,21px); line-height:1.7; max-width:62ch; margin:0 0 20px }
+  #answer strong { font-weight:700 }
+  .horizon { display:flex; gap:8px; align-items:center; font-size:14px; color:var(--ink-2) }
+  .horizon button { font:700 14px/1 var(--text); padding:9px 14px; border:1.5px solid var(--form-2); background:var(--paper);
+                    color:var(--ink); border-radius:3px; cursor:pointer }
   .horizon button[aria-pressed="true"] { background:var(--ink); color:var(--paper); border-color:var(--ink) }
-  .scroll { overflow-x:auto; border:1px solid var(--rule); border-radius:2px; background:var(--panel) }
-  table { border-collapse:collapse; width:100%; font:14px/1.45 var(--mono); font-variant-numeric:tabular-nums }
-  caption { text-align:left; padding:10px 12px; color:var(--ink-2); font-size:13px; border-bottom:1px solid var(--rule) }
-  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--rule); white-space:nowrap }
-  th { font-weight:600; color:var(--ink-2); font-size:12px; text-transform:uppercase; letter-spacing:.04em }
-  tr:last-child td { border-bottom:0 }
+  .scroll { overflow-x:auto; border-top:2px solid var(--ink) }
+  table { border-collapse:collapse; width:100%; font:14px/1.45 var(--fig); font-variant-numeric:tabular-nums }
+  caption { text-align:left; padding:10px 0; color:var(--ink-2); font:13px/1.4 var(--text); border-bottom:1px solid var(--form-2) }
+  th, td { text-align:left; padding:10px 14px 10px 0; border-bottom:1px solid var(--form); white-space:nowrap }
+  th { font:700 12px/1.4 var(--text); color:var(--ink-2) }
+  tbody th { font:700 14px/1.45 var(--text); color:var(--ink) }
   td.r, th.r { text-align:right }
   .target { color:var(--long) } .stop { color:var(--short) } .muted { color:var(--ink-2) }
-  .flag { color:var(--short); font-weight:600 }
-  .contrast { border:1px solid var(--rule); background:var(--panel); padding:16px 18px; border-radius:2px; margin:0 0 12px; max-width:760px }
+  .flag { color:var(--short); font-weight:700 }
+  .contrast { border-top:2px solid var(--ink); border-bottom:1px solid var(--form); padding:16px 0; margin:0 0 14px; max-width:760px }
   .contrast p { margin:0 0 12px }
-  .axis { position:relative; height:34px; margin:4px 0 0 }
+  .axis { position:relative; height:36px; margin:4px 0 0 }
   .axis .zero { position:absolute; top:0; bottom:12px; width:1px; background:var(--ink-2) }
-  .axis .ci { position:absolute; top:8px; height:6px; background:var(--accent); opacity:.35; border-radius:1px }
-  .axis .pt { position:absolute; top:4px; width:2px; height:14px; background:var(--accent) }
-  .axis .lbl { position:absolute; bottom:0; font:11px/1 var(--mono); color:var(--ink-2); transform:translateX(-50%) }
-  dl.cov { display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; margin:0; max-width:var(--measure); font-size:15px }
-  dl.cov dt { font:14px/1.5 var(--mono); font-variant-numeric:tabular-nums; text-align:right }
+  .axis .ci { position:absolute; top:8px; height:7px; background:var(--ink); opacity:.28; border-radius:1px }
+  .axis .pt { position:absolute; top:3px; width:3px; height:17px; background:var(--ink) }
+  .axis .lbl { position:absolute; bottom:0; font:11px/1 var(--fig); color:var(--ink-2); transform:translateX(-50%) }
+  dl.cov { display:grid; grid-template-columns:max-content 1fr; gap:0 18px; margin:0; max-width:var(--measure); font-size:15px;
+           border-top:2px solid var(--ink) }
+  dl.cov dt, dl.cov dd { padding:9px 0; border-bottom:1px solid var(--form) }
+  dl.cov dt { font:700 16px/1.5 var(--fig); font-variant-numeric:tabular-nums; text-align:right }
   dl.cov dd { margin:0; color:var(--ink-2) }
-  .method { max-width:var(--measure); font-size:15.5px }
-  .method li { margin-bottom:6px }
-  .empty { color:var(--ink-2); padding:14px 12px; font:14px/1.5 var(--serif) }
+  .method { max-width:var(--measure); font-size:15.5px; padding-left:1.3em }
+  .method li { margin-bottom:8px }
+  .empty { color:var(--ink-2); padding:14px 0; font:15px/1.6 var(--text) }
 </style>
 </head>
 <body>

@@ -5,113 +5,116 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nota</title>
 <!--OG-->
+<link rel="stylesheet" href="/landing.css">
 <style>
-  /* Nota reads as a lab notebook, not a terminal: an agent's argument is prose and is set in a serif
-     at a real measure, while every number, dotted RYO path and id stays monospace and tabular,
-     because those are evidence and have to line up. Two families, no more. */
-  :root { color-scheme: light dark;
-    --paper:light-dark(#f5f4f0,#121316); --panel:light-dark(#ffffff,#191a1e);
-    --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
-    --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
-    --accent:light-dark(#1b4b8f,#82a9e6);
-    --long:light-dark(#2c6a4e,#61a482); --short:light-dark(#a83a2c,#e0806d);
-    --warn:light-dark(#845c0d,#d3a63c); --warn-bg:light-dark(#fbf3df,#241d0d);
-    --sel:light-dark(#eceff6,#1e222b);
-    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
+  /* The dashboard is the desk the receipts are worked on: the ledger book on the left, the open
+     receipt in the middle as the one document at full size, and the side notes on the right. It
+     shares landing.css's tokens and faces; only the working layout lives here. */
   :root[data-theme="light"] { color-scheme: light } :root[data-theme="dark"] { color-scheme: dark }
-  * { box-sizing:border-box }
-  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.55 var(--serif); }
-  a { color:var(--accent); text-underline-offset:2px }
-  code, .mono, .num, kbd, input, select, button, h2, .badge, .meta, .cite, th { font-family:var(--mono) }
+  :root { --warn:light-dark(#7a5306,#e0b653); --warn-bg:light-dark(#fdf5e0,#2a2210); --sel:light-dark(#e6eaf4,#1f2742) }
+  body { font-size:15px; line-height:1.65 }
+  .mono, .num, kbd, .badge, .meta, .cite, th, input, select { font-family:var(--fig) }
   .num, td, th { font-variant-numeric:tabular-nums }
 
-  header { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:baseline;
-           padding:14px 22px 12px; border-bottom:1px solid var(--rule-2); background:var(--panel) }
-  header h1 { font-size:20px; margin:0; letter-spacing:-.01em; font-weight:600 }
-  header .tagline { color:var(--ink-2); font-size:14px }
-  header .keys { margin-left:auto; font:12px/1.6 var(--mono); color:var(--ink-2) }
+  header { display:flex; flex-wrap:wrap; gap:6px 22px; align-items:center; padding:12px 22px; background:var(--paper);
+           border-bottom:1px solid var(--form) }
+  header h1 { font:400 20px/1 var(--display); margin:0; max-width:none; display:inline-flex; align-items:center; gap:8px }
+  header h1::before { content:""; width:9px; height:9px; border-radius:50%; background:var(--seal) }
+  header .tagline { color:var(--ink-2); font-size:13px }
+  header .tagline a { color:var(--ink-2) }
+  header .keys { margin-left:auto; font-size:12px; color:var(--ink-2); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center }
   #health { display:flex; flex-wrap:wrap; gap:6px; flex-basis:100%; font-size:12px }
-  #health .badge { border:1px solid var(--rule); border-radius:2px; padding:2px 7px }
+  #health .badge { border:1px solid var(--form); background:var(--desk); border-radius:2px; padding:1px 8px }
 
-  main { display:grid; grid-template-columns: 290px minmax(0,1fr) 300px; min-height:calc(100vh - 78px) }
-  @media (max-width: 1040px) { main { grid-template-columns:1fr } aside, nav { border:0 } }
-  nav, section, aside { padding:18px 20px; overflow:auto }
-  nav { border-right:1px solid var(--rule); background:var(--panel) }
-  aside { border-left:1px solid var(--rule) }
-  section > * { max-width:76ch }
-  section table, section .wide, section details { max-width:none }
+  main { display:grid; grid-template-columns:292px minmax(0,1fr) 320px; gap:14px; padding:14px; align-items:start }
+  @media (max-width:1100px) { main { grid-template-columns:minmax(0,1fr) } }   /* 1fr alone grows to its longest word */
+  main > nav, main > section { background:var(--paper); border:1px solid var(--form); border-radius:2px; min-width:0 }
+  main > nav { padding:14px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow:auto }
+  main > aside { padding:4px 4px; min-width:0 }
+  @media (max-width:1100px) { main > nav { position:static; max-height:none } }
 
-  input, select { width:100%; background:var(--paper); color:var(--ink); border:1px solid var(--rule-2);
-                  padding:7px 9px; font-size:13px; border-radius:2px }
-  :focus-visible { outline:2px solid var(--accent); outline-offset:2px }
-  .skip { position:absolute; left:-999px; top:8px; background:var(--accent); color:var(--paper); padding:6px 10px; border-radius:2px; z-index:9 }
+  /* the open receipt: one full document, ruled, headed, and stampable */
+  #detail { position:relative; padding:26px clamp(18px,3vw,40px) 34px; overflow-wrap:anywhere }
+  #detail > * { max-width:78ch } #detail table, #detail details, #detail .sheet-title, #detail .wide { max-width:none }
+  #detail .kakuin { left:auto; right:34px; bottom:auto; top:74px }
+  #detail.stamped .kakuin { opacity:.9 }
+  /* a wide table scrolls inside the receipt instead of breaking section names mid-word */
+  #detail table { display:block; overflow-x:auto } #detail tbody { display:table; width:100% }
+  #detail td { overflow-wrap:normal }
+
+  input, select { width:100%; background:var(--paper); color:var(--ink); border:1px solid var(--form-2); padding:8px 10px;
+                  font-size:13px; border-radius:2px }
+  .skip { position:absolute; left:-999px; top:8px; background:var(--ink); color:var(--paper); padding:6px 10px; z-index:9 }
   .skip:focus { left:8px }
 
-  .row { display:grid; grid-template-columns:1fr auto; gap:3px 10px; width:100%; text-align:left;
-         padding:9px 10px; border:0; border-left:2px solid transparent; background:none; color:inherit;
-         font:inherit; cursor:pointer; border-bottom:1px solid var(--rule) }
-  .row:hover { background:var(--sel) }
-  .row.sel { background:var(--sel); border-left-color:var(--accent) }
-  .row b { font-family:var(--mono); font-size:14px; letter-spacing:.02em }
-  .row .t { grid-column:1/3; color:var(--ink-2); font:11px/1.5 var(--mono) }
-  .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--warn); margin-right:6px; vertical-align:middle }
+  /* the ledger book: one ruled line per receipt */
+  .row { display:grid; grid-template-columns:1fr auto; gap:2px 10px; width:100%; text-align:left; padding:10px 10px;
+         border:0; border-left:3px solid transparent; border-bottom:1px solid var(--form); background:none; color:inherit;
+         font:inherit; cursor:pointer }
+  .row:hover { background:var(--desk) }
+  .row.sel { background:var(--sel); border-left-color:var(--ink) }
+  .row b { font:700 15px/1.3 var(--text) }
+  .row .t { grid-column:1/3; color:var(--ink-2); font:11px/1.5 var(--fig) }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--warn); margin-right:6px; vertical-align:middle }
+  #filter { margin:10px 0 6px }
 
   .badge { font-size:11px; line-height:1.6; color:var(--ink-2) }
   .badge.long { color:var(--long) } .badge.short, .badge.no_trade { color:var(--short) }
   .badge.ok { color:var(--long) } .badge.partial { color:var(--warn) }
   .badge.unavailable, .badge.error { color:var(--short) }
-  button.badge { cursor:pointer; background:none; border:1px solid var(--rule-2); border-radius:2px; padding:3px 9px; color:var(--ink) }
+  button.badge { cursor:pointer; background:var(--paper); border:1.5px solid var(--form-2); border-radius:3px; padding:5px 11px;
+                 color:var(--ink); font:700 12px/1.2 var(--text) }
+  button.badge:hover { border-color:var(--ink) }
+  #verify { border-color:var(--seal); color:var(--seal) } #verify:hover { background:var(--seal); color:var(--paper) }
 
-  h2 { font-size:13px; font-weight:600; line-height:1.4; color:var(--ink-2); margin:26px 0 9px;
-       padding-bottom:5px; border-bottom:1px solid var(--rule) }
+  /* headings inside the receipt are form captions: short, bold, over a rule */
+  h2 { font:700 14px/1.4 var(--text); color:var(--ink); margin:30px 0 10px; padding:0 0 6px;
+       border-bottom:1px solid var(--form-2); max-width:none }
   h2:first-child { margin-top:0 }
-  h2.bare { border-bottom:0; padding-bottom:0; margin-bottom:0 }   /* the verdict brings its own rule */
-  header .tagline a { color:var(--ink-2); text-decoration:none; border-bottom:1px solid var(--rule-2) }
-  header .tagline a:hover { color:var(--accent); border-bottom-color:var(--accent) }
-  .headline { font:600 26px/1.25 var(--serif); margin:0 0 10px; letter-spacing:-.015em }
+  h2.bare { border-bottom:0; padding-bottom:0; margin-bottom:0 }
+  aside h2 { margin:22px 0 8px } aside > h2:first-of-type { margin-top:4px }
+  .headline { font:400 clamp(21px,2.1vw,27px)/1.35 var(--display); margin:14px 0 14px }
 
-  /* the one loud thing on the page: what the council decided, and how sure it was */
-  .verdict { display:grid; grid-template-columns:1fr auto; align-items:end; gap:8px 20px;
-             padding:12px 0 10px; border-top:2px solid var(--ink); border-bottom:1px solid var(--rule) }
-  .verdict .act { font:600 30px/1 var(--serif); letter-spacing:-.02em }
+  /* the verdict: what the council decided, written large, with its probability beside it */
+  .verdict { display:grid; grid-template-columns:1fr auto; align-items:end; gap:8px 20px; padding:14px 0 12px;
+             border-top:3px double var(--ink); border-bottom:1px solid var(--form) }
+  .verdict .act { font:400 34px/1 var(--display) }
   .verdict .act.long { color:var(--long) } .verdict .act.short, .verdict .act.no_trade { color:var(--short) }
-  .verdict .p { font:400 30px/1 var(--mono); text-align:right }
-  .verdict .p small { display:block; font-size:11px; line-height:1.5; color:var(--ink-2) }
-  .rationale { margin:12px 0 0; max-width:68ch }
+  .verdict .p { font:700 32px/1 var(--fig); text-align:right }
+  .verdict .p small { display:block; font:12px/1.5 var(--text); color:var(--ink-2) }
+  .rationale { margin:12px 0 0 }
 
-  .card { background:var(--panel); border:1px solid var(--rule); border-radius:2px; padding:12px 14px; margin-bottom:10px }
+  .card { background:var(--paper); border:1px solid var(--form); border-radius:2px; padding:12px 14px; margin-bottom:10px }
+  #summary { border:0; border-top:2px solid var(--ink); border-bottom:1px solid var(--form); border-radius:0; padding:10px 0;
+             display:grid; gap:4px; max-width:none }
   .summary-line { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin:0 }
-  .summary-line dt { font:12px/1.7 var(--mono); color:var(--ink-2) }
-  .summary-line dd { margin:0 }
-  .meta { font-size:11px; line-height:1.8; color:var(--ink-2); display:flex; flex-wrap:wrap; gap:0 18px }
-  .banner { background:var(--warn-bg); border-left:3px solid var(--warn); padding:10px 12px; margin-bottom:14px }
+  .summary-line dt { font-size:12px; color:var(--ink-2) } .summary-line dd { margin:0 }
+  .meta { font-size:11px; line-height:1.9; color:var(--ink-2); display:flex; flex-wrap:wrap; gap:0 16px }
+  .banner { background:var(--warn-bg); border-left:4px solid var(--warn); padding:10px 14px; margin-bottom:14px; max-width:none }
 
-  table { width:100%; border-collapse:collapse; font-size:13px }
-  td, th { padding:6px 10px 6px 0; border-bottom:1px solid var(--rule); text-align:left; vertical-align:top; overflow-wrap:anywhere }
-  th { font-size:11px; line-height:1.4; color:var(--ink-2); font-weight:400 }
+  table { width:100%; border-collapse:collapse; font-size:13px; border-top:2px solid var(--ink) }
+  td, th { padding:7px 10px 7px 0; border-bottom:1px solid var(--form); text-align:left; vertical-align:top; overflow-wrap:anywhere }
+  th { font:700 11px/1.4 var(--text); color:var(--ink-2) }
   td code { font-size:12px }
   .num { text-align:right }
-  .bar { height:3px; background:var(--rule); overflow:hidden } .bar i { display:block; height:100%; background:var(--accent) }
+  .bar { height:4px; background:var(--form); overflow:hidden; margin-top:6px } .bar i { display:block; height:100%; background:var(--ink) }
   .pos .bar { position:relative } .pos .bar i { position:absolute; top:0; left:50% }
   .pos .bar i.neg { background:var(--short); transform:translateX(-100%) } .pos .bar i.pos { background:var(--long) }
 
-  .opinion { margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--rule) }
-  .opinion .who { font:600 15px/1.4 var(--serif) }
-  .opinion .thesis { margin:6px 0 10px; max-width:68ch }
+  .opinion { margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--form) }
+  .opinion .who { font:700 16px/1.4 var(--text); text-transform:capitalize }
+  .opinion .thesis { margin:6px 0 10px }
   .cite { font-size:12px; line-height:1.8; color:var(--ink-2); padding-left:15px; text-indent:-15px }
   .cite code { color:var(--ink) }
   .muted { color:var(--ink-2) } .small { font-size:12px }
   .empty { color:var(--ink-2); padding:28px 0 }
-  kbd { font-size:11px; border:1px solid var(--rule-2); border-radius:2px; padding:0 4px; color:var(--ink-2) }
-  details summary { cursor:pointer; color:var(--ink-2); font-size:12px; line-height:1.8 }
-  #orient { font-size:13px } #orient p { max-width:none }
+  kbd { font-size:11px; border:1px solid var(--form-2); border-bottom-width:2px; border-radius:3px; padding:0 5px; color:var(--ink);
+        background:var(--paper) }
+  details summary { cursor:pointer; color:var(--ink); font-size:13px; line-height:1.8 }
+  #orient { font-size:13px; background:var(--desk) } #orient p { max-width:none }
   #skills label, #skill-out, #backing, #backers, #scores, #positions, #attention { font-size:13px }
-  #help { position:fixed; right:18px; bottom:18px; background:var(--panel); border:1px solid var(--rule-2);
-          padding:12px 16px; border-radius:2px; font-size:13px;
-          box-shadow:0 6px 24px light-dark(rgba(0,0,0,.12), rgba(0,0,0,.5)) }
-  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important } }
+  #help { position:fixed; right:18px; bottom:18px; background:var(--paper); border:1px solid var(--form-2); padding:14px 18px;
+          border-radius:2px; font-size:13px; box-shadow:0 8px 28px light-dark(rgba(30,43,94,.16), rgba(0,0,0,.5)) }
 </style>
 </head>
 <body>
@@ -205,11 +208,14 @@ async function open(id, push = true) {
     return;
   }
   current = d; const r = d.receipt;
+  $('#detail').classList.remove('stamped');   // a newly opened receipt has not been checked yet
   if (push) history.pushState({}, '', `/r/${id}`);
   sel = Math.max(0, shown.findIndex(x => x.id === id)); renderList();
   const degraded = Object.entries(r.availability).filter(([, s]) => s !== 'ok');
   const t = r.trade;
   $('#detail').innerHTML = `
+    <div class="sheet-title"><strong>RECEIPT</strong><span>${esc(r.id)}</span></div>
+    <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
     ${degraded.length ? `<div class="banner">Degraded evidence: ${degraded.map(([k, s]) => `<b>${esc(k)}</b> ${esc(s)}`).join(', ')}. Missing values stay null; the judge was told.</div>` : ''}
     <p class="headline">${esc(r.headline)}</p>
     <div class="card" id="summary" aria-label="thirty second summary">
@@ -300,6 +306,7 @@ async function open(id, push = true) {
     $('#verify-out').textContent = 'replaying from stored evidence and cached outputs…';
     try {
       const v = await api(`/api/decisions/${r.id}/replay`);
+      $('#detail').classList.toggle('stamped', v.identical === true);   // the seal, only on the API's identical: true
       $('#verify-out').innerHTML = v.error ? `<span class="badge unavailable">${esc(v.error)}</span>`
         : v.identical ? '<span class="badge ok">identical: true</span>'
         : `<span class="badge partial">differs</span> ${v.diff.map(esc).join('; ')}`;
