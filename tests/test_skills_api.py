@@ -43,7 +43,7 @@ def test_invoke_returns_skill_call_response(tmp_path, monkeypatch):
 def test_positions_report_stopped_target_open(tmp_path, monkeypatch):
     from nota.api import positions
 
-    first, second = _seed(tmp_path, monkeypatch)  # second: long from 162 (perturbed fixture), stop 150, target 180
+    first, second = _seed(tmp_path, monkeypatch)  # second: long from 1.1x RYO's price (perturbed recording), stop 2 ATR below
     rows = positions()
     assert rows[0]["status"] == "open" and rows[0]["pnl_usd"] == 0.0
     import json
@@ -52,7 +52,8 @@ def test_positions_report_stopped_target_open(tmp_path, monkeypatch):
 
     led = Ledger(str(tmp_path / "t.db"))
     raw = json.loads(led.get_pack(second.pack_hash))
-    raw["sections"]["deep_analysis"]["envelope"]["data"]["market"]["price_usd"] = 140.0  # below the 150 stop
+    below_stop = round(second.trade.stop_price - 1.0, 4)
+    raw["sections"]["deep_analysis"]["envelope"]["data"]["market"]["price_usd"] = below_stop
     from nota.council import run_council
     from nota.evidence import EvidencePack
     from nota.receipt import build_receipt
@@ -66,4 +67,4 @@ def test_positions_report_stopped_target_open(tmp_path, monkeypatch):
     led.save_decision(third.id, third.pack_hash, third.symbol, third.model, third.model_dump_json())
     led.conn.execute("UPDATE decisions SET created_at='2030-01-01T00:00:00+00:00' WHERE id=?", (third.id,))  # strictly newest
     rows = positions()
-    assert rows[0]["decision_id"] == second.id and rows[0]["status"] == "stopped" and rows[0]["latest_price"] == 140.0 and rows[0]["pnl_usd"] < 0
+    assert rows[0]["decision_id"] == second.id and rows[0]["status"] == "stopped" and rows[0]["latest_price"] == below_stop and rows[0]["pnl_usd"] < 0

@@ -3,7 +3,7 @@
   "tool": "scan_market",
   "status": "ok",
   "data_mode": "live",
-  "as_of": "2026-09-07T09:19:27Z",
+  "as_of": "2026-09-19T15:28:31Z",
   "request": {},
   "data": {
     "filters": {
@@ -16,78 +16,78 @@
     "candidates": [
       {
         "rank": 1,
-        "symbol": "AMC",
-        "name": "A Meme Coin",
+        "symbol": "AKE",
+        "name": "AKEDO",
         "chain": null,
-        "contract": "0x385f4f8ae47651ce5f58f5265395a669f8281e18",
-        "price_usd": 0.12493385916779104,
-        "change_24h_pct": 194.07,
-        "market_cap_usd": 124933859.16779104,
-        "volume_24h_usd": 138439114.91039297,
-        "turnover_ratio": 1.11,
+        "contract": "0x2c3a8Ee94dDD97244a93Bc48298f97d2C412F7Db",
+        "price_usd": 0.06247267325662841,
+        "change_24h_pct": 139.37,
+        "market_cap_usd": 1424142677.7264154,
+        "volume_24h_usd": 279033853.86125135,
+        "turnover_ratio": 0.2,
         "momentum_score": 1.0,
         "established_asset": true,
-        "reason": "#1 momentum · +194.07% over 24h · 1.11 turnover ratio · momentum score 1.00"
+        "reason": "#1 momentum · +139.37% over 24h · 0.20 turnover ratio · momentum score 1.00"
       },
       {
         "rank": 2,
-        "symbol": "NOCK",
-        "name": "Nockchain",
+        "symbol": "AR",
+        "name": "Arweave",
         "chain": null,
-        "contract": "0x9B5E262cF9bb04869ab40b19AF91D2dc85761722",
-        "price_usd": 0.03243451366947016,
-        "change_24h_pct": 59.2,
-        "market_cap_usd": 74819126.56727257,
-        "volume_24h_usd": 4404226.99138392,
-        "turnover_ratio": 0.06,
+        "contract": null,
+        "price_usd": 4.743351883994548,
+        "change_24h_pct": 51.26,
+        "market_cap_usd": 311412748.289988,
+        "volume_24h_usd": 205350521.2683823,
+        "turnover_ratio": 0.66,
         "momentum_score": 1.0,
         "established_asset": true,
-        "reason": "#2 momentum · +59.20% over 24h · 0.06 turnover ratio · momentum score 1.00"
+        "reason": "#2 momentum · +51.26% over 24h · 0.66 turnover ratio · momentum score 1.00"
       },
       {
         "rank": 3,
-        "symbol": "ORCA",
-        "name": "Orca",
+        "symbol": "DRV",
+        "name": "Derive",
         "chain": null,
-        "contract": "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
-        "price_usd": 1.5324034659851264,
-        "change_24h_pct": 14.13,
-        "market_cap_usd": 93168250.07214853,
-        "volume_24h_usd": 119380810.3946624,
-        "turnover_ratio": 1.28,
-        "momentum_score": 0.68,
+        "contract": "0xB1D1eae60EEA9525032a6DCb4c1CE336a1dE71BE",
+        "price_usd": 0.3844180375379463,
+        "change_24h_pct": 50.18,
+        "market_cap_usd": 283519713.3648436,
+        "volume_24h_usd": 212229331.2580782,
+        "turnover_ratio": 0.75,
+        "momentum_score": 1.0,
         "established_asset": true,
-        "reason": "#3 momentum · +14.13% over 24h · 1.28 turnover ratio · momentum score 0.68"
+        "reason": "#3 momentum · +50.18% over 24h · 0.75 turnover ratio · momentum score 1.00"
       },
       {
         "rank": 4,
-        "symbol": "CFG",
-        "name": "Centrifuge",
+        "symbol": "ZAMA",
+        "name": "Zama",
         "chain": null,
-        "contract": null,
-        "price_usd": 0.12080628894117144,
-        "change_24h_pct": 16.9,
-        "market_cap_usd": 69723916.36469851,
-        "volume_24h_usd": 57868413.7864348,
-        "turnover_ratio": 0.83,
-        "momentum_score": 0.67,
+        "contract": "0xa12cc123ba206d4031d1c7f6223d1c2ec249f4f3",
+        "price_usd": 0.08101038696514529,
+        "change_24h_pct": 43.46,
+        "market_cap_usd": 203715804.12452686,
+        "volume_24h_usd": 202231620.4844169,
+        "turnover_ratio": 0.99,
+        "momentum_score": 1.0,
         "established_asset": true,
-        "reason": "#4 momentum · +16.90% over 24h · 0.83 turnover ratio · momentum score 0.67"
+        "reason": "#4 momentum · +43.46% over 24h · 0.99 turnover ratio · momentum score 1.00"
       },
       {
         "rank": 5,
-        "symbol": "RAY",
-        "name": "Raydium",
+        "symbol": "XTZ",
+        "name": "Tezos",
         "chain": null,
-        "contract": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
-        "price_usd": 1.2102232104537332,
-        "change_24h_pct": 7.98,
-        "market_cap_usd": 326202087.18585616,
-        "volume_24h_usd": 341135120.3131578,
-        "turnover_ratio": 1.05,
-        "momentum_score": 0.56,
+        "contract": null,
+        "price_usd": 0.38053590114572894,
+        "change_24h_pct": 40.19,
+        "market_cap_usd": 417288564.5688409,
+        "volume_24h_usd": 146609648.49635565,
+        "turnover_ratio": 0.35,
+        "momentum_score": 0.94,
         "established_asset": true,
-        "reason": "#5 momentum · +7.98% over 24h · 1.05 turnover ratio · momentum score 0.56"
+        "reason": "#5 momentum · +40.19% over 24h · 0.35 turnover ratio · momentum score 0.94"
       }
     ],
     "excluded_candidate_count": 0
@@ -95,7 +95,7 @@
   "summary": {
     "headline": "Found 5 ranked candidates.",
     "key_points": [
-      "Highest-ranked candidates: AMC, NOCK, ORCA."
+      "Highest-ranked candidates: AKE, AR, DRV."
     ]
   },
   "availability": {
@@ -103,5 +103,5 @@
     "theme_filter": "not_requested"
   },
   "warnings": [],
-  "trace_id": "4a98648cf3be455e9026d188a58dc43b"
+  "trace_id": "a047bc85274e4432b774dbc2e500f151"
 }

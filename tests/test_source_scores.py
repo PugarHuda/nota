@@ -27,8 +27,8 @@ def test_a_source_that_helps_shows_a_lower_brier_when_it_answered():
     # need different models or the second silently replaces the first.
     one, two = make_llm(p=0.7), make_llm(action="short", p=0.3)
     one.model, two.model = "fake-a", "fake-b"
-    good = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), one, led)
-    bad = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), two, led)
+    good = decide("SOL", RecordedRyoClient(FIXTURES), one, led)
+    bad = decide("SOL", RecordedRyoClient(FIXTURES), two, led)
     _scored(led, good.id, {"deep_analysis": "ok", "narrative_signal": "error"}, 0.09)
     _scored(led, bad.id, {"deep_analysis": "error", "narrative_signal": "error"}, 0.49)
 
@@ -47,7 +47,7 @@ def test_the_table_refuses_to_be_read_as_a_finding_until_there_is_enough_of_it()
     """Two three-sample means differ by noise. Publishing that as 'this source helps' would be the
     same offence as turning a null into a zero, so the table says when it cannot be read yet."""
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     _scored(led, r.id, {"deep_analysis": "partial"}, 0.2)
 
     out = source_scores(led)
@@ -59,6 +59,6 @@ def test_the_table_refuses_to_be_read_as_a_finding_until_there_is_enough_of_it()
 
 def test_an_unscored_ledger_produces_an_empty_table_rather_than_zeros():
     led = Ledger(":memory:")
-    decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     out = source_scores(led)
     assert out == {"scored_decisions": 0, "enough_to_read": False, "meaningful_at": MEANINGFUL_N, "sources": {}}

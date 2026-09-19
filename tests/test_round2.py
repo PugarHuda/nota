@@ -27,31 +27,39 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_simulated_primary_evidence_blocks_the_trade():
-    pack = gather(RecordedRyoClient(FIXTURES, name="fixture"), "SOL")
+    pack = gather(RecordedRyoClient(FIXTURES), "SOL")
     pack.sections["deep_analysis"].envelope.data_mode = "simulated"
     out = size_trade(Verdict(action="long", p_up_7d=0.8, rationale="r"), pack)
     assert isinstance(out, Blocked) and "simulated" in out.reason
 
 
-@respx.mock
 def test_mcp_transport_calls_tools_call_and_maps_errors():
-    route = respx.post("https://app-ryochan.com/api/mcp").mock(side_effect=[
-        Response(200, json={"jsonrpc": "2.0", "id": 1, "result": {"tools": [{"name": "analyze_token"}, {"name": "deep_analysis"}]}}),
-        Response(200, json={"jsonrpc": "2.0", "id": 2, "result": {"content": [{"type": "text", "text": (FIXTURES / "analyze_token" / "SOL.json").read_text(encoding="utf-8")}], "isError": False}},
-                 headers={"x-trace-id": "t-1"}),
-        Response(200, json={"jsonrpc": "2.0", "id": 3, "result": {"content": [{"type": "text", "text": "symbol not supported"}], "isError": True}}),
-        Response(200, json={"jsonrpc": "2.0", "id": 4, "error": {"code": -32602, "message": "invalid params"}}),
-    ])
-    c = RyoClient(key="k", transport="mcp", http=httpx.Client(), max_retries=0)
-    assert [t["name"] for t in c.tools_mcp()] == ["analyze_token", "deep_analysis"]
+    """Every reply here is one RYO really sent (tests/fixtures/ryo_errors, tests/fixtures/analyze_token)."""
+    from tests.test_ryo_client import captured, mcp_handler, ok_mcp
+
+    seen: list[str] = []
+    replies = [Response(200, json={"jsonrpc": "2.0", "id": 2, "result": {"tools": json.loads((FIXTURES / "ryo_catalog.json").read_text(encoding="utf-8"))}}),
+               ok_mcp(), captured("mcp_unknown_symbol.json"), captured("mcp_missing_symbol.json"), captured("mcp_unknown_tool.json")]
+    bodies = []
+
+    def handler(request):
+        bodies.append(json.loads(request.content))
+        return mcp_handler(replies, seen)(request)
+
+    c = RyoClient(key="k", transport="mcp", http=httpx.Client(transport=httpx.MockTransport(handler)), max_retries=0)
+    assert len(c.tools_mcp()) == 6
     env = c.call("analyze_token", {"symbol": "SOL"})
-    assert env.tool == "analyze_token" and env.trace_id == "t-1"
-    body = json.loads(route.calls[1].request.content)
-    assert body["method"] == "tools/call" and body["params"] == {"name": "analyze_token", "arguments": {"symbol": "SOL"}}
-    with pytest.raises(RyoError, match="TOOL_ERROR"):
-        c.call("analyze_token", {"symbol": "XXX"})
-    with pytest.raises(RyoError, match="JSONRPC_-32602"):
+    assert env.tool == "analyze_token" and env.trace_id == "t-ok"
+    assert bodies[3]["method"] == "tools/call" and bodies[3]["params"] == {"name": "analyze_token", "arguments": {"symbol": "SOL"}}
+    with pytest.raises(RyoError, match="TOOL_ERROR.*couldn't analyze ZZQXQ") as ei:
+        c.call("analyze_token", {"symbol": "ZZQXQ"})
+    assert ei.value.trace_id == "a607cb83e78e47e6b75e0f755a25d035"  # a tool failure is not a rate limit: not retried
+    with pytest.raises(RyoError, match="requires a 'symbol'"):
         c.call("analyze_token", {})
+    with pytest.raises(RyoError, match="JSONRPC_-32602.*Unknown tool: check_safety") as ei:
+        c.call("check_safety", {})
+    assert ei.value.trace_id == "b205521e288b43b4ab81eefcf890450e"
+    assert seen[:2] == ["initialize", "notifications/initialized"] and seen.count("initialize") == 1
     with pytest.raises(ValueError):
         RyoClient(key="k", transport="grpc")
 
@@ -92,7 +100,7 @@ def test_fear_greed_crosscheck_in_price_check():
 
 def test_reliability_bins_judge_probabilities():
     led = Ledger(":memory:")
-    a = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(action="long", p=0.7), led)
+    a = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(action="long", p=0.7), led)
     assert reliability(led) == {"n": 0, "judge_brier": None, "excluded_before_horizon": 0,
                                 "bins": [{"bin": f"{i / 5:.1f}-{(i + 1) / 5:.1f}", "n": 0, "mean_p": None, "hit_rate": None} for i in range(5)]}
     led.save_outcome(a.id, Outcome(decision_id=a.id, symbol="SOL", resolved_at="x", decided_as_of=None, horizon_reached=True, price_then=150.0,
@@ -104,7 +112,7 @@ def test_reliability_bins_judge_probabilities():
 def test_calibration_table_ignores_positions_closed_before_the_horizon():
     """A stop hit on day one does not answer "is the price higher in seven days"."""
     led = Ledger(":memory:")
-    a = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(action="long", p=0.7), led)
+    a = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(action="long", p=0.7), led)
     led.save_outcome(a.id, Outcome(decision_id=a.id, symbol="SOL", resolved_at="x", decided_as_of=None,
                                    horizon_reached=False, closed_reason="stopped", price_then=150.0, price_now=138.0,
                                    return_pct=-8.0, went_up=False, brier={"judge": 0.49}).model_dump_json())
@@ -116,7 +124,12 @@ def test_calibration_table_ignores_positions_closed_before_the_horizon():
 def test_watch_scan_top_picks_candidates(tmp_path, monkeypatch):
     monkeypatch.setenv("NOTA_DB", str(tmp_path / "w.db"))
     monkeypatch.setattr(cli, "_llm", lambda kind: make_llm())
-    res = CliRunner().invoke(cli.app, ["watch", "--scan-top", "1", "--source", "fixture", "--cycles", "1", "--every", "0", "--no-price-check"])
+    monkeypatch.setattr(cli, "RECORDED_ROOT", FIXTURES)
+    res = CliRunner().invoke(cli.app, ["watch", "--scan-top", "1", "--source", "recorded", "--cycles", "1", "--every", "0", "--no-price-check"])
     assert res.exit_code == 0, res.output
-    assert "scan_market ok: SOL" in res.output and "SOL: SOL: LONG practice trade" in res.output
-    assert CliRunner().invoke(cli.app, ["watch", "--source", "fixture", "--cycles", "1"]).exit_code != 0
+    from nota.evidence import candidate_symbols
+
+    top = candidate_symbols(json.loads((FIXTURES / "scan_market" / "default.json").read_text(encoding="utf-8"))["data"])[0]
+    assert f"scan_market ok: {top}" in res.output
+    assert f"{top}: {top}: no trade (primary evidence (deep_analysis) unavailable" in res.output  # honest, not skipped
+    assert CliRunner().invoke(cli.app, ["watch", "--source", "recorded", "--cycles", "1"]).exit_code != 0

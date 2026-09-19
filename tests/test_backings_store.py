@@ -22,7 +22,7 @@ def _seed(tmp_path, monkeypatch) -> str:
     db = str(tmp_path / "b.db")
     monkeypatch.setenv("NOTA_DB", db)
     led = Ledger(db)
-    id = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led).id
+    id = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led).id
     # An immutable open ignores the WAL, so a readonly reader would not even see the schema.
     led.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     led.conn.close()

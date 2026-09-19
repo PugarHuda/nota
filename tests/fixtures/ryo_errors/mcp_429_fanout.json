@@ -1,0 +1,26 @@
+{
+ "captured": "live from app-ryochan.com/api/mcp on 2026-09-19 by firing 8 concurrent market_overview calls",
+ "status": 200,
+ "headers": {
+  "date": "Sat, 19 Sep 2026 15:18:08 GMT",
+  "content-type": "application/json",
+  "x-ratelimit-limit": "60",
+  "x-ratelimit-remaining": "53",
+  "x-ratelimit-reset": "1789831148",
+  "retry-after": "60",
+  "x-trace-id": "5e4d7696a929431baeefc5884707afeb"
+ },
+ "body": {
+  "jsonrpc": "2.0",
+  "id": 6,
+  "result": {
+   "content": [
+    {
+     "type": "text",
+     "text": "Rate limit exceeded (6/min for mcp_fanout). Retry after the window resets. (trace_id: 5e4d7696a929431baeefc5884707afeb)"
+    }
+   ],
+   "isError": true
+  }
+ }
+}

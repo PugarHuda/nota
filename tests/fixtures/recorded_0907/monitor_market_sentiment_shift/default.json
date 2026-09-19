@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "tool": "monitor_market_sentiment_shift",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-07T09:17:58Z",
+  "request": {
+    "time_window": "7d"
+  },
+  "data": {
+    "observation_as_of": "2026-09-07T09:17:58Z",
+    "status": "ok",
+    "source_attribution": "Powered by CoinMarketCap",
+    "summary": "Fear & Greed is 74, down 1 point over seven days (not a material shift). BTC perpetual daily funding averages 0.503343 bps per day over the latest seven days, down 0.041414 bps per day week over week, with no funding crowding signal. BTC perpetual daily liquidations total $22.82 million, with short liquidations dominant and normal pressure. Overall sentiment regime: mixed sentiment.",
+    "evidence": {
+      "fear_greed": {
+        "data_date": "2026-09-07",
+        "value": 74,
+        "label": "greed",
+        "baseline_7d_date": "2026-08-31",
+        "baseline_7d_value": 75,
+        "change_7d_points": -1,
+        "change_direction": "down",
+        "material_shift": false
+      },
+      "funding": {
+        "data_date": "2026-09-06",
+        "latest_bps": 0.4318,
+        "current_7d_window": {
+          "start_date": "2026-08-31",
+          "end_date": "2026-09-06",
+          "mean_bps": 0.503343
+        },
+        "previous_7d_window": {
+          "start_date": "2026-08-24",
+          "end_date": "2026-08-30",
+          "mean_bps": 0.544757
+        },
+        "wow_change_bps": -0.041414,
+        "current_7d_percentile_90d": 42.222222,
+        "crowding_state": "normal",
+        "wow_change_pct": -7.602339
+      },
+      "liquidation": {
+        "data_date": "2026-09-06",
+        "total_usd": 22823556.36,
+        "dominant_liquidated_side": "shorts",
+        "percentile_90d": 24.444444,
+        "pressure_state": "normal",
+        "coverage_scope": "BTC perpetuals across major derivatives markets",
+        "long_share_pct": 33.918946
+      },
+      "altseason": {
+        "data_date": "2026-09-07",
+        "index": 45,
+        "phase": "transition"
+      },
+      "sentiment_regime": "mixed_sentiment"
+    },
+    "source": {
+      "type": "evidence_pack",
+      "skill_id": "monitor_market_sentiment_shift",
+      "timestamp": "2026-09-07T09:17:58Z",
+      "attribution": "Powered by CoinMarketCap"
+    },
+    "diagnostics": {
+      "execution": {
+        "status": "completed",
+        "elapsed_ms": 707
+      }
+    }
+  },
+  "summary": {
+    "headline": "Fear & Greed is 74, down 1 point over seven days (not a material shift). BTC perpetual daily funding averages 0.503343 bps per day over the latest seven days, down 0.041414 bps per day week over week, with no funding crowding signal. BTC perpetual daily liquidations total $22.82 million, with short liquidations dominant and normal pressure. Overall sentiment regime: mixed sentiment.",
+    "key_points": [
+      "Sentiment regime: mixed sentiment."
+    ]
+  },
+  "availability": {
+    "research": "available",
+    "evidence": "available",
+    "diagnostics": "available"
+  },
+  "warnings": [],
+  "trace_id": "22a7f2edbf1143f4ad018fb2c83eb56e"
+}

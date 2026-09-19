@@ -15,33 +15,34 @@ CANDLES = "https://www.okx.com/api/v5/market/history-candles"
 
 
 def _ryo_price():
-    return RecordedRyoClient(FIXTURES, name="fixture").call("deep_analysis", {"symbol": "SOL", "include_perp": True}).get("market.price_usd")
+    return RecordedRyoClient(FIXTURES).call("deep_analysis", {"symbol": "SOL", "include_perp": True}).get("market.price_usd")
 
 
 class Down:
     name = "down"
 
     def call(self, tool, args=None):
-        raise RyoError(401, "UNAUTHENTICATED", "Invalid or expired credential.")
+        raise RyoError(401, "UNAUTHENTICATED", "Invalid or expired credential.", "trace-401")
 
 
 @respx.mock
 def test_lock_stores_ryo_plan_okx_price_and_basis():
     respx.get(TICKER).mock(return_value=Response(200, json={"code": "0", "data": [{"last": str(_ryo_price() * 1.01), "ts": "1789700000000"}]}))
     led = Ledger(":memory:")
-    [row] = sc.lock_all(RecordedRyoClient(FIXTURES, name="fixture"), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
+    [row] = sc.lock_all(RecordedRyoClient(FIXTURES), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
     assert row["status"] == "locked" and row["basis_pct"] == 1.0 and row["plan"]["entry"] and row["envelope"]["tool"] == "deep_analysis"
     assert [i for i, _ in led.unsettled_locks()] == [row["id"]]
-    assert sc.lock_all(RecordedRyoClient(FIXTURES, name="fixture"), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None) == []  # once a day
+    assert sc.lock_all(RecordedRyoClient(FIXTURES), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None) == []  # once a day
 
 
 @respx.mock
 def test_lock_refuses_to_settle_across_a_basis_gap_and_records_failures():
     respx.get(TICKER).mock(return_value=Response(200, json={"code": "0", "data": [{"last": str(_ryo_price() * 1.05), "ts": "1789700000000"}]}))
     led = Ledger(":memory:")
-    [gap] = sc.lock_all(RecordedRyoClient(FIXTURES, name="fixture"), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
+    [gap] = sc.lock_all(RecordedRyoClient(FIXTURES), led, ["SOL"], http=httpx.Client(), sleep=lambda s: None)
     [down] = sc.lock_all(Down(), led, ["ETH"], http=httpx.Client(), sleep=lambda s: None)
     assert gap["status"] == "basis_mismatch" and down["status"] == "ryo_unavailable" and "UNAUTHENTICATED" in down["error"]
+    assert down["trace_id"] == "trace-401" and down["status_code"] == 401  # what RYO support asks for
     assert led.unsettled_locks() == [] and len(led.list_locks()) == 2  # both kept, neither settles
 
 

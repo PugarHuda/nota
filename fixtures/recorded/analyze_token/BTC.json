@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "tool": "analyze_token",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:26:23Z",
+  "request": {
+    "symbol": "BTC"
+  },
+  "data": {
+    "asset": {
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "chain": null,
+      "contract": null,
+      "rank": 1
+    },
+    "market": {
+      "price_usd": 81633.70573428132,
+      "market_cap_usd": 1639743022166.275,
+      "fully_diluted_value_usd": 1714307820419.91,
+      "volume_24h_usd": 25544121962.122078
+    },
+    "performance": {
+      "change_1h_pct": 0.22230329,
+      "change_24h_pct": 0.8122961,
+      "change_7d_pct": 5.44946833,
+      "change_30d_pct": 13.32612801
+    },
+    "technical_analysis": {
+      "trend": "sideways",
+      "rsi_14": 64.9,
+      "momentum_30d_pct": 13.32612801,
+      "atr_14_pct": 2.9
+    },
+    "intelligence": {
+      "narrative": "Bitcoin ranks #1 by market cap (coin) — mineable, pow, sha-256",
+      "catalysts": [
+        "+5.4% over 7d — momentum building",
+        "Top-1 asset — deep liquidity"
+      ],
+      "risks": []
+    },
+    "verdict": "neutral"
+  },
+  "summary": {
+    "headline": "BTC analysis: neutral.",
+    "key_points": [
+      "Price: $81,633.71.",
+      "24h change: +0.81%."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "market_intelligence": "available"
+  },
+  "warnings": [],
+  "trace_id": "9fd689d9d6ee4f24854c697dcbfd44d5"
+}

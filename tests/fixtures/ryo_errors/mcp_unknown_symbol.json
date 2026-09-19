@@ -1,0 +1,25 @@
+{
+ "captured": "live from app-ryochan.com/api/mcp on 2026-09-19: tools/call analyze_token {symbol: ZZQXQ}",
+ "status": 200,
+ "headers": {
+  "date": "Sat, 19 Sep 2026 15:31:58 GMT",
+  "content-type": "application/json",
+  "x-ratelimit-limit": "60",
+  "x-ratelimit-remaining": "59",
+  "x-ratelimit-reset": "1789831977",
+  "x-trace-id": "a607cb83e78e47e6b75e0f755a25d035"
+ },
+ "body": {
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+   "content": [
+    {
+     "type": "text",
+     "text": "couldn't analyze ZZQXQ right now (trace_id: a607cb83e78e47e6b75e0f755a25d035)"
+    }
+   ],
+   "isError": true
+  }
+ }
+}

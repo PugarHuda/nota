@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from nota import paths
 from nota.council import ROLES
-from nota.evidence import EvidencePack, Section, first_present
+from nota.evidence import SCORED_SOURCES, EvidencePack, Section, first_present
 from nota.ledger import Ledger, now_iso
 from nota.receipt import Receipt
 from nota.risk import PracticeTrade
@@ -150,16 +150,31 @@ def due(ledger: Ledger, now: datetime | None = None) -> list[str]:
         raw = ledger.get_decision(id)
         if raw is None:
             continue
-        created = datetime.fromisoformat(Receipt.model_validate_json(raw).created_at.replace("Z", "+00:00"))
+        receipt = Receipt.model_validate_json(raw)
+        if receipt.source not in SCORED_SOURCES:
+            continue
+        created = datetime.fromisoformat(receipt.created_at.replace("Z", "+00:00"))
         if (now - created).days >= HORIZON_DAYS:
             out.append(id)
     return out
 
 
+def _scored_outcomes(ledger: Ledger) -> list[dict[str, Any]]:
+    """Outcomes whose receipt was decided on RYO evidence (live or recorded). A receipt built from any
+    other source is kept and shown, but never counts towards a score."""
+    out = []
+    for raw in ledger.list_outcomes():
+        o = json.loads(raw)
+        stored = ledger.get_decision(o["decision_id"])
+        if stored is not None and json.loads(stored).get("source") in SCORED_SOURCES:
+            out.append(o)
+    return out
+
+
 def role_scores(ledger: Ledger) -> dict[str, dict[str, float]]:
     sums: dict[str, list[float]] = {}
-    for raw in ledger.list_outcomes():
-        for role, b in json.loads(raw)["brier"].items():
+    for o in _scored_outcomes(ledger):
+        for role, b in o["brier"].items():
             sums.setdefault(role, []).append(b)
     return {r: {"n": float(len(v)), "brier_mean": round(sum(v) / len(v), 4)} for r, v in sums.items()}
 
@@ -198,8 +213,7 @@ def skill_vs_base(ledger: Ledger) -> dict[str, Any]:
     Above 0 the agent knew something the calendar did not; at or below 0 it did not. Only outcomes
     that carry a base rate count, and `enough_to_read` stays false below MEANINGFUL_N."""
     per: dict[str, list[tuple[float, float]]] = {}
-    for raw in ledger.list_outcomes():
-        o = json.loads(raw)
+    for o in _scored_outcomes(ledger):
         base = o.get("base_rate_p")
         if base is None:
             continue
@@ -230,8 +244,7 @@ def source_scores(ledger: Ledger) -> dict[str, Any]:
     """
     buckets: dict[str, dict[str, list[float]]] = {}
     scored = 0
-    for raw in ledger.list_outcomes():
-        o = json.loads(raw)
+    for o in _scored_outcomes(ledger):
         brier = (o.get("brier") or {}).get("judge")
         stored = ledger.get_decision(o["decision_id"])
         if brier is None or stored is None:
@@ -267,8 +280,7 @@ def reliability(ledger: Ledger, bins: int = 5) -> dict[str, Any]:
     still feed `role_scores`, which is the trading feedback loop rather than a calibration claim."""
     rows: list[tuple[float, float]] = []
     excluded = 0
-    for raw in ledger.list_outcomes():
-        o = json.loads(raw)
+    for o in _scored_outcomes(ledger):
         if not o.get("horizon_reached"):
             excluded += 1
             continue

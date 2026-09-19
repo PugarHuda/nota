@@ -1,7 +1,8 @@
 """Dotted paths into RYO envelopes for the few numbers the risk engine needs.
 
-Recorded live on 2026-09-07 with a builder key (`nota record SOL`, fixtures/recorded), so these
-are RYO's real field names, not guesses. Each list is still a list because a field can be absent
+Recorded live with a builder key (`nota record SOL|BTC|ETH`, fixtures/recorded), so these are RYO's
+real field names, not guesses; tests/test_paths_contract.py fails if any list stops resolving in
+those recordings. Each list is still a list because a field can be absent
 from one section and present in another; missing on every candidate means None, never 0.
 
 RYO reports volatility two ways: `technical_analysis.atr_14_pct` (percent of price) and
@@ -31,3 +32,9 @@ RSI_14 = [
 # RYO ships its own ATR-based preview plan. Nota sizes independently and then compares, because a
 # provider's plan is evidence about the provider, not an instruction.
 RYO_PLAN = "deep_analysis.data.trade_plan"
+
+# market_overview's own index first, then the dated reading in the seven-day sentiment pack.
+FEAR_GREED = [
+    "market_overview.data.sentiment.fear_greed_index",
+    "sentiment_shift.data.evidence.fear_greed.value",
+]

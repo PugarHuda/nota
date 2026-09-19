@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "tool": "analyze_token",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:27:44Z",
+  "request": {
+    "symbol": "ETH"
+  },
+  "data": {
+    "asset": {
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "chain": null,
+      "contract": null,
+      "rank": 2
+    },
+    "market": {
+      "price_usd": 2641.6448283403524,
+      "market_cap_usd": 322444019168.4188,
+      "fully_diluted_value_usd": 322444019168.42,
+      "volume_24h_usd": 15050766835.414248
+    },
+    "performance": {
+      "change_1h_pct": -0.00688053,
+      "change_24h_pct": 1.93125603,
+      "change_7d_pct": 4.02312254,
+      "change_30d_pct": 14.96362822
+    },
+    "technical_analysis": {
+      "trend": "sideways",
+      "rsi_14": 66.1,
+      "momentum_30d_pct": 14.96362822,
+      "atr_14_pct": 3.98
+    },
+    "intelligence": {
+      "narrative": "Ethereum ranks #2 by market cap (coin) — pos, smart-contracts, ethereum-ecosystem",
+      "catalysts": [
+        "Top-2 asset — deep liquidity"
+      ],
+      "risks": []
+    },
+    "verdict": "neutral"
+  },
+  "summary": {
+    "headline": "ETH analysis: neutral.",
+    "key_points": [
+      "Price: $2,641.64.",
+      "24h change: +1.93%."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "market_intelligence": "available"
+  },
+  "warnings": [],
+  "trace_id": "84a9bd6f0d15434fa0d0e4656bbee3fa"
+}

@@ -73,13 +73,13 @@ of 7 September 2026: ATR 4.347 against RYO's 4.3762, and the price checked again
 
 ## Demo video script (≈ 3 min)
 
-Recordable today without the builder key: every RYO section comes from the labelled fixture source,
-which the receipt and the dashboard both say out loud. Swap `--source fixture` for a live run and
-re-record the moment the key lands; nothing else in the script changes.
+Recordable without the builder key: every RYO section comes from RYO's own recorded answers
+(`--source recorded`), which the receipt and the dashboard both label. Drop the flag for a live run;
+nothing else in the script changes.
 
 1. (0:00) One line: what a "decision receipt" is. `uv run nota health` — MCP health is `ok` with
    six tools, `ryo_key_set: false`. Name the constraint instead of hiding it.
-2. (0:20) `uv run nota decide SOL --source fixture`. Point at the availability block: a partial
+2. (0:20) `uv run nota decide SOL --source recorded`. Point at the availability block: a partial
    section, a warning, a null that stayed null, `data_mode` carried per section.
 3. (1:00) Council: three opinions with dotted-path citations; a dropped citation. Judge rationale.
    Practice trade: stop = 2×ATR, size from 1% risk. "No order was placed."

@@ -16,7 +16,9 @@ def _seed(tmp_path, monkeypatch):
     db = str(tmp_path / "t.db")
     monkeypatch.setenv("NOTA_DB", db)
     led = Ledger(db)
-    first = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(action="no_trade", p=0.5), led)
+    # RYO's real 2026-09-07 answers, when SOL's derivatives lane was down: the dashboard has a
+    # partial section to flag, from a genuine partial answer rather than an edited one
+    first = decide("SOL", RecordedRyoClient(FIXTURES / "recorded_0907"), make_llm(action="no_trade", p=0.5), led)
     # second run on perturbed evidence: price up, technicals RSI gone, verdict flips to long
     raw = json.loads(led.get_pack(first.pack_hash))
     da = raw["sections"]["deep_analysis"]["envelope"]["data"]
@@ -284,7 +286,7 @@ def test_permalink_to_an_unknown_receipt_is_a_404_a_real_one_is_200(tmp_path, mo
 
 
 def test_health_probes_ryo_once_a_minute_and_retries_one_timeout(tmp_path, monkeypatch):
-    import httpx
+    from nota.ryo_client import RyoError
 
     _seed(tmp_path, monkeypatch)
     calls: list[int] = []
@@ -299,7 +301,7 @@ def test_health_probes_ryo_once_a_minute_and_retries_one_timeout(tmp_path, monke
     def flaky(self):
         attempts.append(1)
         if len(attempts) == 1:
-            raise httpx.ReadTimeout("slow")
+            raise RyoError(0, "TIMEOUT", "slow")
         return {"status": "ok", "tools": 6}
 
     monkeypatch.setattr(api.RyoClient, "health", flaky)

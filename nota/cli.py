@@ -12,6 +12,7 @@ import typer
 from dotenv import load_dotenv
 
 import time
+from datetime import datetime, timedelta, timezone
 
 from nota.calibration import CannotResolve, close_position, due, fill_base_rates, resolve, role_scores, role_weights
 from nota.decide import decide
@@ -22,7 +23,7 @@ from nota.notify import notify_receipt
 from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
 from nota.risk import RiskLimits, atr_usd as risk_atr_usd
-from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, record
+from nota.ryo_client import RecordedRyoClient, RyoClient, RyoError, check_args, record
 from nota.skills import definitions as skill_definitions, invoke as skill_invoke
 from nota.skills.contract import clean_symbol
 from nota.skills.narrative import narrative_convergence
@@ -35,7 +36,6 @@ load_dotenv()
 app = typer.Typer(help="Nota: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
 
 RECORDED_ROOT = Path("fixtures/recorded")
-FIXTURE_ROOT = Path("tests/fixtures")
 
 
 def _sym(raw: str) -> str:
@@ -57,9 +57,7 @@ def _source(kind: str):
         return RyoClient()
     if kind == "recorded":
         return RecordedRyoClient(RECORDED_ROOT, name="recorded")
-    if kind == "fixture":
-        return RecordedRyoClient(FIXTURE_ROOT, name="fixture")
-    raise typer.BadParameter("source must be live, recorded or fixture")
+    raise typer.BadParameter("source must be live or recorded")
 
 
 KEYLESS = ("Without one you can still run `nota health`, the seven skills (`nota skill run ...`), "
@@ -89,31 +87,77 @@ def _llm(kind: str):
 LLM_HELP = "anthropic | openai (env NOTA_LLM)"
 
 
+KEY_WARN_DAYS = 14
+
+
 @app.command()
-def health():
-    """Check RYO MCP health (no key needed) and, when a key is set, whoami/quota."""
+def health(strict: bool = typer.Option(False, "--strict", help="Exit 1 when whoami fails, the key expires within "
+                                       f"{KEY_WARN_DAYS} days, or an argument Nota sends is not in RYO's live catalog")):
+    """Check RYO MCP health (no key needed) and, when a key is set, whoami, key expiry, the MCP handshake
+    and every argument Nota sends against RYO's live tool catalog. None of these spends tool-call quota."""
     client = RyoClient()
     typer.echo(json.dumps(client.health(), indent=1))
     typer.echo(f"transport: {client.transport} (env RYO_TRANSPORT)")
     typer.echo(f"key_set: {bool(client.key)} (env RYO_MCP_KEY)")
     if not client.key:
-        typer.echo("no builder key: live RYO evidence is unavailable; --source fixture|recorded, "
+        typer.echo("no builder key: live RYO evidence is unavailable; --source recorded, "
                    "the skills and the dashboard still run")
-    if client.key:
-        try:
-            typer.echo(json.dumps(client.whoami(), indent=1))
-            tools = client.tools_mcp()
-            typer.echo("MCP tools/list: " + ", ".join(t.get("name", "?") for t in tools))
-            if client.last_rate_limit:
-                typer.echo(f"rate limit headers: {client.last_rate_limit}")
-        except RyoError as exc:
-            typer.echo(f"authenticated probe failed: {exc}")
+        if strict:
+            raise typer.Exit(1)
+        return
+    problems: list[str] = []
+    try:
+        who = client.whoami()
+        typer.echo(json.dumps(who, indent=1))
+        expires = who.get("expires_at")
+        if expires:
+            left = datetime.fromisoformat(expires.replace("Z", "+00:00")) - datetime.now(timezone.utc)
+            typer.echo(f"key expires in {left.days} days ({expires})")
+            if left < timedelta(days=KEY_WARN_DAYS):
+                problems.append(f"key expires in {left.days} days")
+        init = client.initialize()
+        typer.echo(f"MCP initialize: {init.get('serverInfo')} protocol {client.protocol_version}")
+        typer.echo("MCP tools/list: " + ", ".join(t.get("name", "?") for t in client.tools_mcp()))
+        catalog = client.tools()
+        sent = {**{SECTIONS[k]: a for k, a in ryo_args("SOL").items()},
+                "scan_market": {"chain": "bsc", "theme": "news", "top_n": 5}}  # every key `nota scan` can send
+        for tool, args in sent.items():
+            problems += check_args(tool, args, catalog)
+        for t in catalog:
+            unused = sorted(set((t.get("inputSchema") or {}).get("properties") or {}) - set(sent.get(t.get("name"), {})))
+            if unused:
+                typer.echo(f"published but unused by Nota: {t.get('name')}({', '.join(unused)})")
+        if client.last_rate_limit:
+            typer.echo(f"rate limit headers: {client.last_rate_limit}")
+    except RyoError as exc:
+        problems.append(f"authenticated probe failed: {exc}")
+    for p in problems:
+        typer.echo(f"problem: {p}")
+    if not problems:
+        typer.echo("catalog check: every argument Nota sends is accepted by RYO's published schema")
+    if strict and problems:
+        raise typer.Exit(1)
+
+
+@app.command("llm-check")
+def llm_check(llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help="openai (env NOTA_LLM); "
+                                      "the check is one 1-token completion")):
+    """Spend one token to prove the council's LLM key, balance and model work. Exit 2 when the provider
+    refuses the key or the balance (401/402/403), 1 on any other failure."""
+    if llm != "openai":
+        raise typer.BadParameter("llm-check speaks the OpenAI-compatible API; use --llm openai (env NOTA_LLM)")
+    status, detail = _llm(llm).check()
+    typer.echo(f"LLM {status or 'unreachable'}: {detail}")
+    if status in (401, 402, 403):
+        raise typer.Exit(2)
+    if not 200 <= status < 300:
+        raise typer.Exit(1)
 
 
 @app.command("decide")
 def decide_cmd(
     symbol: str = typer.Argument(..., help="Token symbol, e.g. SOL"),
-    source: str = typer.Option("live", help="live | recorded | fixture"),
+    source: str = typer.Option("live", help="live | recorded"),
     llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the LLM output cache"),
     voices: str = typer.Option("", help="Comma list like tg:WatcherGuru,x:handle -> adds narrative_signal (env NOTA_VOICES)"),
@@ -146,9 +190,8 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
     if price_check:
         def _check(sym, pack):
             path, price = first_present(pack, paths.PRICE_USD)
-            fg = pack.get("market_overview.data.fear_greed.value")
-            return price_crosscheck(sym, reference_price=price, reference_path=path,
-                                    reference_fear_greed=float(fg) if isinstance(fg, (int, float)) and not isinstance(fg, bool) else None)
+            _, fg = first_present(pack, paths.FEAR_GREED)
+            return price_crosscheck(sym, reference_price=price, reference_path=path, reference_fear_greed=fg)
         extras["price_check"] = _check
 
         def _tech(sym, pack):
@@ -174,7 +217,7 @@ def scan(
     top_n: int = typer.Option(5, help="Candidates to take from scan_market"),
     chain: str = typer.Option("", help="Optional chain filter, e.g. bsc"),
     theme: str = typer.Option("", help="Optional theme context, e.g. news"),
-    source: str = typer.Option("live", help="live | recorded | fixture"),
+    source: str = typer.Option("live", help="live | recorded"),
     decide_top: int = typer.Option(0, help="Run the council on the first N candidates"),
     llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
 ):
@@ -206,7 +249,7 @@ def watch(
     scan_top: int = typer.Option(0, help="Each cycle, also take the top N candidates from scan_market"),
     every: int = typer.Option(3600, help="Seconds between cycles"),
     cycles: int = typer.Option(0, help="Stop after N cycles (0 = run until interrupted)"),
-    source: str = typer.Option("live", help="live | recorded | fixture"),
+    source: str = typer.Option("live", help="live | recorded"),
     llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
     voices: str = typer.Option("", help="Telegram/X voices for narrative_signal"),
     news: bool = typer.Option(False, help="Add news_check"),

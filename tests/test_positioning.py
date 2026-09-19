@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import httpx
@@ -87,23 +88,25 @@ def test_an_unlisted_perp_is_reported_and_the_definition_free_gate_still_runs():
 
 
 def test_the_council_never_sees_or_cites_a_withheld_field():
-    withhold = "deep_analysis.data.derivatives.funding_rate"
+    withhold = "deep_analysis.data.derivatives.funding_rate_bps"
+    kept = "deep_analysis.data.derivatives.open_interest_change_24h_pct"
+    real_oi = json.loads((FIXTURES / "deep_analysis" / "SOL.json").read_text(encoding="utf-8"))["data"]["derivatives"]["open_interest_change_24h_pct"]
     env = make_envelope("positioning_check", {"symbol": "SOL"},
-                        {"gate": [{"field": "funding_rate", "path": withhold, "verdict": "not_token_specific"}], "withheld_paths": [withhold]},
+                        {"gate": [{"field": "funding_rate_bps", "path": withhold, "verdict": "not_token_specific"}], "withheld_paths": [withhold]},
                         {"okx_premium": "ok"}, [], "SOL: 1 withheld")
-    pack = gather(RecordedRyoClient(FIXTURES, name="fixture"), "SOL", extras={"positioning_check": lambda s, p: env})
+    pack = gather(RecordedRyoClient(FIXTURES), "SOL", extras={"positioning_check": lambda s, p: env})
     seen = {}
 
     def tech(user):
         seen["prompt"] = user
-        return opinion("technician", cites=[Citation(path=withhold, value="0.01"),
-                                            Citation(path="deep_analysis.data.derivatives.open_interest_usd", value="1.1e9")])(user)
+        return opinion("technician", cites=[Citation(path=withhold, value="0"), Citation(path=kept, value=str(real_oi))])(user)
 
     llm = fake()
     llm.handlers["technician"] = tech
     res = run_council(pack, llm, Ledger(":memory:"))
-    assert '"funding_rate": "withheld: not_token_specific"' in seen["prompt"] and '"open_interest_usd": "1.1e9"' in seen["prompt"]
-    assert [c.path for c in res.opinions[1].citations] == ["deep_analysis.data.derivatives.open_interest_usd"]
+    assert '"funding_rate_bps": "withheld: not_token_specific"' in seen["prompt"]
+    assert f'"open_interest_change_24h_pct": {json.dumps(real_oi)}' in seen["prompt"]
+    assert [c.path for c in res.opinions[1].citations] == [kept]
     assert res.opinions[1].dropped_citations == 1
 
 
@@ -136,11 +139,18 @@ def test_with_a_ryo_source_the_reference_is_fetched_and_peers_come_from_todays_l
         row = {"symbol": s, "locked_at": today, "status": "locked",
                "envelope": {"data": {"derivatives": {"funding_rate_bps": 0.0, "open_interest_change_24h_pct": -10.44}}}}
         led.save_lock(f"l{s}", s, today, "locked", json.dumps(row))
-    env = positioning_check("SOL", http=httpx.Client(), ryo=RecordedRyoClient(FIXTURES, name="fixture"), ledger=led)
+    env = positioning_check("SOL", http=httpx.Client(), ryo=RecordedRyoClient(FIXTURES), ledger=led)
     assert env.availability["ryo_reference"] == "available" and env.availability["ledger_peers"] == "available"
     assert env.data["peers_compared"] == ["ETH", "WIF"]
-    # the recorded SOL block has no *_bps fields: RYO was asked and answered null, which is `absent`
-    assert {r["verdict"] for r in env.data["gate"]} == {"absent"}
+    # RYO's real SOL block: funding equal to both peers' is not about SOL, a sub-3% OI move that OKX
+    # contradicts is unverified, and the null long/short ratio is absent
+    real = json.loads((FIXTURES / "deep_analysis" / "SOL.json").read_text(encoding="utf-8"))["data"]["derivatives"]
+    gate = {r["field"]: r for r in env.data["gate"]}
+    assert gate["funding_rate_bps"]["ryo_value"] == real["funding_rate_bps"] == 0.0
+    assert gate["funding_rate_bps"]["verdict"] == "not_token_specific" and gate["funding_rate_bps"]["same_as"] == ["ETH", "WIF"]
+    assert gate["open_interest_change_24h_pct"]["verdict"] == "unverified"
+    assert gate["long_short_ratio"]["verdict"] == "absent" and real["long_short_ratio"] is None
+    assert env.data["withheld_paths"] == ["deep_analysis.data.derivatives.funding_rate_bps"]
     assert env.status == "ok"  # RYO, ledger and DVOL are context; the venues are the primary sections
 
 

@@ -21,18 +21,18 @@ def make_llm(action="long", p=0.65):
 
 def test_decide_stores_pack_and_receipt_and_renders():
     led = Ledger(":memory:")
-    r = decide("sol", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
-    assert isinstance(r.trade, PracticeTrade) and r.symbol == "SOL" and r.source == "fixture"
+    r = decide("sol", RecordedRyoClient(FIXTURES), make_llm(), led)
+    assert isinstance(r.trade, PracticeTrade) and r.symbol == "SOL" and r.source == "recorded"
     assert led.get_pack(r.pack_hash) is not None
     assert Receipt.model_validate_json(led.get_decision(r.id)).id == r.id
     md = render_markdown(r)
-    assert "Decision receipt" in md and "LONG" in md and "as_of 2026-09-01" in md and "No order was placed" in md
+    assert "Decision receipt" in md and "LONG" in md and f"as_of {r.provenance['deep_analysis']['as_of']}" in md and "No order was placed" in md
 
 
 def test_same_evidence_same_receipt_id():
     led = Ledger(":memory:")
-    a = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
-    b = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    a = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
+    b = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     assert a.id == b.id and b.cache_hits == 4
 
 
@@ -40,7 +40,7 @@ def test_replay_survives_a_prompt_version_bump(monkeypatch):
     from nota import council
 
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     monkeypatch.setattr(council, "PROMPT_VERSION", "v99")  # a later prompt bump must not orphan old receipts
     drifted = make_llm(action="no_trade", p=0.5)
     res = replay(r.id, led, drifted)
@@ -49,7 +49,7 @@ def test_replay_survives_a_prompt_version_bump(monkeypatch):
 
 def test_replay_is_identical_from_cache_and_fresh_reports_drift():
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     drifted = make_llm(action="no_trade", p=0.5)
     res = replay(r.id, led, drifted)  # cached: the drifted model is never consulted
     assert res.identical and res.diff == [] and drifted.calls == []
@@ -70,7 +70,7 @@ def test_cached_replay_needs_no_llm_and_uses_the_receipt_s_own_model():
     import pytest
 
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     assert replay(r.id, led).identical                     # no LLM passed at all
 
     other = make_llm(action="no_trade", p=0.5)
@@ -85,7 +85,7 @@ def test_cached_replay_needs_no_llm_and_uses_the_receipt_s_own_model():
 
 def test_cached_replay_reports_a_cache_miss_instead_of_calling_a_model():
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     led.conn.execute("DELETE FROM llm_cache")
     led.conn.commit()
     import pytest
@@ -101,7 +101,7 @@ def test_without_primary_evidence_the_council_is_not_convened_and_replays():
             raise AssertionError("no model call without deep_analysis")
 
     led = Ledger(":memory:")
-    r = decide("ZZZ", RecordedRyoClient(FIXTURES, name="fixture"), NoCalls(), led)  # no recorded deep_analysis for ZZZ
+    r = decide("ZZZ", RecordedRyoClient(FIXTURES), NoCalls(), led)  # no recorded deep_analysis for ZZZ
     assert r.availability["deep_analysis"] != "ok" and r.opinions == [] and r.verdict.action == "no_trade"
     assert r.spend["model_calls"] == 0 and r.trade.kind == "blocked"
     assert replay(r.id, led).identical

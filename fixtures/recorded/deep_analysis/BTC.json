@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "tool": "deep_analysis",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:26:22Z",
+  "request": {
+    "symbol": "BTC",
+    "include_perp": true
+  },
+  "data": {
+    "asset": {
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "chain": null,
+      "contract": null,
+      "rank": 1
+    },
+    "market": {
+      "mcap_usd": 1639692680770.0134,
+      "fdv_usd": 1714255189825.88,
+      "volume_24h_usd": 25554935169.6616,
+      "dominance_pct": 58.695,
+      "circulating_supply": 20086593.0,
+      "max_supply": 21000000.0,
+      "price_usd": 81631.19951551831
+    },
+    "performance": {
+      "h1": 0.15202717,
+      "h24": 0.99659416,
+      "d7": 5.44719814,
+      "d30": 13.30218631
+    },
+    "technical_analysis": {
+      "trend": "sideways",
+      "rsi_14": 64.9,
+      "momentum_30d_pct": 13.30218631,
+      "atr_14_pct": 2.9
+    },
+    "confluence": {
+      "state": "MIXED",
+      "score": 0.33,
+      "gates": [
+        {
+          "name": "momentum",
+          "passed": false,
+          "detail": {
+            "trend": "sideways",
+            "rsi_14": 64.9
+          }
+        },
+        {
+          "name": "market_activity",
+          "passed": false,
+          "detail": {
+            "volume_to_market_cap": 0.0156
+          }
+        },
+        {
+          "name": "derivatives",
+          "passed": true,
+          "detail": {
+            "veto": false
+          }
+        }
+      ],
+      "status": "available"
+    },
+    "verdict": {
+      "call": "neutral",
+      "headline": "BTC deep analysis: neutral.",
+      "bottom_line": "The measured market and technical signals are mixed.",
+      "key_driver": "The measured market and technical signals are mixed.",
+      "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture.",
+      "confluence_score": 0.33
+    },
+    "token_profile": null,
+    "derivatives": {
+      "symbol": "BTC",
+      "funding_rate_bps": 0.0,
+      "funding_trend": "stable",
+      "open_interest_change_24h_pct": 1.41,
+      "long_short_ratio": null,
+      "liquidation_pressure": "balanced",
+      "squeeze_risk": "low",
+      "veto": false,
+      "veto_reason": null
+    },
+    "trade_plan": {
+      "entry": 81631.1995,
+      "stop": 78080.2423,
+      "targets": [
+        85182.1567,
+        88733.1139
+      ],
+      "atr_14_usd": 2367.3048,
+      "atr_14_pct": 2.9,
+      "atr_multiplier": 1.5,
+      "risk_reward": [
+        1.0,
+        2.0
+      ],
+      "method": "wilder_atr_14_from_daily_ohlcv",
+      "preview_only": true
+    },
+    "intelligence": {
+      "narrative": "coin, mineable, pow, sha-256, store-of-value",
+      "catalysts": [
+        "Positive seven-day price momentum."
+      ],
+      "risks": []
+    }
+  },
+  "summary": {
+    "headline": "BTC deep analysis: neutral.",
+    "key_points": [
+      "The measured market and technical signals are mixed.",
+      "Key driver: The measured market and technical signals are mixed.",
+      "What changes the view: A material change in trend, momentum, activity, or derivatives posture."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "token_profile": "unavailable",
+    "derivatives": "available",
+    "trade_plan": "available"
+  },
+  "warnings": [
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable."
+  ],
+  "trace_id": "f49ceabc6d0c4418acbc82da28dcb97c"
+}

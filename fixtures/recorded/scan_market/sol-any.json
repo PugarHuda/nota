@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "tool": "scan_market",
+  "status": "unavailable",
+  "data_mode": "unknown",
+  "as_of": "2026-09-19T15:28:33Z",
+  "request": {
+    "chain": "sol"
+  },
+  "data": {
+    "filters": {
+      "chain": "sol",
+      "theme": null,
+      "limit": 5
+    },
+    "selection_method": "Ranked by 24-hour momentum and market activity.",
+    "candidate_count": 0,
+    "candidates": [],
+    "excluded_candidate_count": 0
+  },
+  "summary": {
+    "headline": "No ranked market candidates were available.",
+    "key_points": []
+  },
+  "availability": {
+    "ranked_candidates": "unavailable",
+    "theme_filter": "not_requested"
+  },
+  "warnings": [
+    "No candidates matched the current scan filters."
+  ],
+  "trace_id": "a00ac76c2f7a46a7a555540e4742ccb3"
+}

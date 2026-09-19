@@ -96,8 +96,13 @@ gather ──────────► council ──► judge ──► risk 
 - **Simulated data never trades**: when RYO marks the primary evidence `data_mode: simulated`,
   sizing is blocked and the receipt says so.
 - **Transport**: REST (`/tools/{tool}/call`) by default, or MCP JSON-RPC (`tools/list`,
-  `tools/call` on the same base URL) with `RYO_TRANSPORT=mcp`; `nota health` lists the live
-  tool catalog over MCP when a key is set.
+  `tools/call` on the same base URL) with `RYO_TRANSPORT=mcp`. The MCP client does the
+  `initialize` + `notifications/initialized` handshake once per client, keeps RYO's `serverInfo` and
+  protocol version, sends `Accept: application/json, text/event-stream` and reads an SSE reply as
+  well as a JSON one. `nota health` shows whoami, days until the key expires, the handshake and the
+  live catalog, checks every argument Nota sends against RYO's published input schemas (required
+  keys, unknown keys, enum values) and lists the published arguments Nota does not use;
+  `nota health --strict` exits 1 on any of those problems or a key expiring within 14 days.
 
 ## The public surface is treated as public
 
@@ -167,8 +172,11 @@ strangers:
 - `null` / `unavailable` is never converted to 0 (`Envelope.get`, `first_present`, risk,
   every skill).
 - Recorded fixtures keep RYO's original `as_of` and `data_mode` and are labelled
-  `source: recorded`. Synthetic test fixtures live only under `tests/fixtures/` and are
-  labelled `source: fixture`; receipts print the label. There is no fake-LLM mode in the CLI.
+  `source: recorded`. The RYO envelopes under `tests/fixtures/` are real answers too (recorded
+  2026-09-19, plus the 2026-09-07 set in `tests/fixtures/recorded_0907/` where SOL's derivatives
+  lane was down, and RYO's real refusals in `tests/fixtures/ryo_errors/`). Only evidence whose
+  source is `live` or `recorded` can size a practice trade or enter a Brier, base-rate, source or
+  reliability score; anything else is shown but never counted. There is no fake-LLM mode in the CLI.
 - The RYO surface is read-only; practice trades exist only in `nota.db`.
 - A receipt says what it cost: model calls, cache hits, prompt and completion tokens, the provider's
   own billed figure, and wall time. Every one of those is what the provider reported, never derived
@@ -184,7 +192,9 @@ strangers:
 ```bash
 uv sync
 cp .env.example .env            # RYO_MCP_KEY + an LLM key (Anthropic, or NOTA_LLM=openai for Venice/OpenRouter)
-uv run nota health             # MCP health (no key) + whoami/quota (with key)
+uv run nota health             # MCP health (no key) + whoami, key expiry, handshake, catalog check (with key)
+uv run nota health --strict    # the same, exit 1 on an expiring key or an argument RYO would refuse
+uv run nota llm-check --llm openai   # one 1-token completion; exit 2 when the key or balance is refused
 uv run nota decide SOL         # live evidence + price cross-check, council, receipt
 uv run nota decide SOL --voices tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social --news --notify
 uv run nota scan --top-n 5 --decide-top 2      # scan_market -> analyze_token -> council
@@ -443,8 +453,19 @@ including live RYO evidence, the `watch` loop, notifications and backing, runs w
 
 ## Failure handling
 
-- RYO client: exponential backoff with jitter on 429/503/network, honours `Retry-After`,
-  never retries 4xx argument errors, records `X-RateLimit-*` headers.
+- RYO client: exponential backoff with jitter on 429/503/network, honours `Retry-After` in
+  seconds or as an HTTP date but never waits longer than 60 s, never retries 4xx argument errors,
+  records `X-RateLimit-*` headers. RYO also runs a per-key fan-out bucket of six tool calls a
+  minute (`mcp_fanout`); the client paces its own tool calls to fit it (catalog, whoami and health
+  are free and not paced) and keeps the bucket's `reset_at` from a refusal as `fanout_reset_at`.
+  Over MCP a rate limit arrives as HTTP 200 with `isError` and `Retry-After`; it is retried like
+  the REST 429 instead of being read as a tool failure. Timeouts are per tool (120 s for
+  `deep_analysis` and `compare_tokens`, 30 s otherwise) and a timed-out call is retried once.
+- The five RYO reads of a decision run three at a time; the pack is assembled in a fixed order, so
+  its hash is identical to a one-by-one gather. A failed section keeps RYO's trace id, and so does a
+  failed scorecard lock, together with the HTTP status.
+- The LLM client fails with "rate limited for N s" instead of sleeping through a `Retry-After`
+  longer than a minute.
 - Evidence gathering continues past failed tools and skills; the judge is told which sections
   are missing. When the primary evidence (`deep_analysis`) is gone, the council is not convened at
   all: the receipt is `no_trade` with zero model calls, stored and replayable like any other.
@@ -507,9 +528,8 @@ pages, and **Remotion** (Remotion License — free for individuals and for compa
 or fewer, paid above that; see <https://remotion.dev/license>) composes the result. They are
 development dependencies of `video/`, invoked from `scripts/`, and no Remotion or `edge-tts` code is
 served to a visitor or imported by `nota`. The narration is written here, not generated: the voice
-is synthetic, the script is not. Fixtures under `tests/fixtures/` are hand-built and labelled `source: fixture`;
-`fixtures/recorded/` holds real RYO responses captured with `nota record` and labelled
-`source: recorded`; `tests/fixtures/x/` holds one real payload captured from X's public syndication
+is synthetic, the script is not. The RYO envelopes under `tests/fixtures/` and `fixtures/recorded/`
+are real RYO responses captured with `nota record` and labelled `source: recorded`; `tests/fixtures/x/` holds one real payload captured from X's public syndication
 endpoint on 2026-09-07.
 
 No secret has ever been committed. Verified across the whole history, not just the working tree:

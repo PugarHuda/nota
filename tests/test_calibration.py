@@ -34,11 +34,12 @@ def llm():
 
 def test_resolve_scores_brier_and_trade_result():
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
-    out = resolve(r.id, led, PriceSource(165.0))  # entry 150 -> +10%
-    assert out.went_up and out.return_pct == 10.0
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
+    entry = r.trade.entry_price  # RYO's recorded price for SOL
+    out = resolve(r.id, led, PriceSource(entry * 1.1))  # +10%
+    assert out.went_up and out.return_pct == pytest.approx(10.0, abs=0.001)
     assert out.brier == {"macro": 0.01, "technician": 0.16, "narrative": 0.49, "judge": 0.09}
-    assert out.trade_result_usd == pytest.approx(15.0 * r.trade.size_units, abs=0.01)
+    assert out.trade_result_usd == pytest.approx(entry * 0.1 * r.trade.size_units, abs=0.01)
     assert json.loads(led.get_outcome(r.id))["went_up"] is True
     assert led.unresolved() == []
 
@@ -48,7 +49,7 @@ def test_resolve_refuses_when_price_missing():
     from httpx import Response
 
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
     with respx.mock:  # RYO has no price and every exchange fallback is down: refuse, never guess
         respx.get(url__regex=r"https://api\.coingecko\.com/.*").mock(return_value=Response(500))
         respx.get(url__regex=r"https://api\.coinbase\.com/.*").mock(return_value=Response(500))
@@ -62,7 +63,7 @@ def test_resolve_refuses_when_price_missing():
 
 def test_scores_and_weights_favour_low_brier():
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
     resolve(r.id, led, PriceSource(165.0))
     s = role_scores(led)
     assert s["macro"] == {"n": 1.0, "brier_mean": 0.01}
@@ -78,7 +79,7 @@ def test_skill_against_the_base_rate_is_filled_once_and_scored_per_role():
     from nota.calibration import fill_base_rates, skill_vs_base
 
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
     resolve(r.id, led, PriceSource(165.0))  # went up
     asked = []
     rate = lambda sym, day: asked.append((sym, day)) or 0.6
@@ -94,7 +95,27 @@ def test_a_base_rate_that_cannot_be_counted_stays_absent():
     from nota.calibration import fill_base_rates, skill_vs_base
 
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), llm(), led)
     resolve(r.id, led, PriceSource(165.0))
     assert fill_base_rates(led, lambda s, d: None) == [(r.id, None)]
     assert json.loads(led.get_outcome(r.id)).get("base_rate_p") is None and skill_vs_base(led)["roles"] == {}
+
+
+def test_a_receipt_not_built_on_ryo_evidence_is_never_scored():
+    """A hand-built or test-double source may produce a receipt, but no trade and no score."""
+    from datetime import datetime, timedelta, timezone
+
+    from nota.calibration import Outcome, due, reliability, skill_vs_base, source_scores
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), llm(), led)
+    assert r.source == "fixture" and r.trade.kind == "blocked" and "not RYO's" in r.trade.reason
+    assert due(led, now=datetime.now(timezone.utc) + timedelta(days=30)) == []
+    led.save_outcome(r.id, Outcome(decision_id=r.id, symbol="SOL", resolved_at="x", decided_as_of=None, horizon_reached=True,
+                                   price_then=1.0, price_now=2.0, return_pct=100.0, went_up=True, brier={"judge": 0.09},
+                                   base_rate_p=0.5).model_dump_json())
+    assert role_scores(led) == {} and skill_vs_base(led)["roles"] == {}
+    assert source_scores(led)["scored_decisions"] == 0 and reliability(led)["n"] == 0
+    fresh = Ledger(":memory:")  # same evidence, so the same receipt id: keep the two apart
+    real = decide("SOL", RecordedRyoClient(FIXTURES), llm(), fresh)
+    assert due(fresh, now=datetime.now(timezone.utc) + timedelta(days=30)) == [real.id]

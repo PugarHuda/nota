@@ -1,0 +1,213 @@
+{
+  "schema_version": "1.0",
+  "tool": "compare_tokens",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:28:31Z",
+  "request": {
+    "symbols": "ETH, BTC, SOL",
+    "intent": "swing"
+  },
+  "data": {
+    "intent": "swing",
+    "tokens": [
+      {
+        "symbol": "ETH",
+        "name": "Ethereum",
+        "chain": null,
+        "rank": 2,
+        "price_usd": 2641.6448283403524,
+        "changes": {
+          "h1": -0.00688053,
+          "h24": 1.93125603,
+          "d7": 4.02312254,
+          "d30": 14.96362822
+        },
+        "metrics": {
+          "market_cap_usd": 322444019168.4188,
+          "volume_24h_usd": 15050766835.414248,
+          "rsi_14": 66.1,
+          "atr_14_pct": 3.98,
+          "trend": "sideways"
+        },
+        "verdict": "neutral",
+        "token_profile": {
+          "ok": true,
+          "data": {
+            "type": "evidence_pack",
+            "skill_id": "altcoin_token_profile",
+            "timestamp": "2026-09-19T15:27:51.936907+00:00",
+            "data": {
+              "status": "partial",
+              "confidence": "low",
+              "missing_or_stale_inputs": [
+                "live holder coverage",
+                "stable protocol-history deltas"
+              ],
+              "decision_report": {
+                "title": "ETH Token Profile",
+                "brand_line": "Powered By CoinMarketCap",
+                "conclusion": "Ethereum has enough current context for token profiling, but holders coverage is currently unavailable and the open coverage gaps still limit a stronger fundamental claim.",
+                "analysis": "### Token Identity\nThe resolved asset for this profile is Ethereum (symbol ETH), ranked #2 overall by market capitalization. It is classified as a layer 1 proof-of-stake smart contract platform, with broad inclusion in major venture investment portfolios, public crypto reserve lists, and top ecosystem portfolios. The asset has a verified BEP20 contract address on the BNB Smart Chain and a public project website.\n\n### Market Context\nAs of the latest market snapshot, ETH trades at ~$2639.75, with a fully diluted market capitalization of ~$322.2 billion. 24-hour trading volume sits at ~$15.04 billion, equal to 4.67% of the current market cap. Recent price performance is positive across all tracked windows: +1.86% over 24 hours, +3.89% over 7 days, +14.75% over 30 days, and +52.68% over the past 90 days. ETH has outperformed BTC by 1.08% in the 24-hour period.\n\n### Protocol Context\nProtocol matching succeeded for Ethereum. Observed on-chain metrics show 24-hour fees of 511,682 and 24-hour protocol revenue of 156,654. Current total value locked (TVL) and TVL trend history are not available for this profile run.\n\n### Holder Coverage State\nLive holder coverage is currently unavailable for this resolved contract lane. No ownership distribution, concentration, or wallet activity metrics are included in this profile; this is an explicit coverage gap, not a positive or negative signal about holder composition.\n\n### Public Content Context\nRecent public coverage for Ethereum includes bullish price discussion noting ETH hitting an 8-month high with growing $10,000 price targets, plus analyst commentary confirming ETH is holding above the $2,600 level following a recent key technical breakout.\n\n### Explicit Data Gaps\nTwo unresolved coverage gaps are present for this profile: (1) live holder coverage is not available, and (2) stable protocol-history deltas including TVL trend data are missing. These gaps mean confidence in the fundamental profile is limited, and downstream analysis should not assume missing lanes are neutral without separate verification."
+              },
+              "action_guidance": {
+                "bias": "context_only",
+                "reference_action": "Use as research context, not as an execution instruction."
+              }
+            }
+          },
+          "execution": {
+            "status": "completed",
+            "elapsed_ms": 36361
+          }
+        }
+      },
+      {
+        "symbol": "BTC",
+        "name": "Bitcoin",
+        "chain": null,
+        "rank": 1,
+        "price_usd": 81635.02487757028,
+        "changes": {
+          "h1": 0.20475502,
+          "h24": 0.77273095,
+          "d7": 5.38523893,
+          "d30": 13.12015804
+        },
+        "metrics": {
+          "market_cap_usd": 1639770090705.8032,
+          "volume_24h_usd": 25365346435.521614,
+          "rsi_14": 64.9,
+          "atr_14_pct": 2.9,
+          "trend": "sideways"
+        },
+        "verdict": "neutral",
+        "token_profile": {
+          "ok": true,
+          "data": {
+            "type": "evidence_pack",
+            "skill_id": "altcoin_token_profile",
+            "timestamp": "2026-09-19T15:27:51.800720+00:00",
+            "data": {
+              "status": "partial",
+              "confidence": "low",
+              "missing_or_stale_inputs": [
+                "live holder coverage",
+                "stable protocol-history deltas"
+              ],
+              "decision_report": {
+                "title": "BTC Token Profile",
+                "brand_line": "Powered By CoinMarketCap",
+                "conclusion": "Bitcoin token profile has resolved identity, current market, protocol, and recent public content context, with explicit coverage gaps that limit the confidence of deeper fundamental analysis.",
+                "analysis": "### Token Identity\nBitcoin (BTC) is the oldest and highest-ranked cryptoasset, launched in July 2010. It is a proof-of-work layer-1 store of value asset, tagged as mineable, and is classified as a digital commodity in regulatory frameworks. It holds the #1 market rank, with no smart contract platform or associated contract address.\n\n### Market Context\nThe latest market snapshot lists BTC at ~$81,635 per unit, with a total market capitalization of ~$1.64 trillion, and fully diluted valuation of ~$1.71 trillion. 24h trading volume is ~$25.37 billion, representing 1.55% of market cap. Recent price performance shows consistent positive returns: +0.77% over 24h, +5.39% over 7 days, +13.12% over 30 days, and +27.28% over 90 days, as of the latest update timestamped 2026-09-19T15:26:05Z.\n\n### Protocol Context\nThe Bitcoin protocol reports current total value locked at $0. 24h on-chain fees are measured at $254,235, while 24h protocol revenue is $0. No historical TVL trend data is available in the current coverage set.\n\n### Holder Coverage State\nLive holder coverage is marked as unavailable for this profile. The gap is attributed to the absence of a smart contract address and associated platform context required to pull holder concentration and distribution metrics, meaning no ownership quality analysis can be included in this profile.\n\n### Public Content Context\nRecent public coverage includes three recent news items: spot Bitcoin ETFs reporting $433 million in daily inflows, broader altcoin market momentum with 70% of assets reclaiming 200-day moving averages while BTC consolidates below $82,000, and ongoing market interest around BTC price movements.\n\n### Explicit Data Gaps\nThis profile has two outstanding material coverage gaps: live holder distribution data is unavailable, and stable protocol-history trend deltas are missing, which limits the ability to assess long-term protocol revenue or user adoption trends from the current evidence set."
+              },
+              "action_guidance": {
+                "bias": "context_only",
+                "reference_action": "Use this package as a token-profile context layer before deeper research. Do not treat missing lanes as implicitly healthy or neutral. Recheck the latest market snapshot and coverage status before proceeding with downstream analysis."
+              }
+            }
+          },
+          "execution": {
+            "status": "completed",
+            "elapsed_ms": 33527
+          }
+        }
+      },
+      {
+        "symbol": "SOL",
+        "name": "Solana",
+        "chain": null,
+        "rank": 7,
+        "price_usd": 111.72146396746977,
+        "changes": {
+          "h1": -0.14415441,
+          "h24": 1.07941968,
+          "d7": 9.51608626,
+          "d30": 28.76614494
+        },
+        "metrics": {
+          "market_cap_usd": 65621602058.40687,
+          "volume_24h_usd": 4049864853.225815,
+          "rsi_14": 66.9,
+          "atr_14_pct": 4.3,
+          "trend": "up"
+        },
+        "verdict": "constructive",
+        "token_profile": null
+      }
+    ],
+    "factors": [
+      {
+        "key": "momentum",
+        "label": "Momentum / relative strength",
+        "winner": "SOL",
+        "scores": {
+          "ETH": 4.023123,
+          "BTC": 5.385239,
+          "SOL": 14.516086
+        }
+      },
+      {
+        "key": "market_activity",
+        "label": "Market activity",
+        "winner": "SOL",
+        "scores": {
+          "ETH": 0.046677,
+          "BTC": 0.015469,
+          "SOL": 0.061715
+        }
+      },
+      {
+        "key": "volatility",
+        "label": "Lower measured volatility",
+        "winner": "BTC",
+        "scores": {
+          "ETH": -3.98,
+          "BTC": -2.9,
+          "SOL": -4.3
+        }
+      }
+    ],
+    "winner": "SOL",
+    "conclusion": {
+      "pick": "SOL",
+      "headline": "SOL leads this comparison.",
+      "rationale": "It leads on Momentum / relative strength, Market activity.",
+      "runner_up_case": "ETH can take the lead if the measured factors rotate.",
+      "confidence": "medium",
+      "method": "deterministic"
+    },
+    "coverage_by_token": {
+      "ETH": {
+        "market_data": "available",
+        "token_profile": "partial"
+      },
+      "BTC": {
+        "market_data": "available",
+        "token_profile": "partial"
+      },
+      "SOL": {
+        "market_data": "available",
+        "token_profile": "unavailable"
+      }
+    }
+  },
+  "summary": {
+    "headline": "SOL leads this comparison.",
+    "key_points": [
+      "It leads on Momentum / relative strength, Market activity.",
+      "ETH can take the lead if the measured factors rotate."
+    ]
+  },
+  "availability": {
+    "token_market_data": "available",
+    "comparison_factors": "available",
+    "token_profiles": "partial",
+    "conclusion": "available"
+  },
+  "warnings": [
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable for one or more tokens.",
+    "The conclusion was calculated from the returned factors; no narrative model was used."
+  ],
+  "trace_id": "5e79953f684c46b8804a03894948ec2e"
+}

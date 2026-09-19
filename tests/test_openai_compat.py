@@ -64,3 +64,43 @@ def test_a_provider_that_reports_no_usage_leaves_it_none_rather_than_zero():
     llm = OpenAICompatLLM(model="m", base_url="https://api.venice.ai/api/v1", api_key="k")
     llm.complete_json("sys", "user", Out)
     assert llm.last_usage == {"prompt_tokens": None, "completion_tokens": None, "usd": None}
+
+
+@respx.mock
+def test_a_retry_after_longer_than_a_minute_fails_instead_of_sleeping():
+    respx.post("https://x.test/v1/chat/completions").mock(return_value=Response(429, headers={"retry-after": "3600"}))
+    llm = OpenAICompatLLM(model="m", base_url="https://x.test/v1", api_key="k")
+    waits = []
+    llm.sleep = waits.append
+    with pytest.raises(RuntimeError, match="rate limited for 3600 s"):
+        llm.complete_json("s", "u", Out)
+    assert waits == []
+
+
+@respx.mock
+def test_check_spends_one_token_and_reports_the_provider_s_status():
+    route = respx.post("https://x.test/v1/chat/completions").mock(side_effect=[
+        Response(200, json={"model": "m", "choices": [{"message": {"content": "p"}, "finish_reason": "length"}]}),
+        Response(402, text="insufficient balance")])
+    llm = OpenAICompatLLM(model="m", base_url="https://x.test/v1", api_key="k")
+    assert llm.check() == (200, "model m answered")
+    assert json.loads(route.calls[0].request.content)["max_completion_tokens"] == 1
+    assert llm.check() == (402, "insufficient balance")
+
+
+def test_llm_check_exits_2_when_the_provider_refuses_the_key_or_balance(monkeypatch):
+    from typer.testing import CliRunner
+
+    from nota import cli
+
+    class Stub:
+        def __init__(self, status):
+            self.status = status
+
+        def check(self):
+            return self.status, "detail"
+
+    for status, code in ((200, 0), (401, 2), (402, 2), (403, 2), (500, 1), (0, 1)):
+        monkeypatch.setattr(cli, "_llm", lambda kind, s=status: Stub(s))
+        res = CliRunner().invoke(cli.app, ["llm-check", "--llm", "openai"])
+        assert res.exit_code == code, (status, res.output)

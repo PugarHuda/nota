@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from nota import paths
 from nota.council import Verdict
-from nota.evidence import PRIMARY, EvidencePack, first_present
+from nota.evidence import PRIMARY, SCORED_SOURCES, EvidencePack, first_present
 
 
 class RiskLimits(BaseModel):
@@ -88,6 +88,8 @@ def compare_to_ryo_plan(pack: EvidencePack, entry: float, stop: float, target: f
 
 def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None = None) -> PracticeTrade | Blocked:
     limits = limits or RiskLimits()
+    if pack.source not in SCORED_SOURCES:
+        return Blocked(reason=f"evidence source {pack.source!r} is not RYO's (live or recorded from it); no practice trade on it")
     if not pack.primary_ok:
         return Blocked(reason="primary evidence (deep_analysis) unavailable; no trade without it")
     primary = pack.sections[PRIMARY].envelope

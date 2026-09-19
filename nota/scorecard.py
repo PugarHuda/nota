@@ -90,7 +90,8 @@ def lock_one(symbol: str, source: RyoSource, http: httpx.Client) -> dict[str, An
     try:
         env = source.call("deep_analysis", {"symbol": symbol, "include_perp": True})
     except RyoError as exc:
-        row.update(status="ryo_unavailable", error=f"{exc.code}: {exc.message}")
+        # the trace id and status are what RYO support needs to find this failure
+        row.update(status="ryo_unavailable", error=f"{exc.code}: {exc.message}", trace_id=exc.trace_id, status_code=exc.status_code)
         row["id"] = _row_id(symbol, row["locked_at"], row["status"])
         return row
     row["envelope"] = env.model_dump(mode="json")

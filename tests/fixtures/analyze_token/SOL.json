@@ -1,43 +1,61 @@
 {
- "schema_version": "1",
- "tool": "analyze_token",
- "status": "ok",
- "data_mode": "live",
- "as_of": "2026-09-01T00:00:00Z",
- "request": {
-  "symbol": "SOL"
- },
- "data": {
-  "market": {
-   "price_usd": 150.2
+  "schema_version": "1.0",
+  "tool": "analyze_token",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:24:42Z",
+  "request": {
+    "symbol": "SOL"
   },
-  "performance": {
-   "24h_pct": 6.1
+  "data": {
+    "asset": {
+      "symbol": "SOL",
+      "name": "Solana",
+      "chain": null,
+      "contract": null,
+      "rank": 7
+    },
+    "market": {
+      "price_usd": 111.75958842066399,
+      "market_cap_usd": 65643997603.389275,
+      "fully_diluted_value_usd": 70897645045.28,
+      "volume_24h_usd": 4061812048.809725
+    },
+    "performance": {
+      "change_1h_pct": 0.01010417,
+      "change_24h_pct": 1.32106213,
+      "change_7d_pct": 9.54038797,
+      "change_30d_pct": 28.62096034
+    },
+    "technical_analysis": {
+      "trend": "up",
+      "rsi_14": 66.9,
+      "momentum_30d_pct": 28.62096034,
+      "atr_14_pct": 4.3
+    },
+    "intelligence": {
+      "narrative": "Solana ranks #7 by market cap (coin) — pos, platform, solana-ecosystem",
+      "catalysts": [
+        "+9.5% over 7d — momentum building",
+        "Top-7 asset — deep liquidity",
+        "EMA trend is up"
+      ],
+      "risks": []
+    },
+    "verdict": "accumulate"
   },
-  "intelligence": {
-   "narrative": "L1 rotation",
-   "catalysts": [
-    "ETF filing chatter"
-   ],
-   "risks": []
+  "summary": {
+    "headline": "SOL analysis: accumulate.",
+    "key_points": [
+      "Price: $111.76.",
+      "24h change: +1.32%."
+    ]
   },
-  "verdict": {
-   "bias": "bullish"
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "market_intelligence": "available"
   },
-  "technical_analysis": {
-   "trend": "up",
-   "rsi_14": 61.0,
-   "atr_14_pct": 4.0
-  }
- },
- "summary": {
-  "headline": "SOL steady",
-  "key_points": []
- },
- "availability": {
-  "market": "ok",
-  "technical_analysis": "ok"
- },
- "warnings": [],
- "trace_id": "fixture"
+  "warnings": [],
+  "trace_id": "c44a2576c5d54d1abfddefd16d36341b"
 }

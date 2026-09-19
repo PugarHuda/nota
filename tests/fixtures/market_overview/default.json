@@ -1,43 +1,125 @@
 {
- "schema_version": "1",
- "tool": "market_overview",
- "status": "ok",
- "data_mode": "live",
- "as_of": "2026-09-01T00:00:00Z",
- "request": {},
- "data": {
-  "regime": "risk_on",
-  "fear_greed": {
-   "value": 62,
-   "label": "greed"
-  },
-  "global": {
-   "btc_dominance": 54.1,
-   "total_mcap_usd": "2.4e12",
-   "mcap_24h_pct": 1.2
-  },
-  "breadth": {
-   "advancing": 61,
-   "declining": 39
-  },
-  "top_movers": {
-   "gainers": [
-    {
-     "symbol": "SOL",
-     "change_24h_pct": 6.1
+  "schema_version": "1.0",
+  "tool": "market_overview",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:24:05Z",
+  "request": {},
+  "data": {
+    "regime": "risk_on",
+    "sentiment": {
+      "fear_greed_index": 74.0,
+      "label": "greed"
+    },
+    "market": {
+      "total_market_cap_usd": 2791571333418.718,
+      "total_volume_24h_usd": 85881332595.74,
+      "market_cap_change_24h_pct": 1.3526902,
+      "btc_dominance_pct": 58.734223283793,
+      "eth_dominance_pct": 11.546349094387,
+      "breadth": 0.8043,
+      "breadth_details": {
+        "universe_size": 92,
+        "advancing": 74,
+        "declining": 18,
+        "unchanged": 0,
+        "method": "share_of_non_stable_top_listings_with_positive_24h_change"
+      }
+    },
+    "top_movers": {
+      "gainers": [
+        {
+          "symbol": "XTZ",
+          "name": "Tezos",
+          "chain": null,
+          "price_usd": 0.3818427151685647,
+          "change_24h_pct": 41.15518376
+        },
+        {
+          "symbol": "ENA",
+          "name": "Ethena",
+          "chain": null,
+          "price_usd": 0.19791220591420225,
+          "change_24h_pct": 20.46465857
+        },
+        {
+          "symbol": "AVAX",
+          "name": "Avalanche",
+          "chain": null,
+          "price_usd": 9.442291707431814,
+          "change_24h_pct": 16.39012837
+        },
+        {
+          "symbol": "INJ",
+          "name": "Injective",
+          "chain": null,
+          "price_usd": 7.382401361717406,
+          "change_24h_pct": 13.80957484
+        },
+        {
+          "symbol": "MORPHO",
+          "name": "Morpho",
+          "chain": null,
+          "price_usd": 2.6846095195949884,
+          "change_24h_pct": 11.12189397
+        }
+      ],
+      "losers": [
+        {
+          "symbol": "PONS",
+          "name": "Pons",
+          "chain": null,
+          "price_usd": 0.6223715814815354,
+          "change_24h_pct": -9.07751513
+        },
+        {
+          "symbol": "NEAR",
+          "name": "NEAR Protocol",
+          "chain": null,
+          "price_usd": 3.565539324630102,
+          "change_24h_pct": -5.41379254
+        },
+        {
+          "symbol": "PUMP",
+          "name": "Pump.fun",
+          "chain": null,
+          "price_usd": 0.0041155142654523275,
+          "change_24h_pct": -5.15843511
+        },
+        {
+          "symbol": "M",
+          "name": "MemeCore",
+          "chain": null,
+          "price_usd": 1.2826032160179335,
+          "change_24h_pct": -3.56036834
+        },
+        {
+          "symbol": "SKY",
+          "name": "Sky",
+          "chain": null,
+          "price_usd": 0.06887412181388378,
+          "change_24h_pct": -3.20493587
+        }
+      ]
     }
-   ],
-   "losers": []
-  }
- },
- "summary": {
-  "headline": "Risk-on, breadth positive",
-  "key_points": []
- },
- "availability": {
-  "regime": "ok",
-  "movers": "ok"
- },
- "warnings": [],
- "trace_id": "fixture"
+  },
+  "summary": {
+    "headline": "Market regime: risk on; sentiment: greed (74/100).",
+    "key_points": [
+      "24h market-cap change: +1.35%.",
+      "BTC dominance: +58.73%.",
+      "ETH dominance: +11.55%.",
+      "Total market cap: $2.79T.",
+      "24h market volume: $85.88B."
+    ]
+  },
+  "availability": {
+    "market_regime": "available",
+    "market_totals": "available",
+    "market_sentiment": "available",
+    "market_breadth": "available",
+    "top_movers": "available"
+  },
+  "warnings": [],
+  "trace_id": "bfa8175b2a7b42628ec27cac8d535299"
 }

@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "tool": "deep_analysis",
+  "status": "partial",
+  "data_mode": "live",
+  "as_of": "2026-09-07T09:18:39Z",
+  "request": {
+    "symbol": "SOL",
+    "include_perp": true
+  },
+  "data": {
+    "asset": {
+      "symbol": "SOL",
+      "name": "Solana",
+      "chain": null,
+      "contract": null,
+      "rank": 7
+    },
+    "market": {
+      "mcap_usd": 61513834681.19438,
+      "fdv_usd": 66496226038.56,
+      "volume_24h_usd": 3673223976.614239,
+      "dominance_pct": 2.2764,
+      "circulating_supply": 586166220.2794914,
+      "max_supply": null,
+      "price_usd": 104.94264690289354
+    },
+    "performance": {
+      "h1": 0.35809061,
+      "h24": -0.65254256,
+      "d7": 1.8173309,
+      "d30": 40.29650122
+    },
+    "technical_analysis": {
+      "trend": "up",
+      "rsi_14": 68.7,
+      "momentum_30d_pct": 40.29650122,
+      "atr_14_pct": 4.17
+    },
+    "confluence": {
+      "state": "CONFIRMED",
+      "score": 1.0,
+      "gates": [
+        {
+          "name": "momentum",
+          "passed": true,
+          "detail": {
+            "trend": "up",
+            "rsi_14": 68.7
+          }
+        },
+        {
+          "name": "market_activity",
+          "passed": true,
+          "detail": {
+            "volume_to_market_cap": 0.0597
+          }
+        }
+      ],
+      "status": "available"
+    },
+    "verdict": {
+      "call": "constructive",
+      "headline": "SOL deep analysis: constructive.",
+      "bottom_line": "Positive seven-day momentum with an upward technical trend.",
+      "key_driver": "Positive seven-day momentum with an upward technical trend.",
+      "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture.",
+      "confluence_score": 1.0
+    },
+    "token_profile": null,
+    "derivatives": null,
+    "trade_plan": {
+      "entry": 104.9426,
+      "stop": 98.3785,
+      "targets": [
+        111.5068,
+        118.071
+      ],
+      "atr_14_usd": 4.3761,
+      "atr_14_pct": 4.17,
+      "atr_multiplier": 1.5,
+      "risk_reward": [
+        1.0,
+        2.0
+      ],
+      "method": "wilder_atr_14_from_daily_ohlcv",
+      "preview_only": true
+    },
+    "intelligence": {
+      "narrative": "coin, pos, platform, solana-ecosystem, cms-holdings-portfolio",
+      "catalysts": [
+        "Daily technical trend is upward."
+      ],
+      "risks": []
+    }
+  },
+  "summary": {
+    "headline": "SOL deep analysis: constructive.",
+    "key_points": [
+      "Positive seven-day momentum with an upward technical trend.",
+      "Key driver: Positive seven-day momentum with an upward technical trend.",
+      "What changes the view: A material change in trend, momentum, activity, or derivatives posture."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "token_profile": "unavailable",
+    "derivatives": "unavailable",
+    "trade_plan": "available"
+  },
+  "warnings": [
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable.",
+    "Derivatives analysis is unavailable or was not requested."
+  ],
+  "trace_id": "6327fb3dca3f49f3a164cc9cbdacda39"
+}

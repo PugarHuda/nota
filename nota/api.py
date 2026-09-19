@@ -22,7 +22,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
@@ -38,7 +37,7 @@ from nota.ledger import Ledger
 from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
 from nota.risk import PracticeTrade
-from nota.ryo_client import RyoClient
+from nota.ryo_client import RyoClient, RyoError
 from nota.mcp_server import (HEADER_MISMATCH, SUPPORTED_PROTOCOLS, UNSUPPORTED_VERSION, VERSION_META,
                              handle as mcp_handle)
 from nota.skills import SKILLS, definitions as skill_definitions, invoke as skill_invoke, live_deps
@@ -333,8 +332,10 @@ def _ryo_probe() -> dict[str, Any]:
         try:
             value = client.health()
             break
-        except httpx.TimeoutException as exc:
+        except RyoError as exc:
             value = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            if exc.code != "TIMEOUT":
+                break
         except Exception as exc:  # the dashboard must load even when RYO is down
             value = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
             break

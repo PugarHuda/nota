@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 DEFAULT_MODEL = "claude-opus-5"
+MAX_WAIT_S = 60.0  # the longest a Retry-After may hold a council call
 ROLE_TAG = re.compile(r"\[role:([a-z_]+)\]")
 
 
@@ -83,6 +84,21 @@ class OpenAICompatLLM:
         self.last_usage: dict[str, float | None] | None = None
         self.sleep = time.sleep
 
+    def check(self) -> tuple[int, str]:
+        """One real 1-token completion: the cheapest proof that the key, the balance and the model all work.
+        Returns (HTTP status, detail); 0 when the provider could not be reached."""
+        import httpx
+
+        body = {"model": self.model, "max_completion_tokens": 1, "messages": [{"role": "user", "content": "ping"}],
+                "venice_parameters": {"include_venice_system_prompt": False, "disable_thinking": True}}
+        try:
+            r = self.http.post(f"{self.base_url}/chat/completions", json=body)
+        except httpx.TransportError as exc:
+            return 0, f"unreachable: {type(exc).__name__}: {exc}"
+        if r.status_code >= 400:
+            return r.status_code, r.text[:300]
+        return r.status_code, f"model {r.json().get('model', self.model)} answered"
+
     def complete_json(self, system: str, user: str, schema: type[T]) -> T:
         body = {
             "model": self.model,
@@ -104,7 +120,10 @@ class OpenAICompatLLM:
                 continue
             if r.status_code in (408, 409, 429, 500, 502, 503, 504) and attempt < 3:
                 retry_after = r.headers.get("retry-after")
-                self.sleep(float(retry_after) if retry_after and retry_after.isdigit() else 2.0 * (attempt + 1))
+                wait = float(retry_after) if retry_after and retry_after.isdigit() else 2.0 * (attempt + 1)
+                if wait > MAX_WAIT_S:  # a daily quota says "come back in hours"; sleeping through that is a hang
+                    raise RuntimeError(f"LLM rate limited for {wait:g} s (HTTP {r.status_code}); not waiting that long")
+                self.sleep(wait)
                 continue
             break
         if r.status_code >= 400:

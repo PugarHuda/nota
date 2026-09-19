@@ -130,7 +130,7 @@ def test_price_crosscheck_partial_and_unavailable():
 def test_resolve_falls_back_to_exchange_median_when_ryo_has_no_price():
     _prices(kr=152.0)
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
 
     class Dead:
         name = "dead"
@@ -139,7 +139,7 @@ def test_resolve_falls_back_to_exchange_median_when_ryo_has_no_price():
             raise RyoError(503, "UPSTREAM", "down")
 
     out = resolve(r.id, led, Dead())
-    assert out.price_now == 151.0 and out.price_now_source == "exchange_median:3_sources" and out.price_then == 150.0
+    assert out.price_now == 151.0 and out.price_now_source == "exchange_median:3_sources" and out.price_then == r.trade.entry_price
 
 
 @respx.mock
@@ -148,7 +148,7 @@ def test_resolve_needs_no_ryo_source_at_all():
     median by construction, so a ledger keeps calibrating after a builder key expires."""
     _prices(kr=152.0)
     led = Ledger(":memory:")
-    r = decide("SOL", RecordedRyoClient(FIXTURES, name="fixture"), make_llm(), led)
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
     out = resolve(r.id, led, None)
     assert out.price_now == 151.0 and out.price_now_source == "exchange_median:3_sources"
 

@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0",
   "tool": "deep_analysis",
-  "status": "partial",
+  "status": "ok",
   "data_mode": "live",
-  "as_of": "2026-09-07T09:18:39Z",
+  "as_of": "2026-09-19T15:24:42Z",
   "request": {
     "symbol": "SOL",
     "include_perp": true
@@ -17,25 +17,25 @@
       "rank": 7
     },
     "market": {
-      "mcap_usd": 61513834681.19438,
-      "fdv_usd": 66496226038.56,
-      "volume_24h_usd": 3673223976.614239,
-      "dominance_pct": 2.2764,
-      "circulating_supply": 586166220.2794914,
+      "mcap_usd": 65643997603.389275,
+      "fdv_usd": 70897645045.28,
+      "volume_24h_usd": 4061812048.809725,
+      "dominance_pct": 2.3515,
+      "circulating_supply": 587367925.4821943,
       "max_supply": null,
-      "price_usd": 104.94264690289354
+      "price_usd": 111.75958842066399
     },
     "performance": {
-      "h1": 0.35809061,
-      "h24": -0.65254256,
-      "d7": 1.8173309,
-      "d30": 40.29650122
+      "h1": 0.01010417,
+      "h24": 1.32106213,
+      "d7": 9.54038797,
+      "d30": 28.62096034
     },
     "technical_analysis": {
       "trend": "up",
-      "rsi_14": 68.7,
-      "momentum_30d_pct": 40.29650122,
-      "atr_14_pct": 4.17
+      "rsi_14": 66.9,
+      "momentum_30d_pct": 28.62096034,
+      "atr_14_pct": 4.3
     },
     "confluence": {
       "state": "CONFIRMED",
@@ -46,14 +46,21 @@
           "passed": true,
           "detail": {
             "trend": "up",
-            "rsi_14": 68.7
+            "rsi_14": 66.9
           }
         },
         {
           "name": "market_activity",
           "passed": true,
           "detail": {
-            "volume_to_market_cap": 0.0597
+            "volume_to_market_cap": 0.0619
+          }
+        },
+        {
+          "name": "derivatives",
+          "passed": true,
+          "detail": {
+            "veto": false
           }
         }
       ],
@@ -67,17 +74,56 @@
       "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture.",
       "confluence_score": 1.0
     },
-    "token_profile": null,
-    "derivatives": null,
+    "token_profile": {
+      "ok": true,
+      "data": {
+        "type": "evidence_pack",
+        "skill_id": "altcoin_token_profile",
+        "timestamp": "2026-09-19T15:24:08Z",
+        "data": {
+          "status": "partial",
+          "confidence": "low",
+          "missing_or_stale_inputs": [
+            "live holder coverage",
+            "stable protocol-history deltas"
+          ],
+          "decision_report": {
+            "title": "SOL Token Profile",
+            "brand_line": "Powered By CoinMarketCap",
+            "conclusion": "Solana token profile has resolved identity, current market, protocol, and public content context, with explicit unresolved coverage gaps limiting overall confidence in fundamental analysis.",
+            "analysis": "### Token Identity\nSolana (SOL) is a layer-1 platform coin ranked #7 by market capitalization, launched on March 16, 2020. The native asset of the Solana blockchain, it has an on-chain contract address on its home network, and is categorized as a layer-1, proof-of-stake ecosystem asset. The token appears on common venture portfolio and ecosystem tracking lists as a top-tier layer-1 asset.\n\n### Market Context\nThe latest market snapshot shows SOL trading at ~$111.76 USD, with a circulating market cap of ~$65.64 billion and fully diluted valuation of ~$70.9 billion. 24h trading volume totals ~$4.06 billion, equal to ~6.19% of current market capitalization indicating near-term active liquidity. Price performance trends are positive across all recent windows: +1.32% over the last 24 hours, +9.54% over 7 days, +28.62% over 30 days, and +51.13% over the trailing 90 days. SOL outperformed BTC by 0.32% in the most recent 24h period.\n\n### Protocol Context\nThe token maps directly to the Solana mainnet protocol. On-chain metrics show 24h network fees totaling $965,963, with 24h protocol revenue recorded at $111,051. No current or historical TVL data is available for this profile, as TVL tracking is an unresolved coverage gap.\n\n### Public Content Context\nRecent public coverage is dominated by announcements of an upcoming network speed upgrade targeting 250ms block times, with reporting noting that the optimization will improve network responsiveness without requiring capacity increases. Additional recent coverage includes long-term wealth building analysis that lists SOL among assets under consideration for extended holding periods.\n\n### Explicit Coverage Gaps\nThis profile carries low confidence due to two unresolved data gaps: \n1. Live holder coverage is currently unavailable, meaning ownership distribution, whale concentration, and holder behavior metrics cannot be assessed for this profile.\n2. Stable protocol-history deltas including TVL trends and longer-term protocol traction metrics are missing, so fundamental trend analysis of protocol adoption cannot be completed.\n\nAll gaps are reported explicitly rather than being filled with inferred or estimated values."
+          },
+          "action_guidance": {
+            "bias": "context_only",
+            "reference_action": "Use as research context, not as an execution instruction."
+          }
+        }
+      },
+      "execution": {
+        "status": "completed",
+        "elapsed_ms": 34290
+      }
+    },
+    "derivatives": {
+      "symbol": "SOL",
+      "funding_rate_bps": 0.0,
+      "funding_trend": "stable",
+      "open_interest_change_24h_pct": -0.69032,
+      "long_short_ratio": null,
+      "liquidation_pressure": "balanced",
+      "squeeze_risk": "low",
+      "veto": false,
+      "veto_reason": null
+    },
     "trade_plan": {
-      "entry": 104.9426,
-      "stop": 98.3785,
+      "entry": 111.7596,
+      "stop": 104.5511,
       "targets": [
-        111.5068,
-        118.071
+        118.9681,
+        126.1766
       ],
-      "atr_14_usd": 4.3761,
-      "atr_14_pct": 4.17,
+      "atr_14_usd": 4.8057,
+      "atr_14_pct": 4.3,
       "atr_multiplier": 1.5,
       "risk_reward": [
         1.0,
@@ -89,6 +135,7 @@
     "intelligence": {
       "narrative": "coin, pos, platform, solana-ecosystem, cms-holdings-portfolio",
       "catalysts": [
+        "Positive seven-day price momentum.",
         "Daily technical trend is upward."
       ],
       "risks": []
@@ -105,13 +152,12 @@
   "availability": {
     "market_data": "available",
     "technical_analysis": "available",
-    "token_profile": "unavailable",
-    "derivatives": "unavailable",
+    "token_profile": "partial",
+    "derivatives": "available",
     "trade_plan": "available"
   },
   "warnings": [
-    "Optional Skill Hub token-profile evidence is incomplete or unavailable.",
-    "Derivatives analysis is unavailable or was not requested."
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable."
   ],
-  "trace_id": "6327fb3dca3f49f3a164cc9cbdacda39"
+  "trace_id": "eecd7cc824c14d309887ce99a14ff038"
 }

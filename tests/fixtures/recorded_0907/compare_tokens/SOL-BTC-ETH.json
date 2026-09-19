@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "tool": "compare_tokens",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-07T09:19:26Z",
+  "request": {
+    "symbols": "SOL, BTC, ETH",
+    "intent": "swing"
+  },
+  "data": {
+    "intent": "swing",
+    "tokens": [
+      {
+        "symbol": "SOL",
+        "name": "Solana",
+        "chain": null,
+        "rank": 7,
+        "price_usd": 105.0119283311104,
+        "changes": {
+          "h1": 0.45426714,
+          "h24": -0.66830145,
+          "d7": 1.86166168,
+          "d30": 40.37192816
+        },
+        "metrics": {
+          "market_cap_usd": 61554445114.10783,
+          "volume_24h_usd": 3669257157.704742,
+          "rsi_14": 68.7,
+          "atr_14_pct": 4.17,
+          "trend": "up"
+        },
+        "verdict": "constructive",
+        "token_profile": null
+      },
+      {
+        "symbol": "BTC",
+        "name": "Bitcoin",
+        "chain": null,
+        "rank": 1,
+        "price_usd": 79517.10501865837,
+        "changes": {
+          "h1": 0.06403661,
+          "h24": -0.54454977,
+          "d7": 1.05637561,
+          "d30": 22.37494205
+        },
+        "metrics": {
+          "market_cap_usd": 1596777737750.7476,
+          "volume_24h_usd": 23017085442.04803,
+          "rsi_14": 68.2,
+          "atr_14_pct": 2.82,
+          "trend": "up"
+        },
+        "verdict": "constructive",
+        "token_profile": null
+      },
+      {
+        "symbol": "ETH",
+        "name": "Ethereum",
+        "chain": null,
+        "rank": 2,
+        "price_usd": 2496.1296339511514,
+        "changes": {
+          "h1": 0.27381033,
+          "h24": -0.12412354,
+          "d7": 2.01601207,
+          "d30": 30.28010942
+        },
+        "metrics": {
+          "market_cap_usd": 304594667315.17053,
+          "volume_24h_usd": 12528810912.479443,
+          "rsi_14": 65.7,
+          "atr_14_pct": 3.63,
+          "trend": "up"
+        },
+        "verdict": "constructive",
+        "token_profile": null
+      }
+    ],
+    "factors": [
+      {
+        "key": "momentum",
+        "label": "Momentum / relative strength",
+        "winner": "ETH",
+        "scores": {
+          "SOL": 6.861662,
+          "BTC": 6.056376,
+          "ETH": 7.016012
+        }
+      },
+      {
+        "key": "market_activity",
+        "label": "Market activity",
+        "winner": "SOL",
+        "scores": {
+          "SOL": 0.05961,
+          "BTC": 0.014415,
+          "ETH": 0.041133
+        }
+      },
+      {
+        "key": "volatility",
+        "label": "Lower measured volatility",
+        "winner": "BTC",
+        "scores": {
+          "SOL": -4.17,
+          "BTC": -2.82,
+          "ETH": -3.63
+        }
+      }
+    ],
+    "winner": "ETH",
+    "conclusion": {
+      "pick": "ETH",
+      "headline": "ETH leads this comparison.",
+      "rationale": "It leads on Momentum / relative strength.",
+      "runner_up_case": "SOL can take the lead if the measured factors rotate.",
+      "confidence": "low",
+      "method": "deterministic"
+    },
+    "coverage_by_token": {
+      "SOL": {
+        "market_data": "available",
+        "token_profile": "unavailable"
+      },
+      "BTC": {
+        "market_data": "available",
+        "token_profile": "unavailable"
+      },
+      "ETH": {
+        "market_data": "available",
+        "token_profile": "unavailable"
+      }
+    }
+  },
+  "summary": {
+    "headline": "ETH leads this comparison.",
+    "key_points": [
+      "It leads on Momentum / relative strength.",
+      "SOL can take the lead if the measured factors rotate."
+    ]
+  },
+  "availability": {
+    "token_market_data": "available",
+    "comparison_factors": "available",
+    "token_profiles": "unavailable",
+    "conclusion": "available"
+  },
+  "warnings": [
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable for one or more tokens.",
+    "The conclusion was calculated from the returned factors; no narrative model was used."
+  ],
+  "trace_id": "fc327f74d03441e790ceecec0b0ad85c"
+}

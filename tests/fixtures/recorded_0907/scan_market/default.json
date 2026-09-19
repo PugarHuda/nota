@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "tool": "scan_market",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-07T09:19:27Z",
+  "request": {},
+  "data": {
+    "filters": {
+      "chain": null,
+      "theme": null,
+      "limit": 5
+    },
+    "selection_method": "Ranked by 24-hour momentum and market activity.",
+    "candidate_count": 5,
+    "candidates": [
+      {
+        "rank": 1,
+        "symbol": "AMC",
+        "name": "A Meme Coin",
+        "chain": null,
+        "contract": "0x385f4f8ae47651ce5f58f5265395a669f8281e18",
+        "price_usd": 0.12493385916779104,
+        "change_24h_pct": 194.07,
+        "market_cap_usd": 124933859.16779104,
+        "volume_24h_usd": 138439114.91039297,
+        "turnover_ratio": 1.11,
+        "momentum_score": 1.0,
+        "established_asset": true,
+        "reason": "#1 momentum · +194.07% over 24h · 1.11 turnover ratio · momentum score 1.00"
+      },
+      {
+        "rank": 2,
+        "symbol": "NOCK",
+        "name": "Nockchain",
+        "chain": null,
+        "contract": "0x9B5E262cF9bb04869ab40b19AF91D2dc85761722",
+        "price_usd": 0.03243451366947016,
+        "change_24h_pct": 59.2,
+        "market_cap_usd": 74819126.56727257,
+        "volume_24h_usd": 4404226.99138392,
+        "turnover_ratio": 0.06,
+        "momentum_score": 1.0,
+        "established_asset": true,
+        "reason": "#2 momentum · +59.20% over 24h · 0.06 turnover ratio · momentum score 1.00"
+      },
+      {
+        "rank": 3,
+        "symbol": "ORCA",
+        "name": "Orca",
+        "chain": null,
+        "contract": "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+        "price_usd": 1.5324034659851264,
+        "change_24h_pct": 14.13,
+        "market_cap_usd": 93168250.07214853,
+        "volume_24h_usd": 119380810.3946624,
+        "turnover_ratio": 1.28,
+        "momentum_score": 0.68,
+        "established_asset": true,
+        "reason": "#3 momentum · +14.13% over 24h · 1.28 turnover ratio · momentum score 0.68"
+      },
+      {
+        "rank": 4,
+        "symbol": "CFG",
+        "name": "Centrifuge",
+        "chain": null,
+        "contract": null,
+        "price_usd": 0.12080628894117144,
+        "change_24h_pct": 16.9,
+        "market_cap_usd": 69723916.36469851,
+        "volume_24h_usd": 57868413.7864348,
+        "turnover_ratio": 0.83,
+        "momentum_score": 0.67,
+        "established_asset": true,
+        "reason": "#4 momentum · +16.90% over 24h · 0.83 turnover ratio · momentum score 0.67"
+      },
+      {
+        "rank": 5,
+        "symbol": "RAY",
+        "name": "Raydium",
+        "chain": null,
+        "contract": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
+        "price_usd": 1.2102232104537332,
+        "change_24h_pct": 7.98,
+        "market_cap_usd": 326202087.18585616,
+        "volume_24h_usd": 341135120.3131578,
+        "turnover_ratio": 1.05,
+        "momentum_score": 0.56,
+        "established_asset": true,
+        "reason": "#5 momentum · +7.98% over 24h · 1.05 turnover ratio · momentum score 0.56"
+      }
+    ],
+    "excluded_candidate_count": 0
+  },
+  "summary": {
+    "headline": "Found 5 ranked candidates.",
+    "key_points": [
+      "Highest-ranked candidates: AMC, NOCK, ORCA."
+    ]
+  },
+  "availability": {
+    "ranked_candidates": "available",
+    "theme_filter": "not_requested"
+  },
+  "warnings": [],
+  "trace_id": "4a98648cf3be455e9026d188a58dc43b"
+}

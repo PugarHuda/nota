@@ -1,21 +1,107 @@
 {
-  "schema_version": "1",
+  "schema_version": "1.0",
   "tool": "scan_market",
   "status": "ok",
   "data_mode": "live",
-  "as_of": "2026-09-01T00:00:00Z",
+  "as_of": "2026-09-19T15:25:28Z",
   "request": {},
   "data": {
-    "theme": null,
-    "chain": null,
+    "filters": {
+      "chain": null,
+      "theme": null,
+      "limit": 5
+    },
+    "selection_method": "Ranked by 24-hour momentum and market activity.",
+    "candidate_count": 5,
     "candidates": [
-      {"symbol": "SOL", "score": 0.81, "reason": "momentum + breadth"},
-      {"symbol": "AVAX", "score": 0.64, "reason": "volume expansion"},
-      {"symbol": "BNB", "score": 0.52, "reason": "steady"}
+      {
+        "rank": 1,
+        "symbol": "AKE",
+        "name": "AKEDO",
+        "chain": null,
+        "contract": "0x2c3a8Ee94dDD97244a93Bc48298f97d2C412F7Db",
+        "price_usd": 0.06262772707546732,
+        "change_24h_pct": 138.59,
+        "market_cap_usd": 1427677323.344122,
+        "volume_24h_usd": 278959915.5985776,
+        "turnover_ratio": 0.2,
+        "momentum_score": 1.0,
+        "established_asset": true,
+        "reason": "#1 momentum · +138.59% over 24h · 0.20 turnover ratio · momentum score 1.00"
+      },
+      {
+        "rank": 2,
+        "symbol": "AR",
+        "name": "Arweave",
+        "chain": null,
+        "contract": null,
+        "price_usd": 4.81018854439479,
+        "change_24h_pct": 54.17,
+        "market_cap_usd": 315800739.86446846,
+        "volume_24h_usd": 205693376.50805727,
+        "turnover_ratio": 0.65,
+        "momentum_score": 1.0,
+        "established_asset": true,
+        "reason": "#2 momentum · +54.17% over 24h · 0.65 turnover ratio · momentum score 1.00"
+      },
+      {
+        "rank": 3,
+        "symbol": "DRV",
+        "name": "Derive",
+        "chain": null,
+        "contract": "0xB1D1eae60EEA9525032a6DCb4c1CE336a1dE71BE",
+        "price_usd": 0.3836221102744044,
+        "change_24h_pct": 49.86,
+        "market_cap_usd": 282932693.3824725,
+        "volume_24h_usd": 212088178.63594812,
+        "turnover_ratio": 0.75,
+        "momentum_score": 1.0,
+        "established_asset": true,
+        "reason": "#3 momentum · +49.86% over 24h · 0.75 turnover ratio · momentum score 1.00"
+      },
+      {
+        "rank": 4,
+        "symbol": "ZAMA",
+        "name": "Zama",
+        "chain": null,
+        "contract": "0xa12cc123ba206d4031d1c7f6223d1c2ec249f4f3",
+        "price_usd": 0.08013273287589495,
+        "change_24h_pct": 42.23,
+        "market_cap_usd": 201508778.3932248,
+        "volume_24h_usd": 201132458.60437962,
+        "turnover_ratio": 1.0,
+        "momentum_score": 1.0,
+        "established_asset": true,
+        "reason": "#4 momentum · +42.23% over 24h · 1.00 turnover ratio · momentum score 1.00"
+      },
+      {
+        "rank": 5,
+        "symbol": "XTZ",
+        "name": "Tezos",
+        "chain": null,
+        "contract": null,
+        "price_usd": 0.3821207800823053,
+        "change_24h_pct": 41.26,
+        "market_cap_usd": 419026513.220908,
+        "volume_24h_usd": 145903978.6769758,
+        "turnover_ratio": 0.35,
+        "momentum_score": 0.96,
+        "established_asset": true,
+        "reason": "#5 momentum · +41.26% over 24h · 0.35 turnover ratio · momentum score 0.96"
+      }
+    ],
+    "excluded_candidate_count": 0
+  },
+  "summary": {
+    "headline": "Found 5 ranked candidates.",
+    "key_points": [
+      "Highest-ranked candidates: AKE, AR, DRV."
     ]
   },
-  "summary": {"headline": "3 candidates ranked by momentum and activity", "key_points": ["SOL leads"]},
-  "availability": {"candidates": "ok"},
+  "availability": {
+    "ranked_candidates": "available",
+    "theme_filter": "not_requested"
+  },
   "warnings": [],
-  "trace_id": "fixture"
+  "trace_id": "7db1ee6b5efc4970bc670a7519500672"
 }

@@ -3,25 +3,25 @@
   "tool": "market_overview",
   "status": "ok",
   "data_mode": "live",
-  "as_of": "2026-09-07T09:17:57Z",
+  "as_of": "2026-09-19T15:27:12Z",
   "request": {},
   "data": {
-    "regime": "neutral",
+    "regime": "risk_on",
     "sentiment": {
       "fear_greed_index": 74.0,
       "label": "greed"
     },
     "market": {
-      "total_market_cap_usd": 2702847828248.123,
-      "total_volume_24h_usd": 73652098063.54,
-      "market_cap_change_24h_pct": -0.35314434,
-      "btc_dominance_pct": 59.079076288858,
-      "eth_dominance_pct": 11.269898025966,
-      "breadth": 0.5326,
+      "total_market_cap_usd": 2791378821523.6055,
+      "total_volume_24h_usd": 85559420257.83,
+      "market_cap_change_24h_pct": 1.16301279,
+      "btc_dominance_pct": 58.742595733441,
+      "eth_dominance_pct": 11.550002040421,
+      "breadth": 0.7826,
       "breadth_details": {
         "universe_size": 92,
-        "advancing": 49,
-        "declining": 43,
+        "advancing": 72,
+        "declining": 20,
         "unchanged": 0,
         "method": "share_of_non_stable_top_listings_with_positive_24h_change"
       }
@@ -29,88 +29,88 @@
     "top_movers": {
       "gainers": [
         {
-          "symbol": "KAS",
-          "name": "Kaspa",
+          "symbol": "XTZ",
+          "name": "Tezos",
           "chain": null,
-          "price_usd": 0.035237096726578425,
-          "change_24h_pct": 16.2049247
-        },
-        {
-          "symbol": "TAO",
-          "name": "Bittensor",
-          "chain": null,
-          "price_usd": 269.45526885278343,
-          "change_24h_pct": 14.33729098
-        },
-        {
-          "symbol": "WLD",
-          "name": "Worldcoin",
-          "chain": null,
-          "price_usd": 0.45518829555227447,
-          "change_24h_pct": 13.35882331
-        },
-        {
-          "symbol": "ICP",
-          "name": "Internet Computer",
-          "chain": null,
-          "price_usd": 3.0195125431656784,
-          "change_24h_pct": 12.64431961
-        },
-        {
-          "symbol": "TIA",
-          "name": "Celestia",
-          "chain": null,
-          "price_usd": 0.4347571486122702,
-          "change_24h_pct": 12.30502085
-        }
-      ],
-      "losers": [
-        {
-          "symbol": "ARB",
-          "name": "Arbitrum",
-          "chain": null,
-          "price_usd": 0.16527982732710636,
-          "change_24h_pct": -16.08211134
-        },
-        {
-          "symbol": "PONS",
-          "name": "Pons",
-          "chain": null,
-          "price_usd": 0.8336438165371546,
-          "change_24h_pct": -10.47694085
-        },
-        {
-          "symbol": "SPX",
-          "name": "SPX6900",
-          "chain": null,
-          "price_usd": 0.5533501740858027,
-          "change_24h_pct": -8.3294059
+          "price_usd": 0.3814074388873713,
+          "change_24h_pct": 40.66496255
         },
         {
           "symbol": "ENA",
           "name": "Ethena",
           "chain": null,
-          "price_usd": 0.17157738347470605,
-          "change_24h_pct": -3.32644575
+          "price_usd": 0.19761680279149055,
+          "change_24h_pct": 20.03783152
         },
         {
-          "symbol": "TRUMP",
-          "name": "OFFICIAL TRUMP",
+          "symbol": "AVAX",
+          "name": "Avalanche",
           "chain": null,
-          "price_usd": 2.2775622514019216,
-          "change_24h_pct": -2.9975424
+          "price_usd": 9.42787867776854,
+          "change_24h_pct": 16.086896
+        },
+        {
+          "symbol": "INJ",
+          "name": "Injective",
+          "chain": null,
+          "price_usd": 7.3774983538507595,
+          "change_24h_pct": 13.62772083
+        },
+        {
+          "symbol": "STX",
+          "name": "Stacks",
+          "chain": null,
+          "price_usd": 0.30365258283988766,
+          "change_24h_pct": 10.92529272
+        }
+      ],
+      "losers": [
+        {
+          "symbol": "PONS",
+          "name": "Pons",
+          "chain": null,
+          "price_usd": 0.6210848191755883,
+          "change_24h_pct": -9.77452048
+        },
+        {
+          "symbol": "PIEVERSE",
+          "name": "Pieverse",
+          "chain": null,
+          "price_usd": 1.5236566690304951,
+          "change_24h_pct": -6.84514743
+        },
+        {
+          "symbol": "PUMP",
+          "name": "Pump.fun",
+          "chain": null,
+          "price_usd": 0.004112062478925364,
+          "change_24h_pct": -5.20005684
+        },
+        {
+          "symbol": "NEAR",
+          "name": "NEAR Protocol",
+          "chain": null,
+          "price_usd": 3.564237240459867,
+          "change_24h_pct": -4.66571
+        },
+        {
+          "symbol": "M",
+          "name": "MemeCore",
+          "chain": null,
+          "price_usd": 1.2834568912243594,
+          "change_24h_pct": -3.40254953
         }
       ]
     }
   },
   "summary": {
-    "headline": "Market regime: neutral; sentiment: greed (74/100).",
+    "headline": "Market regime: risk on; sentiment: greed (74/100).",
     "key_points": [
-      "24h market-cap change: -0.35%.",
-      "BTC dominance: +59.08%.",
-      "ETH dominance: +11.27%.",
-      "Total market cap: $2.70T.",
-      "24h market volume: $73.65B."
+      "24h market-cap change: +1.16%.",
+      "BTC dominance: +58.74%.",
+      "ETH dominance: +11.55%.",
+      "Total market cap: $2.79T.",
+      "24h market volume: $85.56B."
     ]
   },
   "availability": {
@@ -121,5 +121,5 @@
     "top_movers": "available"
   },
   "warnings": [],
-  "trace_id": "a7c49a29acc3498aa73f9a5a7ebe07de"
+  "trace_id": "4c02404fdb5647c78a61660457eda934"
 }

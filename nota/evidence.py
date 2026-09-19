@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field
@@ -28,6 +29,9 @@ SECTIONS: dict[str, str] = {
     "compare": "compare_tokens",
 }
 PRIMARY = "deep_analysis"
+# Evidence that came from RYO: straight from the server, or replayed from a recording of it. Anything
+# else (a hand-built pack, a test double) may be read but never sizes a trade or enters a score.
+SCORED_SOURCES = ("live", "recorded")
 BENCHMARKS = ("BTC", "ETH", "SOL")  # relative-strength peers; the token itself is excluded
 
 
@@ -50,6 +54,7 @@ class Section(BaseModel):
     status: SectionStatus
     envelope: Envelope | None = None
     error: str | None = None
+    trace_id: str | None = None  # RYO's trace id for a failed call, which is what its support asks for
 
 
 class EvidencePack(BaseModel):
@@ -135,7 +140,7 @@ class EvidencePack(BaseModel):
         return {
             k: {"tool": s.tool, "as_of": s.envelope.as_of if s.envelope else None,
                 "data_mode": s.envelope.data_mode if s.envelope else None,
-                "trace_id": s.envelope.trace_id if s.envelope else None, "status": s.status}
+                "trace_id": s.envelope.trace_id if s.envelope else s.trace_id, "status": s.status}
             for k, s in self.sections.items()
         }
 
@@ -177,16 +182,25 @@ def candidate_symbols(node: Any) -> list[str]:
 Extra = Callable[[str, "EvidencePack"], Envelope]  # our own skill, called with the symbol and the RYO sections gathered so far
 
 
+def _fetch(source: RyoSource, tool: str, args: dict[str, Any]) -> Section:
+    try:
+        env = source.call(tool, args)
+        return Section(tool=tool, status=env.status, envelope=env)
+    except RyoError as exc:
+        return Section(tool=tool, status="error", error=f"{exc.code}: {exc.message}", trace_id=exc.trace_id)
+
+
 def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: dict[str, Extra] | None = None) -> EvidencePack:
+    """The five RYO reads run three at a time (deep_analysis alone takes 20-46 s), and the client's pacer
+    keeps them inside RYO's fan-out bucket. Sections are inserted in SECTIONS order whatever finishes
+    first, so the stored pack and its hash are the same as a sequential gather's."""
     symbol = symbol.upper()
     args = ryo_args(symbol, include_perp)
     pack = EvidencePack(symbol=symbol, created_at=now_iso(), source=source.name)
-    for key, tool in SECTIONS.items():
-        try:
-            env = source.call(tool, args[key])
-            pack.sections[key] = Section(tool=tool, status=env.status, envelope=env)
-        except RyoError as exc:
-            pack.sections[key] = Section(tool=tool, status="error", error=f"{exc.code}: {exc.message}")
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {key: pool.submit(_fetch, source, tool, args[key]) for key, tool in SECTIONS.items()}
+    for key in SECTIONS:
+        pack.sections[key] = futures[key].result()
     for key, fn in (extras or {}).items():
         try:
             env = fn(symbol, pack)

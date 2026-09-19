@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def pack(symbol="SOL"):
-    return gather(RecordedRyoClient(FIXTURES, name="fixture"), symbol)
+    return gather(RecordedRyoClient(FIXTURES), symbol)
 
 
 def v(action="long", p=0.65):
@@ -42,22 +43,39 @@ def test_missing_atr_is_blocked_not_zeroed():
     assert isinstance(out, Blocked) and "ATR" in out.reason
 
 
+def _price_atr():
+    """RYO's recorded SOL price and absolute ATR: the numbers the sizing rule is applied to."""
+    deep = json.loads((FIXTURES / "deep_analysis" / "SOL.json").read_text(encoding="utf-8"))["data"]
+    return deep["market"]["price_usd"], deep["trade_plan"]["atr_14_usd"]
+
+
 def test_long_sizing_math():
-    # price 150, ATR 6, stop mult 2 -> stop distance 12, risk 1% of 10000 = 100 -> 8.3333 units = 1250 USD
+    # stop 2 ATR below, target 3 ATR above; risk 1% of 10000 = 100 USD over a 2-ATR stop distance
+    price, atr = _price_atr()
     t = size_trade(v("long", 0.65), pack(), RiskLimits())
     assert isinstance(t, PracticeTrade)
-    assert t.side == "long" and t.entry_price == 150.0 and t.stop_price == 138.0 and t.target_price == 168.0
-    assert t.risk_usd == 100.0 and t.size_units == pytest.approx(8.3333, abs=1e-3) and t.size_usd == 1250.0
+    assert t.side == "long" and t.entry_price == price
+    assert t.stop_price == pytest.approx(price - 2 * atr) and t.target_price == pytest.approx(price + 3 * atr)
+    units = 100.0 / (2 * atr)
+    assert units * price < 2000  # under the 20% position cap, so the full 1% risk is taken
+    assert t.risk_usd == 100.0 and t.size_units == pytest.approx(units, abs=1e-5) and t.size_usd == pytest.approx(units * price, abs=0.01)
     assert t.edge == 0.65 and t.source_paths["atr"] == "deep_analysis.data.trade_plan.atr_14_usd"
 
 
 def test_short_sizing_and_position_cap():
-    # cap at 5% of 10000 = 500 USD -> 3.3333 units, risk shrinks to 40 USD
+    # cap at 5% of 10000 = 500 USD, so the risk shrinks below 100 USD
+    price, atr = _price_atr()
     t = size_trade(v("short", 0.3), pack(), RiskLimits(max_position_pct=5.0))
     assert isinstance(t, PracticeTrade)
-    assert t.side == "short" and t.stop_price == 162.0 and t.target_price == 132.0
-    assert t.size_usd == 500.0 and t.risk_usd == 40.0 and t.edge == 0.7
+    assert t.side == "short" and t.stop_price == pytest.approx(price + 2 * atr) and t.target_price == pytest.approx(price - 3 * atr)
+    assert t.size_usd == 500.0 and t.risk_usd == pytest.approx(500.0 / price * 2 * atr, abs=0.01) and t.edge == 0.7
 
+
+def test_evidence_that_is_not_from_ryo_never_sizes_a_trade():
+    p = pack()
+    p.source = "fixture"
+    out = size_trade(v("long", 0.8), p)
+    assert isinstance(out, Blocked) and "not RYO's" in out.reason
 
 
 def _priced(price, atr):

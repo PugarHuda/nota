@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -121,11 +122,12 @@ TAVILY = {"results": [
 def test_news_verify_corroboration_and_market_context():
     route = respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(200, json=TAVILY))
     env = news_verify("SOL ETF filed", symbol="sol", rss=False, tavily=Tavily(api_key="tvly-test", http=httpx.Client()),
-                      ryo=RecordedRyoClient(FIXTURES, name="fixture"))
+                      ryo=RecordedRyoClient(FIXTURES))
     assert route.calls[0].request.headers["Authorization"] == "Bearer tvly-test"
     assert env.status == "ok" and env.data["verdict"] == "weak"  # coindesk + theblock = 2 relevant domains
     assert env.data["distinct_domains"] == 2 and env.data["top_score"] == 0.9
-    assert env.data["market_context"]["symbol"] == "SOL" and env.data["market_context"]["headline"] == "SOL steady"
+    assert env.data["market_context"]["symbol"] == "SOL" and env.data["market_context"]["headline"] == json.loads(
+        (FIXTURES / "analyze_token" / "SOL.json").read_text(encoding="utf-8"))["summary"]["headline"]
     assert env.availability == {"search": "available", "market": "available"}
     assert "Claim weak" in env.summary.headline
 
@@ -133,7 +135,7 @@ def test_news_verify_corroboration_and_market_context():
 @respx.mock
 def test_news_verify_search_down_is_unavailable_but_market_still_attached():
     respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(503))
-    env = news_verify("anything", symbol="SOL", rss=False, tavily=Tavily(api_key="tvly-test", http=httpx.Client()), ryo=RecordedRyoClient(FIXTURES, name="fixture"))
+    env = news_verify("anything", symbol="SOL", rss=False, tavily=Tavily(api_key="tvly-test", http=httpx.Client()), ryo=RecordedRyoClient(FIXTURES))
     assert env.status == "unavailable" and env.data["verdict"] is None and env.availability["market"] == "available"
 
 

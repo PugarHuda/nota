@@ -35,7 +35,7 @@ def fake(action="long"):
 
 
 def pack():
-    return gather(RecordedRyoClient(FIXTURES, name="fixture"), "SOL")
+    return gather(RecordedRyoClient(FIXTURES), "SOL")
 
 
 def test_council_runs_three_roles_and_judge_with_citation_validation():

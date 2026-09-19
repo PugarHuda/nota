@@ -1,0 +1,20 @@
+{
+ "captured": "live from app-ryochan.com/api/mcp on 2026-09-19: tools/call check_safety {}",
+ "status": 200,
+ "headers": {
+  "date": "Sat, 19 Sep 2026 15:32:01 GMT",
+  "content-type": "application/json",
+  "x-trace-id": "b205521e288b43b4ab81eefcf890450e"
+ },
+ "body": {
+  "jsonrpc": "2.0",
+  "id": 3,
+  "error": {
+   "code": -32602,
+   "message": "Unknown tool: check_safety",
+   "data": {
+    "trace_id": "b205521e288b43b4ab81eefcf890450e"
+   }
+  }
+ }
+}

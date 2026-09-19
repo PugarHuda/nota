@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "tool": "deep_analysis",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:27:44Z",
+  "request": {
+    "symbol": "ETH",
+    "include_perp": true
+  },
+  "data": {
+    "asset": {
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "chain": null,
+      "contract": null,
+      "rank": 2
+    },
+    "market": {
+      "mcap_usd": 322404071823.76294,
+      "fdv_usd": 322404071823.76,
+      "volume_24h_usd": 15172424435.854324,
+      "dominance_pct": 11.5492,
+      "circulating_supply": 122061836.5153193,
+      "max_supply": null,
+      "price_usd": 2641.3175569687564
+    },
+    "performance": {
+      "h1": -0.02615145,
+      "h24": 2.19592214,
+      "d7": 3.99541217,
+      "d30": 14.99890434
+    },
+    "technical_analysis": {
+      "trend": "sideways",
+      "rsi_14": 66.1,
+      "momentum_30d_pct": 14.99890434,
+      "atr_14_pct": 3.98
+    },
+    "confluence": {
+      "state": "MIXED",
+      "score": 0.67,
+      "gates": [
+        {
+          "name": "momentum",
+          "passed": false,
+          "detail": {
+            "trend": "sideways",
+            "rsi_14": 66.1
+          }
+        },
+        {
+          "name": "market_activity",
+          "passed": true,
+          "detail": {
+            "volume_to_market_cap": 0.0471
+          }
+        },
+        {
+          "name": "derivatives",
+          "passed": true,
+          "detail": {
+            "veto": false
+          }
+        }
+      ],
+      "status": "available"
+    },
+    "verdict": {
+      "call": "neutral",
+      "headline": "ETH deep analysis: neutral.",
+      "bottom_line": "The measured market and technical signals are mixed.",
+      "key_driver": "The measured market and technical signals are mixed.",
+      "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture.",
+      "confluence_score": 0.67
+    },
+    "token_profile": {
+      "ok": true,
+      "data": {
+        "type": "evidence_pack",
+        "skill_id": "altcoin_token_profile",
+        "timestamp": "2026-09-19T15:27:19.971002+00:00",
+        "data": {
+          "status": "partial",
+          "confidence": "low",
+          "missing_or_stale_inputs": [
+            "live holder coverage",
+            "stable protocol-history deltas"
+          ],
+          "decision_report": {
+            "title": "ETH Token Profile",
+            "brand_line": "Powered By CoinMarketCap",
+            "conclusion": "Ethereum (ETH) token profile has verified identity, up-to-date market snapshot, and partial protocol context, with explicit unresolved coverage gaps limiting full fundamental confidence.",
+            "analysis": "### Token Identity\nETH is the native token of Ethereum, ranked #2 overall by market capitalization. It is classified as a layer-1 proof-of-stake smart contract platform, with broad support from major venture portfolios and inclusion in public strategic crypto reserve lists. The tracked contract address for the resolved asset is deployed on BNB Smart Chain (BEP20).\n\n### Market Context\nAs of the latest snapshot, ETH trades at $2641.64, with a total market capitalization of ~$322.44B. 24-hour trading volume stands at ~$15.05B, representing a 4.67% volume-to-market-cap ratio. Recent price performance is positive: +1.93% over the last 24 hours, +4.02% over 7 days, +14.96% over 30 days, and +52.91% over the past 90 days. ETH outperformed BTC by 1.2% in the 24-hour window.\n\n### Protocol Context\nProtocol matching succeeded for Ethereum. The profile records 24h protocol fees of $511,682 and 24h protocol revenue of $156,654. Current TVL and TVL trend metrics are not available in the current coverage window, as an explicit data gap.\n\n### Holder Coverage\nLive holder coverage is currently unavailable for this profile run. No ownership distribution, concentration, or top holder metrics are included in this context.\n\n### Public Content Context\nThere are 3 recent public news items covering Ethereum as of this profile run, all referencing recent price strength above the $2600 level and growing positive price prediction sentiment for the asset.\n\n### Explicit Coverage Gaps\nTwo key coverage gaps remain that limit analysis confidence: 1) No live holder ownership data is available for this run, and 2) Stable protocol-history deltas including historical TVL trends are not present. These gaps should be resolved before drawing stronger fundamental conclusions from this profile alone."
+          },
+          "action_guidance": {
+            "bias": "context_only",
+            "reference_action": "Use this package as token-profile context before deeper research, not as execution instruction."
+          }
+        }
+      },
+      "execution": {
+        "status": "completed",
+        "elapsed_ms": 29211
+      }
+    },
+    "derivatives": {
+      "symbol": "ETH",
+      "funding_rate_bps": 0.0,
+      "funding_trend": "stable",
+      "open_interest_change_24h_pct": -0.69032,
+      "long_short_ratio": null,
+      "liquidation_pressure": "balanced",
+      "squeeze_risk": "low",
+      "veto": false,
+      "veto_reason": null
+    },
+    "trade_plan": {
+      "entry": 2641.3176,
+      "stop": 2483.6309,
+      "targets": [
+        2799.0042,
+        2956.6909
+      ],
+      "atr_14_usd": 105.1244,
+      "atr_14_pct": 3.98,
+      "atr_multiplier": 1.5,
+      "risk_reward": [
+        1.0,
+        2.0
+      ],
+      "method": "wilder_atr_14_from_daily_ohlcv",
+      "preview_only": true
+    },
+    "intelligence": {
+      "narrative": "coin, pos, smart-contracts, ethereum-ecosystem, coinbase-ventures-portfolio",
+      "catalysts": [],
+      "risks": []
+    }
+  },
+  "summary": {
+    "headline": "ETH deep analysis: neutral.",
+    "key_points": [
+      "The measured market and technical signals are mixed.",
+      "Key driver: The measured market and technical signals are mixed.",
+      "What changes the view: A material change in trend, momentum, activity, or derivatives posture."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "token_profile": "partial",
+    "derivatives": "available",
+    "trade_plan": "available"
+  },
+  "warnings": [
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable."
+  ],
+  "trace_id": "e41f3032f77e45ad92ec37beb6095f92"
+}
