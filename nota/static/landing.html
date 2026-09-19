@@ -90,6 +90,22 @@
   </div>
 </section>
 
+<section id="scorecard">
+  <div class="wrap">
+    <h2>It also keeps RYO's score.</h2>
+    <p class="lede">Every <code>deep_analysis</code> answer comes with a verdict and a trade plan, and RYO keeps no
+      record of what became of either. Nota locks those plans for 25 majors once a day and settles each one on
+      OKX's hourly candles, so one question finally has an answer: does RYO's verdict change how often RYO's own
+      plan works?</p>
+    <p id="scorecard-line" class="note"
+       data-line="%n plans locked over %d day(s). %c of them point the other way from RYO's own verdict."
+       data-settled="%t of %k decided plans reached RYO's +1R target before its stop within 24 hours."
+       data-none="None has settled yet; the first settles %w."
+       data-error="The scorecard could not be read: %e">reading the scorecard…</p>
+    <p><a class="btn ghost" href="/scorecard">Open the scorecard</a></p>
+  </div>
+</section>
+
 <section id="how">
   <div class="wrap">
     <h2>How one decision is made</h2>
@@ -179,13 +195,14 @@
       <article>
         <div class="no">Track 2</div>
         <div><h3>Dashboard</h3><p>Diff first and keyboard first, with replay verification, Open Graph receipt cards,
-          and a public backing leaderboard scored when a call resolves.</p></div>
+          a public backing leaderboard scored when a call resolves, and the RYO Verdict Scorecard.</p></div>
       </article>
       <article>
         <div class="no">Track 3</div>
-        <div><h3>Skills</h3><p>Four research skills served on RYO's own /api/skills paths in RYO's envelope, so
+        <div><h3>Skills</h3><p>Seven research skills served on RYO's own /api/skills paths in RYO's envelope, so
           adding them to RYO is a route registration rather than a port: narrative convergence, news verification,
-          price cross-check and technicals cross-check.</p></div>
+          price and technicals cross-checks, a derivatives positioning check, a move base rate, and RYO's own
+          verdict track record.</p></div>
       </article>
     </div>
   </div>

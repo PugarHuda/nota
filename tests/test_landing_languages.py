@@ -90,9 +90,9 @@ def test_no_english_sentence_is_left_inside_the_shared_script(lang):
     for attr in ("data-idle", "data-running", "data-waiting", "data-ok", "data-drift",
                  "data-unreachable", "data-mark-label", "data-source-label", "data-none",
                  "data-col-section", "data-col-status", "data-blocked", "data-sized", "data-label",
-                 "data-caption"):
+                 "data-caption", "data-line", "data-settled"):
         assert attr + '="' in page, f"{lang} does not supply {attr}"
-    assert page.count('data-error="') == 2      # the ledger row and the failure panel
+    assert page.count('data-error="') == 3      # the ledger row, the failure panel, the scorecard line
 
 
 def test_the_two_pages_offer_the_same_set_of_sentences():

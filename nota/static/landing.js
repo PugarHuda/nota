@@ -220,3 +220,21 @@ btn.addEventListener('click', async () => {
     verdictLine('no', out.dataset.unreachable || 'could not reach the API', e.message);
   } finally { btn.disabled = false; }
 });
+
+// The scorecard line: RYO's own plans, locked and settled. Numbers from /api/scorecard, words from the
+// page, so both languages say the same thing about the same ledger.
+(async () => {
+  const el = document.getElementById('scorecard-line');
+  if (!el) return;
+  try {
+    const s = await (await fetch('/api/scorecard')).json();
+    const [hit, k] = s.target_first;
+    const first = s.open[0] && new Date(s.open[0].settles_at).toLocaleString(document.documentElement.lang,
+      {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    el.textContent = el.dataset.line.replace(/%n/g, s.open.length + s.settled.length).replace(/%d/g, s.lock_days)
+      .replace(/%c/g, s.contradictions) + ' ' + (k ? el.dataset.settled.replace(/%t/g, hit).replace(/%k/g, k)
+      : el.dataset.none.replace(/%w/g, first || '—'));
+  } catch (e) {
+    el.textContent = el.dataset.error.replace(/%e/g, e.message);
+  }
+})();
