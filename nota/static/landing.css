@@ -1,169 +1,209 @@
-/* The landing's whole appearance, shared by every language of it. One system with the dashboard:
-   same tokens, same two families, same 2px corner. Native CSS, no framework, so it works offline. */
-:root { color-scheme: light dark;
-  --paper:light-dark(#f5f4f0,#121316); --panel:light-dark(#ffffff,#191a1e);
-  --ink:light-dark(#17171b,#e8e7e2); --ink-2:light-dark(#5c5f6b,#9a9ca6);
-  --rule:light-dark(#e2e0d9,#2b2d34); --rule-2:light-dark(#c9c6bc,#3a3d45);
-  --accent:light-dark(#1b4b8f,#82a9e6);
-  --long:light-dark(#2c6a4e,#61a482); --short:light-dark(#a83a2c,#e0806d);
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",
-          "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --measure:66ch; --pad:clamp(20px,5vw,64px);
+/* Nota's one visual system, shared by every page (the landing in both languages, the dashboard,
+   the scorecard, the walkthrough).
+
+   The idea is the thing the product makes: a 領収書, a Japanese receipt. Documents are white
+   sheets on a blue-grey desk, ruled in the pale indigo that printed forms use, headed with a
+   double rule, and stamped. Vermilion is the seal's ink and nothing else: it marks what was
+   verified, so it never decorates. Indigo is the ink everything else is written in. */
+
+@font-face { font-family:"Dela Gothic One"; font-weight:400; font-display:swap; unicode-range:U+0000-00FF,U+2000-206F;
+  src:url(/fonts/DelaGothicOne-400.woff2) format("woff2") }
+/* only the characters the Japanese headings use (fonts/DelaGothicOne-ja.txt, checked by a test) */
+@font-face { font-family:"Dela Gothic One"; font-weight:400; font-display:swap; unicode-range:U+3000-30FF,U+4E00-9FFF,U+FF00-FFEF;
+  src:url(/fonts/DelaGothicOne-ja.woff2) format("woff2") }
+@font-face { font-family:"BIZ UDPGothic"; font-weight:400; font-display:swap;
+  src:url(/fonts/BIZUDPGothic-400.woff2) format("woff2") }
+@font-face { font-family:"BIZ UDPGothic"; font-weight:700; font-display:swap;
+  src:url(/fonts/BIZUDPGothic-700.woff2) format("woff2") }
+@font-face { font-family:"BIZ UDGothic"; font-weight:400; font-display:swap;
+  src:url(/fonts/BIZUDGothic-400.woff2) format("woff2") }
+@font-face { font-family:"BIZ UDGothic"; font-weight:700; font-display:swap;
+  src:url(/fonts/BIZUDGothic-700.woff2) format("woff2") }
+
+:root { color-scheme:light dark;
+  --desk:light-dark(#edf0f5,#0e1322);      /* what the paper lies on */
+  --paper:light-dark(#ffffff,#161c30);     /* a document */
+  --ink:light-dark(#1e2b5e,#e4e8f4);       /* 藍 indigo: text and structure */
+  --ink-2:light-dark(#586074,#a3abc2);     /* 鼠 secondary text, 4.5:1 on paper and desk */
+  --form:light-dark(#c8d0e4,#2c3554);      /* printed form rules */
+  --form-2:light-dark(#9eaacb,#46527a);
+  --seal:light-dark(#d23f29,#f06a52);      /* 朱 the seal, and only the seal */
+  --long:light-dark(#23714f,#5fbf91);      /* 若竹 */
+  --short:light-dark(#9c2a3c,#ee8595);     /* 臙脂 */
+  --display:"Dela Gothic One","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+  --text:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Meiryo","Noto Sans JP",sans-serif;
+  --fig:"BIZ UDGothic","BIZ UDPGothic","Hiragino Sans","Meiryo",ui-monospace,monospace;
+  --measure:68ch; --pad:clamp(16px,5vw,64px);
+  /* aliases the pages already speak */
+  --panel:var(--paper); --rule:var(--form); --rule-2:var(--form-2); --accent:var(--ink);
+  --mono:var(--fig); --serif:var(--text);
 }
 * { box-sizing:border-box }
-body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.6 var(--serif);
-       -webkit-font-smoothing:antialiased }
-code, .mono, kbd, .num { font-family:var(--mono); font-variant-numeric:tabular-nums }
-a { color:var(--accent); text-underline-offset:3px }
-:focus-visible { outline:2px solid var(--accent); outline-offset:3px }
+html { background:var(--desk) }
+body { margin:0; background:var(--desk); color:var(--ink); font:16px/1.75 var(--text);
+       -webkit-font-smoothing:antialiased; font-feature-settings:"palt" 0 }
+code, kbd, .num, .mono { font-family:var(--fig); font-variant-numeric:tabular-nums; font-size:.94em }
+a { color:var(--ink); text-decoration-color:var(--form-2); text-underline-offset:3px; text-decoration-thickness:1px }
+a:hover { text-decoration-color:var(--ink) }
+:focus-visible { outline:2px solid var(--ink); outline-offset:3px }
 img { max-width:100%; display:block }
-.wrap { max-width:1120px; margin:0 auto; padding:0 var(--pad) }
+.wrap { max-width:1160px; margin:0 auto; padding:0 var(--pad) }
 
-/* navigation: one line, 62px */
-nav { height:62px; display:flex; align-items:center; gap:26px; border-bottom:1px solid var(--rule);
-      background:var(--panel); position:sticky; top:0; z-index:10 }
+/* navigation: the wordmark borrows RYO-CHAN's own device, the red circle between two words */
+nav { height:64px; display:flex; align-items:center; background:var(--paper); border-bottom:1px solid var(--form);
+      position:sticky; top:0; z-index:10 }
 nav .wrap { display:flex; align-items:center; gap:26px; width:100% }
-nav b { font-size:19px; letter-spacing:-.01em }
-nav a { font:13px/1 var(--mono); color:var(--ink-2); text-decoration:none }
+nav b, nav b a { font:400 21px/1 var(--display); letter-spacing:.02em; color:var(--ink); text-decoration:none;
+                 display:inline-flex; align-items:center; gap:8px }
+nav b::after { content:""; width:9px; height:9px; border-radius:50%; background:var(--seal); order:-1 }
+nav a { font-size:14px; color:var(--ink-2); text-decoration:none }
 nav a:hover { color:var(--ink) }
-nav .right { margin-left:auto; display:flex; align-items:center; gap:20px }
-nav .cta { color:var(--accent) }
-@media (max-width:640px) { nav .right a:not(.cta) { display:none } }
+nav .right { margin-left:auto; display:flex; align-items:center; gap:22px }
+nav .cta { color:var(--ink); font-weight:700 }
+@media (max-width:760px) { nav .right a:not(.cta) { display:none } }
 
-/* hero: headline, subtext, two actions on the left; the working product on the right, tilted and
-   running past the edge so it reads as a window into something real rather than a picture of one.
-   The substrate is a ledger rule, not a gradient: nota means the slip a transaction leaves. */
-header { padding:clamp(40px,7vh,68px) 0 clamp(40px,7vh,60px); overflow:hidden; position:relative }
-header::before { content:""; position:absolute; inset:0; pointer-events:none;
-  background:repeating-linear-gradient(to bottom, transparent 0 31px,
-    light-dark(rgba(23,23,27,.05), rgba(232,231,226,.05)) 31px 32px);
-  mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 62%, transparent) }
-header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);
-               gap:clamp(24px,4vw,52px); align-items:center; position:relative }
-.seal { display:flex; flex-direction:column; align-items:center; gap:16px }
-.seal svg { width:min(420px,86%); height:auto; overflow:visible }
-.seal figcaption { max-width:40ch; text-align:center; margin:0; line-height:1.75 }
-.seal .tick, .ledger .tick { stroke:var(--ink); stroke-width:1.4; opacity:.5 }
-.seal .ring, .ledger .ring { fill:none; stroke:var(--rule-2) }
-.seal .arc, .ledger .arc { fill:none; stroke:var(--accent); stroke-width:9; stroke-linecap:butt }
-.seal .arc-track, .ledger .arc-track { fill:none; stroke:var(--rule); stroke-width:9 }
-.seal .petal { fill:none; stroke:var(--ink); stroke-width:1; opacity:.32 }
-.seal .core, .ledger .core { fill:var(--panel); stroke:var(--rule-2) }
-.seal .p, .ledger .p { font:600 46px/1 var(--serif); fill:var(--ink); text-anchor:middle }
-.seal .plabel { font:11px/1 var(--mono); fill:var(--ink-2); text-anchor:middle }
+/* type */
+h1 { font:400 clamp(34px,4.1vw,50px)/1.16 var(--display); letter-spacing:-.005em; margin:0; max-width:15ch }
+h2 { font:400 clamp(24px,2.8vw,32px)/1.3 var(--display); margin:0 0 16px; max-width:26ch }
+h3 { font:700 17px/1.5 var(--text); margin:0 0 4px }
+:lang(ja) h1, :lang(ja) h2 { word-break:auto-phrase; line-height:1.4 }
+p { max-width:var(--measure) }
+.sub { font-size:clamp(17px,1.5vw,19px); color:var(--ink-2); margin:20px 0 0; max-width:44ch }
+.lede { color:var(--ink-2); margin:0 0 30px }
+.note { margin-top:22px; font-size:15px; color:var(--ink-2) }
+
+/* actions: an ink button and a ruled one; nothing glows */
+.actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px }
+.btn { font:700 15px/1 var(--text); padding:14px 20px; white-space:nowrap; text-decoration:none; border-radius:3px;
+       border:1.5px solid var(--ink); color:var(--paper); background:var(--ink) }
+.btn.ghost { background:var(--paper); color:var(--ink) }
+.btn:hover { background:light-dark(#2b3a78,#f2f4fa); border-color:light-dark(#2b3a78,#f2f4fa) }
+.btn.ghost:hover { background:var(--desk); border-color:var(--ink) }
+
+/* ---------------------------------------------------------------------------------------------
+   The document: a sheet of paper, ruled like a form, headed with a double rule. */
+.sheet { background:var(--paper); border:1px solid var(--form); border-radius:2px; padding:26px 28px }
+.sheet-title { display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+               padding-bottom:10px; margin-bottom:6px; border-bottom:3px double var(--ink) }
+.sheet-title strong { font:400 22px/1.2 var(--display); letter-spacing:.14em }
+.sheet-title span { font:13px/1.4 var(--fig); color:var(--ink-2) }
+
+/* hero: the claim on the left, the receipt it is about on the right */
+header { padding:clamp(40px,7vh,72px) 0 clamp(44px,7vh,68px) }
+header .wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,.94fr); gap:clamp(28px,5vw,64px); align-items:center }
+@media (max-width:960px) { header .wrap { grid-template-columns:1fr } }
+
+.slip { position:relative }
+.slip dl { display:grid; grid-template-columns:auto 1fr; margin:0 0 4px }
+.slip dt, .slip dd { padding:9px 0; border-bottom:1px solid var(--form); margin:0 }
+.slip dt { font-size:13px; color:var(--ink-2); padding-right:18px; white-space:nowrap }
+.slip dd { font:15px/1.4 var(--fig); text-align:right; overflow-wrap:anywhere }
+.slip dd.long { color:var(--long) } .slip dd.short { color:var(--short) }
+.slip .received { font-size:13px; color:var(--ink-2); margin:12px 0 0; max-width:30ch }
+
+/* the seal: the evidence hash as a hanko, pressed onto the slip at a hand's angle */
+.seal { margin:-18px 0 0 auto; width:min(236px,58%); display:flex; flex-direction:column; align-items:center; gap:10px }
+.seal svg { width:100%; height:auto; overflow:visible; transform:rotate(-7deg) }
+.seal figcaption { font-size:13px; line-height:1.7; color:var(--ink-2); text-align:center; max-width:34ch; margin:0 }
+.seal .ring, .ledger .ring { fill:none; stroke:var(--seal); stroke-width:3 }
+.seal .tick, .ledger .tick { stroke:var(--seal); stroke-width:2.2; stroke-linecap:round }
+.seal .petal { fill:none; stroke:var(--seal); stroke-width:1.2; opacity:.35 }
+.seal .arc-track, .ledger .arc-track { fill:none; stroke:var(--seal); stroke-width:9; opacity:.16 }
+.seal .arc, .ledger .arc { fill:none; stroke:var(--seal); stroke-width:9 }
+.seal .core, .ledger .core { fill:var(--paper); stroke:var(--seal); stroke-width:2.5 }
+.seal .p, .ledger .p { font:400 54px/1 var(--display); fill:var(--seal); text-anchor:middle }
+.seal .plabel { font:22px/1 var(--fig); fill:var(--seal); text-anchor:middle }
+.seal svg, .ledger svg { filter:url(#ink) }
+
+/* the second seal: 照合済, "checked against the record", pressed only when the replay came back
+   identical. It is the page's one moment of motion, and it answers the reader's own click. */
+.kakuin { position:absolute; left:26px; bottom:92px; width:92px; height:92px; display:grid; place-items:center;
+          border:3.5px solid var(--seal); border-radius:6px; color:var(--seal); transform:rotate(9deg);
+          font:400 22px/1.15 var(--display); text-align:center; opacity:0; pointer-events:none; filter:url(#ink) }
+.kakuin small { display:block; font:700 10px/1.3 var(--text); letter-spacing:.08em }
+.stamped .kakuin { opacity:.92 }
 @media (prefers-reduced-motion: no-preference) {
-  .seal .tick, .seal .petal { animation:ink .7s both } .seal .arc { animation:sweep .9s .15s both }
-  @keyframes ink { from { opacity:0 } }
-  @keyframes sweep { from { stroke-dasharray:0 9999 } }
-}
-.stage .frame { border:1px solid var(--rule-2); border-radius:3px; overflow:hidden; aspect-ratio:16/10.6;
-  transform:rotateY(-9deg) rotateX(2deg) translateZ(0); transform-origin:left center;
-  box-shadow:0 30px 60px -28px light-dark(rgba(23,23,27,.34), rgba(0,0,0,.72)),
-             0 2px 8px light-dark(rgba(23,23,27,.06), rgba(0,0,0,.4)) }
-/* zoom into the receipt column: a legible detail beats a whole page shrunk to a smudge */
-.stage .frame img { width:196%; height:auto; display:block; margin:-1.5% 0 0 -25% }
-@media (max-width:960px) { .stage .frame img { width:150%; margin:0 0 0 -14% } }
-@media (max-width:960px) {
-  header .wrap { grid-template-columns:1fr }
-  .stage { margin-right:0; perspective:none }
-  .stage .frame { transform:none }
+  .stamped .kakuin { animation:press .34s cubic-bezier(.2,.9,.25,1.05) both }
+  @keyframes press { from { opacity:0; transform:rotate(9deg) scale(1.9) } 60% { opacity:.95 } to { transform:rotate(9deg) scale(1) } }
 }
 
 /* the hero's own proof, run against the deployed API on click */
-.verify { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:26px;
-          font:13px/1.6 var(--mono); color:var(--ink-2) }
-.verify button { font:13px/1 var(--mono); padding:10px 14px; border:1px solid var(--rule-2);
-                 border-radius:2px; background:var(--panel); color:var(--ink); cursor:pointer }
-.verify button:hover { border-color:var(--accent); color:var(--accent) }
-.verify output { font-variant-numeric:tabular-nums }
+.verify { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:28px; font-size:14px; color:var(--ink-2) }
+.verify button { font:700 14px/1 var(--text); padding:12px 16px; border:1.5px solid var(--seal); border-radius:3px;
+                 background:var(--paper); color:var(--seal); cursor:pointer }
+.verify button:hover { background:var(--seal); color:var(--paper) }
+.verify button:disabled { opacity:.6; cursor:progress }
+.verify output { font-family:var(--fig); font-variant-numeric:tabular-nums }
 .verify .yes { color:var(--long) } .verify .no { color:var(--short) }
-h1 { font:600 clamp(34px,3.7vw,45px)/1.1 var(--serif); letter-spacing:-.028em; margin:0; max-width:19ch; hyphens:none }
-.sub { font-size:clamp(17px,1.6vw,20px); color:var(--ink-2); margin:18px 0 0; max-width:46ch }
-.actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px }
-.btn { font:13px/1 var(--mono); padding:12px 16px; white-space:nowrap; border-radius:2px; text-decoration:none;
-       border:1px solid var(--accent); color:var(--paper); background:var(--accent) }
-.btn.ghost { background:none; color:var(--accent) }
-.btn:hover { filter:brightness(1.08) }
 
-section { padding:clamp(44px,7vh,76px) 0; border-top:1px solid var(--rule) }
-h2 { font:600 clamp(26px,3.4vw,36px)/1.18 var(--serif); letter-spacing:-.02em; margin:0 0 14px; max-width:22ch }
-h3 { font:600 18px/1.35 var(--serif); margin:0 0 4px }
-p { max-width:var(--measure) }
-.lede { color:var(--ink-2); margin:0 0 32px }
+/* sections: each one a sheet on the desk */
+section { padding:7px 0 }   /* pages in one binder: the desk shows only as a seam */
+section > .wrap { background:var(--paper); border:1px solid var(--form); border-radius:2px;
+                  padding-top:clamp(28px,4vw,44px); padding-bottom:clamp(28px,4vw,44px) }
+@media (max-width:1240px) { section > .wrap { margin:0 var(--pad); padding-left:clamp(18px,4vw,40px); padding-right:clamp(18px,4vw,40px) } }
+section h2 { padding-bottom:12px; border-bottom:3px double var(--ink); max-width:none }
 
-/* the proof: a real terminal transcript, not a styled div pretending to be one */
+/* the proof: a real terminal transcript, printed on the one dark sheet */
 figure { margin:0 }
-pre.proof { margin:0; background:light-dark(#1a1b1f,#0d0e11); color:#e8e7e2; border-radius:2px; white-space:pre;
-         padding:20px 22px; font:13px/1.8 var(--mono); overflow-x:auto }
-.proof .p { color:#8fa3c4 } .proof .ok { color:#7fc9a3 } .proof .c { color:#9298a6 }
-figcaption { font:13px/1.6 var(--mono); color:var(--ink-2); margin-top:12px }
-.audit { display:grid; grid-template-columns:1fr auto auto auto; gap:0; margin-top:26px;
-         font:14px/1 var(--mono); max-width:640px }
-.audit > * { padding:11px 14px 11px 0; border-bottom:1px solid var(--rule) }
-.audit .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
+pre.proof { margin:0; background:#1b2244; color:#e4e8f4; border-radius:2px; white-space:pre;
+            padding:20px 22px; font:13px/1.8 var(--fig); overflow-x:auto }
+.proof .p { color:#9fb2e6 } .proof .ok { color:#7fd1a6 } .proof .c { color:#9aa3bf }
+figcaption { font-size:13px; line-height:1.6; color:var(--ink-2); margin-top:12px }
+
+/* ruled tables in the shape of a form */
+.audit, .broken-grid { display:grid; gap:0; margin-top:24px; font:15px/1.3 var(--fig); max-width:680px;
+                       border-top:2px solid var(--ink) }
+.audit { grid-template-columns:1fr auto auto auto }
+.broken-grid { grid-template-columns:1fr auto }
+.audit > *, .broken-grid > * { padding:11px 16px 11px 0; border-bottom:1px solid var(--form); min-width:0 }
+.audit .h, .broken-grid .h { font:700 13px/1.3 var(--text); color:var(--ink-2); border-bottom:1px solid var(--form-2) }
 .audit .n { text-align:right; font-variant-numeric:tabular-nums }
-.audit .agree { text-align:right; color:var(--long) }
-/* the same ledger table, two columns: what was asked for, and what came back */
-.broken-grid { display:grid; grid-template-columns:1fr auto; gap:0; margin-top:26px;
-               font:14px/1 var(--mono); max-width:640px }
-.broken-grid > * { padding:11px 14px 11px 0; border-bottom:1px solid var(--rule); min-width:0 }
-.broken-grid .h { font-size:12px; color:var(--ink-2); border-bottom:1px solid var(--rule-2) }
-.broken-grid .ok { text-align:right; color:var(--long) }
-.broken-grid .bad { text-align:right; color:var(--short) }
-.broken-grid .warn { grid-column:1 / -1; font-size:13px; line-height:1.6; color:var(--ink-2);
-                     white-space:pre-wrap; overflow-wrap:anywhere }
-.note { margin-top:22px; font:14px/1.7 var(--mono); color:var(--ink-2) }
+.audit .agree, .broken-grid .ok { text-align:right; color:var(--long) }
+.broken-grid .bad { text-align:right; color:var(--short); font-weight:700 }
+.broken-grid .warn { grid-column:1 / -1; font:13px/1.65 var(--text); color:var(--ink-2); white-space:pre-wrap; overflow-wrap:anywhere }
 
-/* the sequence: this content really is ordered, so it is numbered */
-ol.steps { list-style:none; margin:0; padding:0; counter-reset:s;
-           display:grid; gap:0; border-top:1px solid var(--rule) }
-ol.steps li { counter-increment:s; display:grid; grid-template-columns:52px 1fr;
-              gap:20px; padding:20px 0; border-bottom:1px solid var(--rule) }
-ol.steps li::before { content:counter(s,decimal-leading-zero); font:13px/1.7 var(--mono); color:var(--ink-2) }
-ol.steps p { margin:0; color:var(--ink-2); max-width:60ch }
+/* the sequence really is ordered, so it is numbered, in the display face */
+ol.steps { list-style:none; margin:0; padding:0; counter-reset:s }
+ol.steps li { counter-increment:s; display:grid; grid-template-columns:56px 1fr; gap:18px; padding:18px 0; border-bottom:1px solid var(--form) }
+ol.steps li:last-child { border-bottom:0 }
+ol.steps li::before { content:counter(s); font:400 28px/1.1 var(--display); color:var(--form-2) }
+ol.steps p { margin:0; color:var(--ink-2); max-width:62ch }
 
-/* asymmetric image and text, used once */
 .shot { display:grid; grid-template-columns:1.55fr 1fr; gap:40px; align-items:start }
-.shot img { border:1px solid var(--rule-2); border-radius:2px }
+.shot img { border:1px solid var(--form) }
 @media (max-width:900px) { .shot { grid-template-columns:1fr } }
 
-dl.rules { display:grid; grid-template-columns:minmax(200px,1fr) 2fr; gap:0; margin:0;
-           border-top:1px solid var(--rule) }
-dl.rules dt { font:13px/1.7 var(--mono); padding:16px 20px 16px 0; border-bottom:1px solid var(--rule) }
-dl.rules dd { margin:0; padding:16px 0; border-bottom:1px solid var(--rule); color:var(--ink-2) }
-@media (max-width:760px) { dl.rules { grid-template-columns:1fr } dl.rules dt { border:0; padding-bottom:2px } }
+dl.rules { display:grid; grid-template-columns:minmax(190px,1fr) 2fr; margin:0 }
+dl.rules dt { font:700 15px/1.6 var(--text); padding:15px 20px 15px 0; border-bottom:1px solid var(--form) }
+dl.rules dd { margin:0; padding:15px 0; border-bottom:1px solid var(--form); color:var(--ink-2) }
+@media (max-width:760px) { dl.rules { grid-template-columns:1fr } dl.rules dt { border:0; padding-bottom:0 } }
 
-.ledger { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:clamp(14px,3vw,34px) }
+/* every receipt as its own seal, laid out like a page of a stamp book */
+.ledger { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:clamp(14px,3vw,30px) }
 .ledger figure { text-align:center }
-.ledger svg { width:100%; height:auto; overflow:visible }
-.ledger figcaption { font-size:12px; line-height:1.7; color:var(--ink-2); margin-top:10px }
-.ledger b { font-family:var(--mono); font-size:13px; color:var(--ink) }
-.ledger a { text-decoration:none }
+.ledger svg { width:78%; height:auto; overflow:visible; margin:0 auto; transform:rotate(-5deg) }
+.ledger figure:nth-child(2n) svg { transform:rotate(4deg) }
+.ledger figcaption { font-size:13px; line-height:1.7; color:var(--ink-2); margin-top:10px }
+.ledger b { font:700 15px/1 var(--text); color:var(--ink) }
 @media (max-width:760px) { .ledger { grid-template-columns:repeat(2,1fr) } }
 
 .social { display:grid; grid-template-columns:1fr minmax(0,1.15fr); gap:44px; align-items:center }
-.social > *, .social figure { min-width:0 }   /* a grid item defaults to min-width:auto, which lets a
-                                                 pre with long lines widen the page instead of scrolling */
+.social > *, .social figure { min-width:0 }
 .social p { margin:0 0 14px; color:var(--ink-2); max-width:52ch }
-.social img { border:1px solid var(--rule-2); border-radius:2px }
+.social img { border:1px solid var(--form) }
 @media (max-width:900px) { .social { grid-template-columns:1fr; gap:24px } }
 
-.tracks { border-top:1px solid var(--rule) }
-.tracks article { display:grid; grid-template-columns:120px 1fr; gap:24px;
-                  padding:24px 0; border-bottom:1px solid var(--rule) }
-.tracks .no { font:13px/1.7 var(--mono); color:var(--ink-2) }
+.tracks article { display:grid; grid-template-columns:120px 1fr; gap:24px; padding:20px 0; border-bottom:1px solid var(--form) }
+.tracks article:last-child { border-bottom:0 }
+.tracks .no { font:400 17px/1.5 var(--display); color:var(--ink) }
 .tracks p { margin:0; color:var(--ink-2) }
-@media (max-width:700px) { .tracks article { grid-template-columns:1fr; gap:6px } }
+@media (max-width:700px) { .tracks article { grid-template-columns:1fr; gap:4px } }
 
-footer { border-top:1px solid var(--rule-2); padding:34px 0 46px; background:var(--panel) }
-footer .cols code { color:var(--ink) }
-footer .cols { display:flex; flex-wrap:wrap; gap:14px 34px; font:13px/1.9 var(--mono) }
-footer .fine { color:var(--ink-2); font-size:13px; margin:20px 0 0; max-width:70ch }
+footer { padding:34px 0 50px }
+footer .cols { display:flex; flex-wrap:wrap; gap:12px 30px; font-size:14px }
+footer .cols a { color:var(--ink-2) } footer .cols code { color:var(--ink) }
+footer .fine, footer .muted { color:var(--ink-2); font-size:13px }
+footer .fine { margin:18px 0 0; max-width:72ch }
 
-/* one orchestrated moment: the hero settles once on load, then the page is still */
-@media (prefers-reduced-motion: no-preference) {
-  header > .wrap > * { animation:rise .5s both cubic-bezier(.2,.7,.3,1) }
-  header h1 { animation-delay:.02s } .sub { animation-delay:.10s } .actions { animation-delay:.18s }
-  @keyframes rise { from { opacity:0; transform:translateY(9px) } to { opacity:1; transform:none } }
-}
+/* the load itself stays still; the page moves only when the reader asks it to */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important } }

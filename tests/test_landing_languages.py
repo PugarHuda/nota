@@ -100,3 +100,12 @@ def test_the_two_pages_offer_the_same_set_of_sentences():
     en, ja = _read("en"), _read("ja")
     attrs = lambda p: sorted(set(re.findall(r'\b(data-[a-z-]+)="', p)))
     assert attrs(en) == attrs(ja)
+
+
+def test_every_japanese_heading_character_is_in_the_display_subset():
+    """The Japanese display face ships only the characters its headings use. A heading edited to use
+    a new one would silently fall back to a thin system face: regenerate the subset when this fails."""
+    shipped = set((STATIC / "fonts" / "DelaGothicOne-ja.txt").read_text(encoding="utf-8").strip())
+    used = set("".join(t for _, t in re.findall(r"<(h1|h2|strong)[^>]*>(.*?)</\1>", _read("ja"), re.S)))
+    missing = sorted(c for c in used if ord(c) > 0x2FFF and c not in shipped)
+    assert missing == [], f"not in fonts/DelaGothicOne-ja.woff2: {''.join(missing)}"

@@ -222,7 +222,9 @@ def test_keyboard_alone_reaches_the_receipt_the_diff_and_the_replay_check(server
 
     page.keyboard.press("j")
     page.keyboard.press("Enter")
-    page.wait_for_selector("#summary")
+    # #summary is already on the page (the newest receipt opens on load), so waiting for it raced
+    # the async open(); the URL changing is the thing Enter actually does
+    page.wait_for_url("**/r/**")
     opened = page.url
     assert "/r/" in opened
 

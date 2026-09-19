@@ -44,12 +44,24 @@
               data-unreachable="APIに到達できませんでした">このサイトのAPIを呼び、最新の領収書を再実行します。</output>
     </p>
     </div>
-    <figure class="seal">
-      <svg id="mark" viewBox="0 0 420 420" role="img"
-           data-label="領収書 %s から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率 %p です。"
-           aria-label="最新の領収書から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率です。"></svg>
-      <figcaption data-caption="領収書 %a。目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。">目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。</figcaption>
-    </figure>
+    <div class="sheet slip">
+      <div class="sheet-title"><strong>領収書</strong><span data-f="id">—</span></div>
+      <dl>
+        <dt>銘柄</dt><dd data-f="symbol">—</dd>
+        <dt>判断</dt><dd data-f="action">—</dd>
+        <dt>判定役の p_up_7d</dt><dd data-f="p">—</dd>
+        <dt>エビデンス</dt><dd data-f="source">—</dd>
+        <dt>発行日</dt><dd data-f="date">—</dd>
+      </dl>
+      <p class="received">上記の判断を、判断時の証拠から再現します。赤いボタンで確かめてください。</p>
+      <figure class="seal">
+        <svg id="mark" viewBox="0 0 420 420" role="img"
+             data-label="領収書 %s から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率 %p です。"
+             aria-label="最新の領収書から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率です。"><defs><filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs></svg>
+        <figcaption data-caption="領収書 %a。目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。">目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。</figcaption>
+      </figure>
+      <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
+    </div>
   </div>
 </header>
 

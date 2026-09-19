@@ -43,14 +43,26 @@
               data-unreachable="could not reach the API">Calls this site's API and re-runs the newest receipt.</output>
     </p>
     </div>
-    <figure class="seal">
-      <svg id="mark" viewBox="0 0 420 420" role="img"
-           data-label="A circular mark drawn from receipt %s: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability of %p."
-           aria-label="A circular mark drawn from the newest receipt: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability."></svg>
-      <figcaption data-caption="Receipt %a. The ticks are its evidence hash, the arc is the probability the judge
-        stated. The same evidence always draws the same mark.">The ticks are its evidence hash, the arc is the
-        probability the judge stated. The same evidence always draws the same mark.</figcaption>
-    </figure>
+    <div class="sheet slip">
+      <div class="sheet-title"><strong>RECEIPT</strong><span data-f="id">—</span></div>
+      <dl>
+        <dt>Symbol</dt><dd data-f="symbol">—</dd>
+        <dt>Decision</dt><dd data-f="action">—</dd>
+        <dt>Judge's p_up_7d</dt><dd data-f="p">—</dd>
+        <dt>Evidence</dt><dd data-f="source">—</dd>
+        <dt>Issued</dt><dd data-f="date">—</dd>
+      </dl>
+      <p class="received">The decision above, reproduced from the evidence it was made on. Press the red button to check.</p>
+      <figure class="seal">
+        <svg id="mark" viewBox="0 0 420 420" role="img"
+             data-label="A circular mark drawn from receipt %s: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability of %p."
+             aria-label="A circular mark drawn from the newest receipt: the outer ticks encode its evidence hash and the inner arc is the judge's stated probability."><defs><filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs></svg>
+        <figcaption data-caption="Receipt %a. The ticks are its evidence hash, the arc is the probability the judge
+          stated. The same evidence always draws the same mark.">The ticks are its evidence hash, the arc is the
+          probability the judge stated. The same evidence always draws the same mark.</figcaption>
+      </figure>
+      <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
+    </div>
   </div>
 </header>
 

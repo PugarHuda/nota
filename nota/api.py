@@ -573,6 +573,19 @@ def landing_style() -> FileResponse:
     return FileResponse(STATIC / "landing.css", media_type="text/css")
 
 
+FONTS = {p.name for p in (STATIC / "fonts").glob("*.woff2")}  # served by name from this set only
+
+
+@app.get("/fonts/{name}", include_in_schema=False)
+def font(name: str) -> FileResponse:
+    """The five Latin subsets the pages set type in (SIL OFL), self-hosted so a page never waits on
+    or fails over a third-party font request."""
+    if name not in FONTS:
+        raise HTTPException(404, "no such font")
+    return FileResponse(STATIC / "fonts" / name, media_type="font/woff2",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 @app.get("/app")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")

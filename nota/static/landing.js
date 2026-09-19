@@ -46,7 +46,7 @@ const drawHero = (r) => {
 
   add('circle', {cx, cy, r: 96, 'stroke-width': 1}, 'core');
   add('text', {x: cx, y: cy + 6}, 'p').textContent = P_UP.toFixed(2);
-  add('text', {x: cx, y: cy + 30}, 'plabel').textContent = 'p_up_7d';
+  add('text', {x: cx, y: cy + 40}, 'plabel').textContent = 'p_up_7d';
 
   // The prose around the mark names the receipt the mark is of. Before this it was written into the
   // page, which stopped being true the moment the mark started coming from the API: the caption
@@ -68,6 +68,14 @@ const drawHero = (r) => {
   }
   const out = document.getElementById('verify-out');
   if (out?.dataset.idle) out.textContent = fill(out.dataset.idle);
+
+  // The slip's rows are the receipt's own fields, written as text: the values are the API's, the
+  // row names are the page's, so each language labels the same numbers.
+  const field = {id: r.id, symbol: r.symbol, action: r.action, p: P_UP.toFixed(2), source: r.source, date: r.date};
+  document.querySelectorAll('.slip [data-f]').forEach(dd => {
+    dd.textContent = field[dd.dataset.f] ?? '—';
+    if (dd.dataset.f === 'action') dd.className = r.action === 'long' ? 'long' : r.action === 'short' ? 'short' : '';
+  });
 };
 
 // The headline claims a receipt re-runs. The button lets the reader check that claim against the
@@ -177,7 +185,8 @@ fetch(`/api/decisions?limit=${WINDOW}`)
   .then(res => res.ok ? res.json() : Promise.reject(new Error('HTTP ' + res.status)))
   .then(rows => {
     const ledger = rows.slice(0, 5).map(d => ({id: d.id, symbol: d.symbol, p: d.p_up_7d, source: d.source,
-                                               action: d.action.replace('_', ' '), hash: d.pack_hash}));
+                                               action: d.action.replace('_', ' '), hash: d.pack_hash,
+                                               date: (d.created_at || '').slice(0, 10)}));
     if (!ledger.length) throw new Error('the ledger is empty');
     verifyId = ledger[0].id;
     drawHero(ledger[0]);
@@ -209,6 +218,8 @@ btn.addEventListener('click', async () => {
     const r = await fetch(`/api/decisions/${verifyId}/replay`);
     const d = await r.json();
     const ms = Math.round(performance.now() - t0);
+    // the second seal is pressed only on the API's own identical: true, and lifted on anything else
+    document.querySelector('.slip')?.classList.toggle('stamped', d.identical === true);
     if (d.identical) {
       verdictLine('yes', 'identical: true',
                   (out.dataset.ok || 'rebuilt from the stored evidence in %m ms').replace(/%m/g, ms));
@@ -217,6 +228,7 @@ btn.addEventListener('click', async () => {
                   (out.dataset.drift || '%n field(s) differ').replace(/%n/g, d.diff.length));
     }
   } catch (e) {
+    document.querySelector('.slip')?.classList.remove('stamped');
     verdictLine('no', out.dataset.unreachable || 'could not reach the API', e.message);
   } finally { btn.disabled = false; }
 });
