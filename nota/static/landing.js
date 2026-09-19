@@ -71,7 +71,8 @@ const drawHero = (r) => {
 
   // The slip's rows are the receipt's own fields, written as text: the values are the API's, the
   // row names are the page's, so each language labels the same numbers.
-  const field = {id: r.id, symbol: r.symbol, action: r.action, p: P_UP.toFixed(2), source: r.source, date: r.date};
+  const field = {id: r.id, symbol: r.symbol, action: r.action, p: P_UP.toFixed(2), source: r.source, date: r.date,
+                 stamp: r.date ? r.date.slice(2).replace(/-/g, '.') : undefined};
   document.querySelectorAll('.slip [data-f]').forEach(dd => {
     dd.textContent = field[dd.dataset.f] ?? '—';
     if (dd.dataset.f === 'action') dd.className = r.action === 'long' ? 'long' : r.action === 'short' ? 'short' : '';

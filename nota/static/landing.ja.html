@@ -45,7 +45,7 @@
     </p>
     </div>
     <div class="sheet slip">
-      <div class="sheet-title"><strong>領収書</strong><span data-f="id">—</span></div>
+      <div class="sheet-title"><strong>領収書</strong><svg class="dater" viewBox="0 0 60 60" aria-hidden="true" focusable="false"><circle cx="30" cy="30" r="27"/><path d="M4.5 21h51M4.5 39h51"/><text class="d-top" x="30" y="17.5">NOTA</text><text class="d-mid" x="30" y="33.4" data-f="stamp">—</text><text class="d-bot" x="30" y="53">記録</text></svg><span data-f="id">—</span></div>
       <dl>
         <dt>銘柄</dt><dd data-f="symbol">—</dd>
         <dt>判断</dt><dd data-f="action">—</dd>
@@ -53,6 +53,7 @@
         <dt>エビデンス</dt><dd data-f="source">—</dd>
         <dt>発行日</dt><dd data-f="date">—</dd>
       </dl>
+      <div class="kiritori" aria-hidden="true"><div class="kakuin">照合<br>済<small>VERIFIED</small></div></div>
       <p class="received">上記の判断を、判断時の証拠から再現します。赤いボタンで確かめてください。</p>
       <figure class="seal">
         <svg id="mark" viewBox="0 0 420 420" role="img"
@@ -60,13 +61,12 @@
              aria-label="最新の領収書から描かれた円形の印。外周の目盛りはエビデンスのハッシュを表し、内側の弧は判定役が示した確率です。"><defs><filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="2.4"/></filter></defs></svg>
         <figcaption data-caption="領収書 %a。目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。">目盛りはそのエビデンスのハッシュ、弧は判定役が示した確率です。同じエビデンスからは必ず同じ印が描かれます。</figcaption>
       </figure>
-      <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
     </div>
   </div>
 </header>
 
 <section id="proof">
-  <div class="wrap">
+  <div class="wrap" data-tab="検算">
     <h2>Notaは与えられたデータ自体を検算します。</h2>
     <p class="lede">RYOはATRとRSIを公開しています。Notaはその両方を公開ローソク足からワイルダー式で計算し直して突き合わせ、さらにRYOの価格を3取引所の中央値と照合します。両者が食い違えば、判定役はポジションのサイズ決定そのものを拒みます。以下の数値は2026年9月7日のライブ領収書のものです。台帳にあるすべての領収書は同一に再実行されます。9月10日に記録されたもの、つまりビルダー鍵が401を返しはじめてRYOの5セクションが一斉にエラーへ落ちた日の領収書も含めてです。そのための小細工は一切していません。評議会は残ったものだけを読み、判定役はトレードを拒み、差分はその崩壊をページ最上段に置きました。</p>
     <div class="audit">
@@ -79,7 +79,7 @@
 </section>
 
 <section id="broken">
-  <div class="wrap">
+  <div class="wrap" data-tab="欠損">
     <h2>そして、そもそも与えられなかったとき。</h2>
     <p class="lede">市場ツールの真価が問われるのは、データ源が動いている日ではなく落ちた日です。下に出ているのは、この環境で実際に何かが失敗した直近の領収書を、ページ読み込み時に台帳から読んだものです。「こうなるはず」という説明図ではありません。各セクションはデータ源が返したステータスをそのまま持ち、取得できなかった値はゼロにならずnullのまま残り、判定役には「何が欠けているか」が伝えられます。</p>
     <div id="broken-panel" class="broken-grid" data-col-section="エビデンスのセクション" data-col-status="ステータス"
@@ -92,7 +92,7 @@
 </section>
 
 <section id="scorecard">
-  <div class="wrap">
+  <div class="wrap" data-tab="採点">
     <h2>RYO自身の成績も記録します。</h2>
     <p class="lede"><code>deep_analysis</code>の回答には必ず判断とトレードプランが付きますが、その後どうなったかをRYOは記録していません。Notaは主要25銘柄のプランを毎日固定し、OKXの1時間足でひとつずつ決着させます。これで「RYOの判断は、RYO自身のプランが機能する頻度を変えるのか」という問いに答えが出ます。</p>
     <p id="scorecard-line" class="note"
@@ -101,11 +101,27 @@
        data-none="まだ決着したプランはありません。最初の決着は%wです。"
        data-error="スコアカードを読み込めませんでした：%e">スコアカードを読み込み中…</p>
     <p><a class="btn ghost" href="/scorecard">スコアカードを開く</a></p>
+    <svg class="fukei" viewBox="0 0 144 144" aria-hidden="true" focusable="false">
+      <defs><path id="fukei-rim" d="M28 72a44 44 0 1 1 88 0"/></defs>
+      <circle class="f-paper" cx="72" cy="72" r="68"/>
+      <path class="f-sky" d="M16.7 100A62 62 0 1 1 127.3 100Z"/>
+      <path class="f-sea" d="M16.7 100A62 62 0 0 0 127.3 100Z"/>
+      <circle class="f-sun" cx="102" cy="58" r="6"/>
+      <path class="f-fuji" d="M34 100 61 60q5.5-4 11 0 5.5-4 11 0l27 40Z"/>
+      <path class="f-snow" d="M54.2 70 61 60q5.5-4 11 0 5.5-4 11 0l6.8 10-5.3-2.6-4.5 3.6-4.6-3.6-3.4 3.6-3.4-3.6-4.6 3.6-4.5-3.6Z"/>
+      <path class="f-wave" d="M24 110a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0M27 110a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0"/>
+      <rect class="f-plate" x="46" y="114" width="52" height="13" rx="1"/>
+      <text class="f-date" x="72" y="124.3">令和八年</text>
+      <circle class="f-rule" cx="72" cy="72" r="68"/>
+      <circle class="f-rule thin" cx="72" cy="72" r="62"/>
+      <path class="f-rule thin" d="M16.7 100h110.6"/>
+      <text class="f-rim"><textPath href="#fukei-rim" startOffset="50%">NOTA 記録局</textPath></text>
+    </svg>
   </div>
 </section>
 
 <section id="how">
-  <div class="wrap">
+  <div class="wrap" data-tab="手順">
     <h2>1件の判断ができるまで</h2>
     <ol class="steps">
       <li><div><h3>収集</h3><p>RYOの5つのツールを1つのエビデンスパックに読み込みます。失敗したツールはエラーが付いたセクションになり、パック自体は作られます。</p></div></li>
@@ -118,7 +134,7 @@
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap" data-tab="印影">
     <h2>領収書は自らを描く</h2>
     <p class="lede">これらは同梱された台帳にある判断です。印はどれもその領収書自身のエビデンスハッシュから生成され、弧は判定役が示した確率です。ゆえに2つの領収書が同じ図を描くことはなく、同じ領収書が違う図を描くこともありません。</p>
     <div class="ledger" id="ledger"
@@ -130,7 +146,7 @@
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap" data-tab="規則">
     <h2>コードが強制する規則</h2>
     <dl class="rules">
       <dt>nullはnullのまま</dt><dd>欠損値をゼロに置き換えることは、パイプラインのどこでもしません。</dd>
@@ -144,7 +160,7 @@
 </section>
 
 <section id="social">
-  <div class="wrap">
+  <div class="wrap" data-tab="公開">
     <h2>公開された論拠を、公開の場で採点する</h2>
     <div class="social">
       <div>
@@ -166,7 +182,7 @@
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap" data-tab="部門">
     <h2>3つのトラック、1つのシステム</h2>
     <div class="tracks">
       <article>

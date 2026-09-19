@@ -102,10 +102,22 @@ def test_the_two_pages_offer_the_same_set_of_sentences():
     assert attrs(en) == attrs(ja)
 
 
-def test_every_japanese_heading_character_is_in_the_display_subset():
-    """The Japanese display face ships only the characters its headings use. A heading edited to use
-    a new one would silently fall back to a thin system face: regenerate the subset when this fails."""
+def test_every_character_set_in_the_display_face_is_in_its_subset():
+    """The Japanese display face ships only the characters the site draws in it: the /ja headings and
+    every ornament word (seals, numerals, tabs, the postmark). One that is not in the subset falls back
+    to a thin system face: run scripts/font_subset.py when this fails."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("font_subset", ROOT / "scripts" / "font_subset.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
     shipped = set((STATIC / "fonts" / "DelaGothicOne-ja.txt").read_text(encoding="utf-8").strip())
-    used = set("".join(t for _, t in re.findall(r"<(h1|h2|strong)[^>]*>(.*?)</\1>", _read("ja"), re.S)))
-    missing = sorted(c for c in used if ord(c) > 0x2FFF and c not in shipped)
+    missing = sorted(set(mod.display_chars()) - shipped)
     assert missing == [], f"not in fonts/DelaGothicOne-ja.woff2: {''.join(missing)}"
+
+
+@pytest.mark.parametrize("lang", sorted(PAGES))
+def test_no_id_is_used_twice(lang):
+    """An ornament inserted twice once gave the postmark two copies and two id="fukei-rim"s."""
+    ids = re.findall(r'\bid="([^"]+)"', _read(lang))
+    assert sorted({i for i in ids if ids.count(i) > 1}) == []

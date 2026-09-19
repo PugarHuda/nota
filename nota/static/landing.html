@@ -44,7 +44,7 @@
     </p>
     </div>
     <div class="sheet slip">
-      <div class="sheet-title"><strong>RECEIPT</strong><span data-f="id">—</span></div>
+      <div class="sheet-title"><strong>RECEIPT</strong><svg class="dater" viewBox="0 0 60 60" aria-hidden="true" focusable="false"><circle cx="30" cy="30" r="27"/><path d="M4.5 21h51M4.5 39h51"/><text class="d-top" x="30" y="17.5">NOTA</text><text class="d-mid" x="30" y="33.4" data-f="stamp">—</text><text class="d-bot" x="30" y="53">記録</text></svg><span data-f="id">—</span></div>
       <dl>
         <dt>Symbol</dt><dd data-f="symbol">—</dd>
         <dt>Decision</dt><dd data-f="action">—</dd>
@@ -52,6 +52,7 @@
         <dt>Evidence</dt><dd data-f="source">—</dd>
         <dt>Issued</dt><dd data-f="date">—</dd>
       </dl>
+      <div class="kiritori" aria-hidden="true"><div class="kakuin">照合<br>済<small>VERIFIED</small></div></div>
       <p class="received">The decision above, reproduced from the evidence it was made on. Press the red button to check.</p>
       <figure class="seal">
         <svg id="mark" viewBox="0 0 420 420" role="img"
@@ -61,13 +62,12 @@
           stated. The same evidence always draws the same mark.">The ticks are its evidence hash, the arc is the
           probability the judge stated. The same evidence always draws the same mark.</figcaption>
       </figure>
-      <div class="kakuin" aria-hidden="true">照合<br>済<small>VERIFIED</small></div>
     </div>
   </div>
 </header>
 
 <section id="proof">
-  <div class="wrap">
+  <div class="wrap" data-tab="検算">
     <h2>Nota audits the data it is given.</h2>
     <p class="lede">RYO publishes an ATR and an RSI. Nota recomputes both from public candles with Wilder's method
       and compares them, and it checks RYO's price against the median of three exchanges. When they disagree, the
@@ -86,7 +86,7 @@
 </section>
 
 <section id="broken">
-  <div class="wrap">
+  <div class="wrap" data-tab="欠損">
     <h2>And when it is not given at all.</h2>
     <p class="lede">A market tool is judged on the day its data source fails, not on the day it works. Below is
       the most recent receipt in this deployment where something did fail, read from the ledger as you load the
@@ -103,7 +103,7 @@
 </section>
 
 <section id="scorecard">
-  <div class="wrap">
+  <div class="wrap" data-tab="採点">
     <h2>It also keeps RYO's score.</h2>
     <p class="lede">Every <code>deep_analysis</code> answer comes with a verdict and a trade plan, and RYO keeps no
       record of what became of either. Nota locks those plans for 25 majors once a day and settles each one on
@@ -115,11 +115,27 @@
        data-none="None has settled yet; the first settles %w."
        data-error="The scorecard could not be read: %e">reading the scorecard…</p>
     <p><a class="btn ghost" href="/scorecard">Open the scorecard</a></p>
+    <svg class="fukei" viewBox="0 0 144 144" aria-hidden="true" focusable="false">
+      <defs><path id="fukei-rim" d="M28 72a44 44 0 1 1 88 0"/></defs>
+      <circle class="f-paper" cx="72" cy="72" r="68"/>
+      <path class="f-sky" d="M16.7 100A62 62 0 1 1 127.3 100Z"/>
+      <path class="f-sea" d="M16.7 100A62 62 0 0 0 127.3 100Z"/>
+      <circle class="f-sun" cx="102" cy="58" r="6"/>
+      <path class="f-fuji" d="M34 100 61 60q5.5-4 11 0 5.5-4 11 0l27 40Z"/>
+      <path class="f-snow" d="M54.2 70 61 60q5.5-4 11 0 5.5-4 11 0l6.8 10-5.3-2.6-4.5 3.6-4.6-3.6-3.4 3.6-3.4-3.6-4.6 3.6-4.5-3.6Z"/>
+      <path class="f-wave" d="M24 110a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0a6 6 0 0 1 12 0M27 110a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0m6 0a3 3 0 0 1 6 0"/>
+      <rect class="f-plate" x="46" y="114" width="52" height="13" rx="1"/>
+      <text class="f-date" x="72" y="124.3">令和八年</text>
+      <circle class="f-rule" cx="72" cy="72" r="68"/>
+      <circle class="f-rule thin" cx="72" cy="72" r="62"/>
+      <path class="f-rule thin" d="M16.7 100h110.6"/>
+      <text class="f-rim"><textPath href="#fukei-rim" startOffset="50%">NOTA 記録局</textPath></text>
+    </svg>
   </div>
 </section>
 
 <section id="how">
-  <div class="wrap">
+  <div class="wrap" data-tab="手順">
     <h2>How one decision is made</h2>
     <ol class="steps">
       <li><div><h3>Gather</h3><p>Five RYO tools are read into one evidence pack. A tool that fails becomes a
@@ -138,7 +154,7 @@
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap" data-tab="印影">
     <h2>Every receipt draws itself</h2>
     <p class="lede">These are the decisions in the shipped ledger. Every mark is generated from that
       receipt's own evidence hash, and its arc is the probability the judge stated, so two receipts
@@ -156,7 +172,7 @@
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap" data-tab="規則">
     <h2>Rules the code enforces</h2>
     <dl class="rules">
       <dt>null stays null</dt><dd>A missing value is never turned into zero, anywhere in the pipeline.</dd>
@@ -170,7 +186,7 @@
 </section>
 
 <section id="social">
-  <div class="wrap">
+  <div class="wrap" data-tab="公開">
     <h2>Public reasoning, publicly scored</h2>
     <div class="social">
       <div>
@@ -196,7 +212,7 @@
 </section>
 
 <section>
-  <div class="wrap">
+  <div class="wrap" data-tab="部門">
     <h2>Three tracks, one system</h2>
     <div class="tracks">
       <article>

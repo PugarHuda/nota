@@ -40,7 +40,7 @@
   #detail.stamped .kakuin { opacity:.9 }
   /* a wide table scrolls inside the receipt instead of breaking section names mid-word */
   #detail table { display:block; overflow-x:auto } #detail tbody { display:table; width:100% }
-  #detail td { overflow-wrap:normal }
+  #detail td, #detail th { overflow-wrap:normal } #detail th { white-space:nowrap }
 
   input, select { width:100%; background:var(--paper); color:var(--ink); border:1px solid var(--form-2); padding:8px 10px;
                   font-size:13px; border-radius:2px }
@@ -239,6 +239,9 @@ async function open(id, push = true) {
       <div class="p">${r.verdict.p_up_7d.toFixed(2)}<small>probability the price is higher in 7 days</small></div>
     </div>
     <p class="rationale">${esc(r.verdict.rationale)}</p>
+    ${(() => { const G = {macro: '経済', technician: '技術', narrative: '材料'};
+      const cells = [...(r.verdict.agreed_with || []).map(k => [k, 'with']), ...(r.verdict.disagreed_with || []).map(k => [k, 'against'])];
+      return cells.length ? `<div class="mitome" aria-hidden="true">${cells.map(([k, v]) => `<span><small>${esc(k)}</small><i data-v="${v}">${v === 'with' ? esc(G[k] || String(k).slice(0, 2)) : '否'}</i></span>`).join('')}</div>` : ''; })()}
     <div class="meta">
       ${r.verdict.agreed_with?.length ? `<span>agreed with ${esc(r.verdict.agreed_with.join(', '))}</span>` : ''}
       ${r.verdict.disagreed_with?.length ? `<span>disagreed with ${esc(r.verdict.disagreed_with.join(', '))}</span>` : ''}</div>
