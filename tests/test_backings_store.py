@@ -47,6 +47,7 @@ def test_a_read_only_ledger_with_a_database_can_still_be_backed(tmp_path, monkey
     monkeypatch.setenv("NOTA_READONLY", "1")
 
     written: list[tuple[str, str, str]] = []
+    claims: dict[str, str] = {}
 
     class Fake:
         def add_backing(self, decision_id, handle, stance):
@@ -59,12 +60,18 @@ def test_a_read_only_ledger_with_a_database_can_still_be_backed(tmp_path, monkey
         def all_backings(self):
             return [{"decision_id": d, "handle": h, "stance": s, "created_at": "x"} for d, h, s in written]
 
+        def claim(self, handle, token_sha256):
+            return claims.setdefault(handle, token_sha256) == token_sha256
+
+        def token_sha(self, handle):
+            return claims.get(handle)
+
     monkeypatch.setattr(api, "store_for", lambda led: Fake())
     api._BACKING_HITS.clear()
     c = TestClient(api.app)
     r = c.post(f"/api/decisions/{id}/back", json={"handle": "someone", "stance": "agree"})
     assert r.status_code == 200 and r.json()["agree"] == 1
-    assert written == [(id, "someone", "agree")]
+    assert written == [(id, "someone", "agree")] and set(claims) == {"someone"}
 
 
 def test_without_anywhere_to_write_it_says_so_instead_of_pretending(tmp_path, monkeypatch):
@@ -130,3 +137,52 @@ def test_the_table_is_created_once_per_process_not_once_per_request(monkeypatch)
         backings.PostgresBackings("postgresql://x/y").all_backings()
 
     assert verbs.count("CREATE") == 1 and verbs.count("SELECT") == 3
+
+
+def test_with_a_database_the_rate_limit_is_shared_and_falls_back_when_it_is_down(monkeypatch):
+    """Per-instance counting let each serverless instance grant its own 60. With DATABASE_URL the
+    count is one table; if that table cannot be reached the limiter counts locally, never fails shut."""
+    import psycopg
+
+    from nota import backings
+
+    backings._SCHEMA_READY.add("postgresql://x/y")
+    sql: list[str] = []
+    state = {"n": 0}
+
+    class Cursor:
+        rowcount = 1
+
+        def execute(self, q, params=None):
+            sql.append(q.split()[0].upper())
+            if q.startswith("INSERT INTO hits"):
+                state["n"] += params[1]
+
+        def fetchone(self):
+            return {"n": state["n"], "wait": 1799.2}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class Conn:
+        def cursor(self):
+            return Cursor()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **kw: Conn())
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
+    assert api._throttle_n("skill:ip", 20, limit=60) is None and state["n"] == 20
+    assert sql == ["SELECT", "DELETE", "SELECT", "INSERT"]          # lock, expire, count, charge: one transaction
+    assert api._throttle_n("skill:ip", 41, limit=60) == 1800 and state["n"] == 20   # refused, nothing charged
+    assert not api._BACKING_HITS                                     # nothing counted locally while the table answers
+
+    monkeypatch.setattr(psycopg, "connect", lambda *a, **kw: (_ for _ in ()).throw(psycopg.OperationalError("down")))
+    assert api._throttle_n("skill:ip", 1, limit=60) is None and len(api._BACKING_HITS["skill:ip"]) == 1

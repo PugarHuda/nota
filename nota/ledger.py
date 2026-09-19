@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS locks (
 CREATE TABLE IF NOT EXISTS settlements (
   lock_id TEXT NOT NULL, horizon_h INTEGER NOT NULL, settled_at TEXT NOT NULL, result_json TEXT NOT NULL,
   PRIMARY KEY (lock_id, horizon_h));
+CREATE TABLE IF NOT EXISTS handle_claims (
+  handle TEXT PRIMARY KEY, token_sha256 TEXT NOT NULL, created_at TEXT NOT NULL);
 """
 
 
@@ -117,6 +119,15 @@ class Ledger:
 
     def all_backings(self) -> list[dict[str, Any]]:
         return [dict(r) for r in self.conn.execute("SELECT decision_id, handle, stance, created_at FROM backings").fetchall()]
+
+    def claim(self, handle: str, token_sha256: str) -> bool:
+        """True when this call took the handle, False when it was already held (nota.backings)."""
+        return self.conn.execute("INSERT OR IGNORE INTO handle_claims VALUES (?,?,?)",
+                                 (handle, token_sha256, now_iso())).rowcount == 1
+
+    def token_sha(self, handle: str) -> str | None:
+        row = self.conn.execute("SELECT token_sha256 FROM handle_claims WHERE handle=?", (handle,)).fetchone()
+        return row["token_sha256"] if row else None
 
     def unresolved(self) -> list[str]:
         rows = self.conn.execute(

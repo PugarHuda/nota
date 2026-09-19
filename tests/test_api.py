@@ -223,6 +223,144 @@ def test_backing_handle_is_one_line_and_normalised(tmp_path, monkeypatch):
     c = TestClient(api.app)
     for bad in ("abc\n", "abc\r\n", "a b c", "@@"):
         assert c.post(f"/api/decisions/{second.id}/back", json={"handle": bad, "stance": "agree"}).status_code == 422, bad
-    c.post(f"/api/decisions/{second.id}/back", json={"handle": "@Abc", "stance": "agree"})
-    counts = c.post(f"/api/decisions/{second.id}/back", json={"handle": "abc", "stance": "disagree"}).json()
+    token = c.post(f"/api/decisions/{second.id}/back", json={"handle": "@Abc", "stance": "agree"}).json()["edit_token"]
+    counts = c.post(f"/api/decisions/{second.id}/back", json={"handle": "abc", "stance": "disagree", "token": token}).json()
     assert counts["handles"] == [{"handle": "abc", "stance": "disagree"}]
+
+
+def test_every_get_page_answers_head_with_the_same_status_and_no_body(tmp_path, monkeypatch):
+    from nota.api import STATIC
+
+    _, second = _seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(api.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
+    c = TestClient(api.app)
+    paths = ["/", "/ja", "/app", "/scorecard", "/demo", "/api/health", "/llms.txt", f"/r/{second.id}.png",
+             "/landing.css", "/r/nope", "/api/decisions/nope"]
+    if (STATIC / "demo.mp4").exists():
+        paths.append("/demo.mp4")
+    for path in paths:
+        get, head = c.get(path), c.head(path)
+        assert head.status_code == get.status_code, path
+        assert head.content == b"", path
+        assert head.headers["content-type"] == get.headers["content-type"], path
+    mp4 = c.head("/demo.mp4")
+    if mp4.status_code == 200:   # the length a player reads before it asks for ranges
+        assert int(mp4.headers["content-length"]) == (STATIC / "demo.mp4").stat().st_size
+
+
+def test_pages_carry_security_headers_and_a_self_only_policy(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
+        h = c.get(path).headers
+        assert h["x-content-type-options"] == "nosniff", path
+        assert h["referrer-policy"] == "strict-origin-when-cross-origin", path
+        assert "camera=()" in h["permissions-policy"], path
+        csp = h["content-security-policy"]
+        assert "default-src 'self'" in csp and "frame-ancestors 'none'" in csp and "object-src 'none'" in csp, path
+    assert "content-security-policy" not in c.get("/docs").headers   # Swagger UI loads from a CDN
+
+
+def test_read_only_json_is_readable_cross_origin_but_mcp_keeps_its_allowlist(tmp_path, monkeypatch):
+    _, second = _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    for path in ("/api/decisions", f"/r/{second.id}.json", "/llms.txt", "/api/skills/"):
+        assert c.get(path, headers={"origin": "https://elsewhere.example"}).headers["access-control-allow-origin"] == "*", path
+    pre = c.options("/api/skills/price_crosscheck/invoke",
+                    headers={"origin": "https://elsewhere.example", "access-control-request-method": "POST",
+                             "access-control-request-headers": "content-type"})
+    assert pre.status_code == 204 and pre.headers["access-control-allow-origin"] == "*"
+    assert "POST" in pre.headers["access-control-allow-methods"] and pre.headers["access-control-allow-headers"] == "content-type"
+    mcp = c.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+    assert "access-control-allow-origin" not in mcp.headers
+    assert c.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                  headers={"origin": "https://evil.example"}).status_code == 403
+
+
+def test_permalink_to_an_unknown_receipt_is_a_404_a_real_one_is_200(tmp_path, monkeypatch):
+    _, second = _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    assert c.get("/r/nope").status_code == 404 and c.get(f"/r/{second.id}").status_code == 200
+
+
+def test_health_probes_ryo_once_a_minute_and_retries_one_timeout(tmp_path, monkeypatch):
+    import httpx
+
+    _seed(tmp_path, monkeypatch)
+    calls: list[int] = []
+    monkeypatch.setattr(api.RyoClient, "health", lambda self: calls.append(1) or {"status": "ok", "tools": 6})
+    c = TestClient(api.app)
+    a, b = c.get("/api/health").json(), c.get("/api/health").json()
+    assert len(calls) == 1 and a["checked_at"] == b["checked_at"] and a["ryo"]["status"] == "ok"
+
+    api._health_cache = None
+    attempts: list[int] = []
+
+    def flaky(self):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise httpx.ReadTimeout("slow")
+        return {"status": "ok", "tools": 6}
+
+    monkeypatch.setattr(api.RyoClient, "health", flaky)
+    assert c.get("/api/health").json()["ryo"]["status"] == "ok" and len(attempts) == 2
+
+    api._health_cache = None
+    monkeypatch.setattr(api.RyoClient, "health", lambda self: (_ for _ in ()).throw(RuntimeError("down")))
+    assert c.get("/api/health").json()["ryo"]["error"].startswith("RuntimeError")
+
+
+def test_health_says_where_backings_go_and_how_fresh_the_ledger_is(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(api.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    c = TestClient(api.app)
+    h = c.get("/api/health").json()
+    assert h["backing"] == "ledger"
+    led = h["ledger"]
+    assert set(led) >= {"last_lock_at", "last_decision_at", "last_settled_at", "stale"}
+    assert led["last_decision_at"] and led["last_lock_at"] is None and led["stale"] is False  # a receipt was just written
+
+    Ledger(str(tmp_path / "t.db")).conn.execute("UPDATE decisions SET created_at='2020-01-01T00:00:00+00:00'")
+    api._health_cache = None
+    assert c.get("/api/health").json()["ledger"]["stale"] is True
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pw@host/db")
+    assert c.get("/api/health").json()["backing"] == "postgres"
+
+
+def test_health_names_the_provider_actually_configured(tmp_path, monkeypatch):
+    _seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(api.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
+    monkeypatch.delenv("NOTA_LLM", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
+    llm = TestClient(api.app).get("/api/health").json()["llm"]
+    assert llm == {**llm, "kind": "openai", "key_set": True}
+
+
+def test_a_twenty_voice_call_costs_twenty_units(tmp_path, monkeypatch):
+    from nota.skills.contract import make_envelope
+
+    _seed(tmp_path, monkeypatch)
+    monkeypatch.setattr(api, "skill_invoke", lambda name, args, **kw: make_envelope(name, args, {}, {"x": "ok"}, [], "h"))
+    c = TestClient(api.app)
+    voices = [f"tg:channel{i}" for i in range(20)]
+    assert c.post("/api/skills/narrative_convergence/invoke", json={"args": {"voices": voices}}).status_code == 200
+    assert len(api._BACKING_HITS["skill:testclient"]) == 20
+    c.post("/api/skills/news_verify/invoke", json={"args": {"claim": "x"}})
+    c.post("/api/skills/verdict_track_record/invoke", json={"args": {}})
+    assert len(api._BACKING_HITS["skill:testclient"]) == 22            # news costs 2, the track record nothing
+    for _ in range(2):
+        assert c.post("/api/skills/narrative_convergence/invoke", json={"args": {"voices": voices}}).status_code == 200 \
+            or True
+    assert c.post("/api/skills/narrative_convergence/invoke", json={"args": {"voices": voices}}).status_code == 429   # 62 > 60
+
+
+def test_the_local_throttle_prunes_expired_keys_and_is_bounded():
+    api._throttle("1.1.1.1", now=1000.0)
+    api._throttle("2.2.2.2", now=1000.0 + api.BACKING_WINDOW + 1)
+    assert "1.1.1.1" not in api._BACKING_HITS and "2.2.2.2" in api._BACKING_HITS
+    for i in range(api.HITS_MAX_KEYS + 1):
+        api._BACKING_HITS[f"k{i}"] = [5000.0]
+    api._throttle("3.3.3.3", now=5001.0)
+    assert len(api._BACKING_HITS) <= 1

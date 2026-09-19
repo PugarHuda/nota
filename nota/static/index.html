@@ -271,7 +271,7 @@ async function open(id, push = true) {
         <button type="button" class="badge short" data-stance="disagree">Disagree</button>
         <span id="back-out" class="small" aria-live="polite"></span>
       </div>
-      <div class="small muted">Public and unauthenticated: one stance per handle per receipt, scored when the call resolves.</div>
+      <div class="small muted">Public: one stance per handle per receipt, scored when the call resolves. The first backing claims the handle for this browser; nobody else can post under it.</div>
     </div>
 
     <h2>Council</h2>
@@ -297,12 +297,18 @@ async function open(id, push = true) {
     const handle = $('#handle').value.trim();
     if (!/^@?[A-Za-z0-9_.\-]{3,32}$/.test(handle)) { $('#back-out').textContent = 'handle: 3-32 letters, digits, _ . - (a leading @ is fine)'; return; }
     try { localStorage.setItem('nota.handle', handle); } catch (_) {}
+    // The first post under a handle claims it and returns an edit token once; this browser keeps it
+    // (keyed by the handle as the server stores it) and sends it with every later post.
+    const key = handle.replace(/^@/, '').toLowerCase();
+    let tokens = {};
+    try { tokens = JSON.parse(localStorage.getItem('nota.handles') || '{}') || {}; } catch (_) {}
     try {
-      const res = await fetch(`/api/decisions/${r.id}/back`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ handle, stance: b.dataset.stance }) });
+      const res = await fetch(`/api/decisions/${r.id}/back`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ handle, stance: b.dataset.stance, token: tokens[key] || null }) });
       if (!res.ok) throw new Error((await res.json()).detail || res.status);
       const c = await res.json();
+      if (c.edit_token) { tokens[key] = c.edit_token; try { localStorage.setItem('nota.handles', JSON.stringify(tokens)); } catch (_) {} }
       $('#back-counts').textContent = `${c.agree} agree, ${c.disagree} disagree`;
-      $('#back-out').textContent = `recorded: ${handle} ${b.dataset.stance}s`;
+      $('#back-out').textContent = `recorded: ${handle} ${b.dataset.stance}s${c.edit_token ? '; this browser now holds the edit token for that handle' : ''}`;
       loadSide();
     } catch (e) { $('#back-out').textContent = e.message; }
   });
@@ -354,12 +360,15 @@ function changesTable(ch) {
     ${rest.length ? `<details><summary>${rest.length} smaller changes</summary><table>${rest.map(row).join('')}</table></details>` : ''}`;
 }
 
+// Where a backing goes on this deployment, as /api/health reports it, rather than assumed.
+const BACKING_TEXT = { postgres: 'ledger snapshot; backings are stored in Postgres', ledger: 'backings are stored in this ledger', none: 'ledger snapshot with no database; backing is off here' };
+
 async function loadHealth() {
   try {
     const h = await api('/api/health');
     window.__health = h;
     const ryo = h.ryo.error ? `<span class="badge unavailable">RYO down</span>` : `<span class="badge ok">RYO ${esc(h.ryo.status)}, ${h.ryo.tools} tools</span>`;
-    $('#health').innerHTML = `${h.readonly ? '<span class="badge partial" title="ledger snapshot; backing disabled">read-only demo</span> ' : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${h.ledger.decisions} receipts, ${h.ledger.due} due for scoring</span>`;
+    $('#health').innerHTML = `${h.readonly ? `<span class="badge partial" title="${esc(BACKING_TEXT[h.backing] || '')}">read-only demo</span> ` : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${h.ledger.decisions} receipts, ${h.ledger.due} due for scoring</span>`;
   } catch (e) { $('#health').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
 }
 

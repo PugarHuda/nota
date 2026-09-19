@@ -14,6 +14,7 @@ drops someone's stance is worse than no public record.
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any, Protocol
 
@@ -24,7 +25,17 @@ CREATE TABLE IF NOT EXISTS backings (
   stance      text NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (decision_id, handle)
-)
+);
+CREATE TABLE IF NOT EXISTS handle_claims (
+  handle       text PRIMARY KEY,
+  token_sha256 text NOT NULL,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS hits (
+  key text NOT NULL,
+  at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS hits_key_at ON hits (key, at)
 """
 
 
@@ -34,6 +45,8 @@ class BackingStore(Protocol):
     def add_backing(self, decision_id: str, handle: str, stance: str) -> None: ...
     def backings(self, decision_id: str) -> list[dict[str, Any]]: ...
     def all_backings(self) -> list[dict[str, Any]]: ...
+    def claim(self, handle: str, token_sha256: str) -> bool: ...
+    def token_sha(self, handle: str) -> str | None: ...
 
 
 # Which DSNs this process has already created the table on. It belongs to the process, not to an
@@ -85,6 +98,39 @@ class PostgresBackings:
         with self._connect() as conn, conn.cursor() as cur:
             cur.execute("SELECT decision_id, handle, stance, created_at FROM backings")
             return self._rows(cur.fetchall())
+
+    # handle claims: the first writer of a handle gets a token, and only that token writes it again
+    def claim(self, handle: str, token_sha256: str) -> bool:
+        """True when this call took the handle; False when someone already holds it. One statement,
+        so two first posts at the same moment cannot both win."""
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO handle_claims (handle, token_sha256) VALUES (%s, %s) ON CONFLICT (handle) DO NOTHING",
+                        (handle, token_sha256))
+            return cur.rowcount == 1
+
+    def token_sha(self, handle: str) -> str | None:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT token_sha256 FROM handle_claims WHERE handle = %s", (handle,))
+            row = cur.fetchone()
+            return row["token_sha256"] if row else None
+
+    # the rate limit, shared by every serverless instance instead of counted once per instance
+    def hit(self, key: str, cost: int, limit: int, window_s: float) -> tuple[bool, int]:
+        """Charge `cost` hits to `key` if they fit in the window. Returns (allowed, retry_after_s).
+
+        The advisory lock serialises callers on one key, so two instances cannot both read 59 and
+        both insert. ponytail: expired rows of every key go on each call; the table only ever holds
+        one window of traffic, so that delete stays small."""
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
+            cur.execute("DELETE FROM hits WHERE at < now() - make_interval(secs => %s)", (window_s,))
+            cur.execute("SELECT count(*) AS n, extract(epoch FROM min(at) + make_interval(secs => %s) - now()) AS wait "
+                        "FROM hits WHERE key = %s", (window_s, key))
+            row = cur.fetchone()
+            if row["n"] + cost > limit:
+                return False, max(1, math.ceil(row["wait"] if row["wait"] is not None else window_s))
+            cur.execute("INSERT INTO hits (key) SELECT %s FROM generate_series(1, %s)", (key, cost))
+            return True, 0
 
 
 def store_for(ledger: BackingStore) -> BackingStore:

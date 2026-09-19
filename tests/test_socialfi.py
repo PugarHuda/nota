@@ -22,9 +22,11 @@ def test_backing_flow_and_leaderboard(tmp_path, monkeypatch):
     assert c.post(f"/api/decisions/{second.id}/back", json={"handle": "x", "stance": "agree"}).status_code == 422
     assert c.post(f"/api/decisions/{second.id}/back", json={"handle": "alice", "stance": "maybe"}).status_code == 422
     assert c.post("/api/decisions/nope/back", json={"handle": "alice", "stance": "agree"}).status_code == 404
-    assert c.post(f"/api/decisions/{second.id}/back", json={"handle": "alice", "stance": "agree"}).json()["agree"] == 1
+    first_post = c.post(f"/api/decisions/{second.id}/back", json={"handle": "alice", "stance": "agree"}).json()
+    assert first_post["agree"] == 1 and first_post["edit_token"]
     assert c.post(f"/api/decisions/{second.id}/back", json={"handle": "bob", "stance": "disagree"}).json()["disagree"] == 1
-    counts = c.post(f"/api/decisions/{second.id}/back", json={"handle": "alice", "stance": "disagree"}).json()  # latest wins
+    counts = c.post(f"/api/decisions/{second.id}/back", json={"handle": "alice", "stance": "disagree", "token": first_post["edit_token"]}).json()  # latest wins
+    assert "edit_token" not in counts            # only the claiming post returns it
     assert counts == {"agree": 0, "disagree": 2, "handles": [{"handle": "alice", "stance": "disagree"}, {"handle": "bob", "stance": "disagree"}]}
     c.post(f"/api/decisions/{first.id}/back", json={"handle": "carol", "stance": "agree"})  # no_trade: never scored
     assert c.get(f"/api/decisions/{second.id}").json()["backing"]["disagree"] == 2
@@ -79,7 +81,10 @@ def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):
     page = c.get(f"/r/{second.id}").text
     assert f'<meta property="og:image" content="http://testserver/r/{second.id}.png">' in page
     assert 'name="twitter:card" content="summary_large_image"' in page and "<!--OG-->" not in page
-    assert "<!--OG-->" in c.get("/app").text and "<!--OG-->" in c.get("/r/nope").text  # the placeholder is only in the dashboard shell
+    assert "<!--OG-->" in c.get("/app").text        # the placeholder is only in the dashboard shell
+    missing = c.get("/r/nope")
+    assert missing.status_code == 404 and '<meta name="robots" content="noindex">' in missing.text
+    assert "<!--OG-->" not in missing.text and 'id="list"' in missing.text   # still the page, which says so
     monkeypatch.setenv("NOTA_PUBLIC_URL", "https://nota.example/")
     assert 'content="https://nota.example/r/' in c.get(f"/r/{second.id}").text
 
@@ -98,3 +103,23 @@ def test_a_blocked_card_says_why_instead_of_repeating_the_headline(tmp_path, mon
     reason = blocked.trade.reason
     if reason.startswith("judge decided"):
         assert blocked.verdict.key_risks or True   # falls back to a stated sentence, never to the echo
+
+
+def test_a_claimed_handle_needs_its_token(tmp_path, monkeypatch):
+    """Anyone could post as anyone: a backing under a handle someone else already used replaced
+    their stance. The first post now claims the handle, and only its token writes it again."""
+    import hashlib
+
+    _, second = _seed(tmp_path, monkeypatch)
+    c = TestClient(api.app)
+    url = f"/api/decisions/{second.id}/back"
+    token = c.post(url, json={"handle": "alice", "stance": "agree"}).json()["edit_token"]
+    for impostor in ({"handle": "alice", "stance": "disagree"},
+                     {"handle": "@Alice", "stance": "disagree", "token": "guess"}):
+        r = c.post(url, json=impostor)
+        assert r.status_code == 409 and r.json()["detail"] == "handle already claimed; send its edit token"
+    assert c.get(f"/api/decisions/{second.id}").json()["backing"]["handles"] == [{"handle": "alice", "stance": "agree"}]
+    ok = c.post(url, json={"handle": "alice", "stance": "disagree", "token": token})
+    assert ok.status_code == 200 and ok.json()["handles"] == [{"handle": "alice", "stance": "disagree"}]
+    stored = Ledger(str(tmp_path / "t.db")).token_sha("alice")
+    assert stored == hashlib.sha256(token.encode()).hexdigest() and token not in stored   # only the hash is kept

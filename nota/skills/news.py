@@ -44,7 +44,9 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
     max_results = max(1, min(int(max_results), 20))
     availability: dict[str, str] = {}
     warnings: list[str] = []
-    data: dict[str, Any] = {"claim": claim, "sources": [], "distinct_domains": None, "top_score": None, "verdict": None,
+    # the claim is already in the envelope's `request`; echoing it in `data` too doubled what a caller
+    # could make this public endpoint repeat back in its answer
+    data: dict[str, Any] = {"sources": [], "distinct_domains": None, "top_score": None, "verdict": None,
                             "method": {"search": getattr(search, "name", "tavily"), "headlines": rss.name if rss else None}}
 
     results: list[TavilyResult] = []

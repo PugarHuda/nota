@@ -6,6 +6,8 @@ stored, so the dashboard can never show a number that has no receipt behind it.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import html
 import json
 import logging
@@ -13,11 +15,14 @@ import math
 import os
 from urllib.parse import urlparse
 import re
+import secrets
 import sqlite3
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
@@ -25,7 +30,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from nota import paths
-from nota.backings import store_for
+from nota.backings import PostgresBackings, store_for
 from nota.calibration import due, reliability, role_scores, role_weights, skill_vs_base, source_scores
 from nota.card import render_card
 from nota.evidence import EvidencePack, first_present
@@ -42,6 +47,63 @@ load_dotenv()
 app = FastAPI(title="Nota", description="Read-only view over decision receipts. No orders, no wallets.")
 STATIC = Path(__file__).parent / "static"
 KEY_PATHS = set(paths.PRICE_USD + paths.ATR_14 + paths.ATR_14_PCT + paths.RSI_14)
+
+
+class HeadMiddleware:
+    """FastAPI routes answer only the methods they name, so every GET page said 405 to HEAD, which is
+    what uptime checks, link previews and video players probe with. HEAD is served as the GET it
+    stands for, headers and all (content-length included), with the body dropped."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope["method"] != "HEAD":
+            await self.app(scope, receive, send)
+            return
+        done = False
+
+        async def head_send(message: dict[str, Any]) -> None:
+            nonlocal done
+            if message["type"] == "http.response.start":
+                await send(message)
+            elif message["type"] == "http.response.body" and not done:
+                done = True
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+        await self.app({**scope, "method": "GET"}, receive, head_send)
+
+
+app.add_middleware(HeadMiddleware)
+
+# Every page is served from this origin: fonts are self-hosted, scripts and styles are inline or
+# local, and the only third-party URLs are links a reader clicks. So the policy can be 'self'.
+# /docs and /redoc load Swagger UI from a CDN and are left without it.
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+       "media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'")
+SECURITY_HEADERS = {"X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin",
+                    "Permissions-Policy": "camera=(), microphone=(), geolocation=()"}
+# Read-only JSON and text any page or agent may fetch cross-origin. /mcp is not here: it keeps its
+# Origin allowlist, which the transport spec requires against DNS rebinding.
+CORS_READ = ("/api/", "/r/", "/llms.txt")
+SKILL_INVOKE = re.compile(r"/api/skills/[^/]+/invoke")
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next: Any) -> Response:
+    path = request.url.path
+    if request.method == "OPTIONS" and SKILL_INVOKE.fullmatch(path):
+        # the preflight a browser sends before a cross-origin POST with a JSON body
+        return Response(status_code=204, headers={
+            "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST",
+            "Access-Control-Allow-Headers": "content-type", "Access-Control-Max-Age": "86400"})
+    response = await call_next(request)
+    response.headers.update(SECURITY_HEADERS)
+    if not path.startswith(("/docs", "/redoc")):
+        response.headers["Content-Security-Policy"] = CSP
+    if (request.method in ("GET", "HEAD") and path.startswith(CORS_READ)) or SKILL_INVOKE.fullmatch(path):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 
 def _ledger() -> Ledger:
@@ -252,25 +314,75 @@ def scorecard_page() -> FileResponse:
     return FileResponse(STATIC / "scorecard.html")
 
 
+_HEALTH_TTL = 60.0
+_health_cache: tuple[float, dict[str, Any]] | None = None   # (monotonic time, RYO probe); per process
+
+
+def _ryo_probe() -> dict[str, Any]:
+    """RYO's /health, at most once a minute per process: the dashboard asks on every receipt it
+    opens, and each ask used to be a live call to RYO. A timeout gets one more try, since a cold
+    upstream often answers the second time; anything else is reported as the error it was."""
+    global _health_cache
+    now = time.monotonic()
+    if _health_cache and now - _health_cache[0] < _HEALTH_TTL:
+        return _health_cache[1]
+    client = RyoClient(timeout=5.0, max_retries=0)  # a health probe must not hold the page hostage
+    value: dict[str, Any]
+    for _ in range(2):
+        try:
+            value = client.health()
+            break
+        except httpx.TimeoutException as exc:
+            value = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+        except Exception as exc:  # the dashboard must load even when RYO is down
+            value = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            break
+    value = {**value, "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    _health_cache = (now, value)
+    return value
+
+
+LEDGER_STALE_H = 36   # the cycle runs daily; a day and a half without a lock or a receipt means it stopped
+
+
+def _freshness(led: Ledger) -> dict[str, Any]:
+    def newest(sql: str) -> str | None:
+        try:
+            return led.conn.execute(sql).fetchone()[0]
+        except sqlite3.OperationalError:   # a snapshot from before the scorecard has no such table
+            return None
+
+    out = {"last_lock_at": newest("SELECT MAX(locked_at) FROM locks"),
+           "last_decision_at": newest("SELECT MAX(created_at) FROM decisions"),
+           "last_settled_at": newest("SELECT MAX(settled_at) FROM settlements")}
+    stamps = [datetime.fromisoformat(v) for v in (out["last_lock_at"], out["last_decision_at"]) if v]
+    latest = max((t if t.tzinfo else t.replace(tzinfo=timezone.utc) for t in stamps), default=None)
+    out["stale"] = latest is None or datetime.now(timezone.utc) - latest > timedelta(hours=LEDGER_STALE_H)
+    return out
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     """What this deployment can and cannot do right now. No secrets, only whether they are set."""
     led = _ledger()
-    client = RyoClient(timeout=5.0, max_retries=0)  # a health probe must not hold the page hostage
-    try:
-        ryo: dict[str, Any] = client.health()
-    except Exception as exc:  # the dashboard must load even when RYO is down
-        ryo = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
-    kind = os.environ.get("NOTA_LLM", "anthropic")
+    ryo = _ryo_probe()
+    # the provider actually configured: NOTA_LLM when set, else whichever key is present
+    kind = os.environ.get("NOTA_LLM") or ("openai" if os.environ.get("OPENAI_API_KEY") else "anthropic")
+    store = store_for(led)
     return {
-        "ryo": ryo, "ryo_key_set": bool(client.key), "readonly": led.readonly,
+        "ryo": ryo, "ryo_key_set": bool(os.environ.get("RYO_MCP_KEY")), "readonly": led.readonly,
+        "checked_at": ryo["checked_at"],
+        # where a backing would be written: Postgres, the ledger itself, or nowhere (a read-only
+        # snapshot with no DATABASE_URL), so the dashboard can say which instead of guessing
+        "backing": "postgres" if store is not led else "none" if led.readonly else "ledger",
         # `key_set` matters more than the name: the hosted demo has no LLM at all, and saying
         # "anthropic" there would imply a model that is not reachable.
         "llm": {"kind": kind, "model": os.environ.get("NOTA_MODEL"),
                 "key_set": bool(os.environ.get("OPENAI_API_KEY") if kind == "openai"
                                 else os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))},
         "ledger": {"decisions": led.conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0],
-                   "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()), "due": len(due(led))},
+                   "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()), "due": len(due(led)),
+                   **_freshness(led)},
         "notify": {"telegram": bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")),
                    "discord": bool(os.environ.get("DISCORD_WEBHOOK_URL"))},
     }
@@ -314,11 +426,13 @@ def _rpc_error(status: int, code: int, message: str, data: Any = None, headers: 
     return JSONResponse({"jsonrpc": "2.0", "id": id_, "error": err}, status_code=status, headers=headers)
 
 
-def _metered(m: dict[str, Any]) -> bool:
-    """The calls that reach third-party APIs: a tools/call request, except the ledger-only lookup."""
+def _metered(m: dict[str, Any]) -> int:
+    """What a message spends of the skill budget: a tools/call request costs what the same call costs
+    over REST (`_skill_cost`); everything else touches nothing outside this process and is free."""
     params = m.get("params")
-    name = params.get("name") if isinstance(params, dict) else None
-    return "id" in m and m.get("method") == "tools/call" and name != "verdict_track_record"
+    if "id" not in m or m.get("method") != "tools/call" or not isinstance(params, dict):
+        return 0
+    return _skill_cost(params.get("name"), params.get("arguments"))
 
 
 def _safe_handle(m: dict[str, Any], deps: dict[str, Any]) -> dict[str, Any] | None:
@@ -363,7 +477,7 @@ async def mcp_endpoint(request: Request) -> Response:
     # tools/call reaches third-party APIs, so it is metered exactly like the REST skill route. The
     # endpoint is public and unauthenticated by design, which makes it an amplifier without this.
     # The whole batch is checked before any of it is charged, so a refused batch costs nothing.
-    calls = sum(1 for m in batch if _metered(m))
+    calls = sum(_metered(m) for m in batch)
     if calls:
         ip = request.client.host if request.client else "unknown"
         wait = _throttle_n(f"skill:{ip}", calls, limit=60)
@@ -499,7 +613,7 @@ def invoke_skill(name: str, body: SkillCallRequest, request: Request) -> dict[st
     """RYO's SkillCallResponse shape: name, status, result (our envelope), latency_ms, xp, guard_decision."""
     if body.name and body.name != name:
         raise HTTPException(422, "body.name does not match the path")
-    _throttle(f"skill:{request.client.host if request.client else 'unknown'}", limit=60)
+    _throttle(f"skill:{request.client.host if request.client else 'unknown'}", limit=60, cost=_skill_cost(name, body.args))
     deps: dict[str, Any] = {}
     if name == "news_verify" and body.args.get("symbol") and os.environ.get("RYO_MCP_KEY"):
         deps["ryo"] = RyoClient()
@@ -522,6 +636,7 @@ HANDLE = re.compile(r"[A-Za-z0-9_.\-]{3,32}")  # fullmatch: `$` would also accep
 class BackingIn(BaseModel):
     handle: str = Field(description="X / Discord / Telegram handle, 3-32 chars")
     stance: Literal["agree", "disagree"]
+    token: str | None = Field(None, max_length=128, description="the edit token returned by this handle's first backing")
 
 
 def _backing_counts(led: Ledger, id: str) -> dict[str, Any]:
@@ -531,31 +646,66 @@ def _backing_counts(led: Ledger, id: str) -> dict[str, Any]:
 
 
 _BACKING_HITS: dict[str, list[float]] = {}
-BACKING_LIMIT, BACKING_WINDOW = 30, 3600.0  # ponytail: in-process per-IP throttle; a shared store if ever run on >1 worker
+BACKING_LIMIT, BACKING_WINDOW = 30, 3600.0
+HITS_MAX_KEYS = 10_000   # a flood of distinct addresses clears the table rather than growing it without bound
 
 
 def _throttle_n(key: str, n: int, limit: int, now: float | None = None) -> int | None:
     """Record n hits if all n fit in the window; otherwise record nothing and return the seconds until
-    the oldest hit ages out, which is when a retry can succeed."""
+    the oldest hit ages out, which is when a retry can succeed.
+
+    With DATABASE_URL the count lives in Postgres, so every serverless instance shares one budget
+    instead of each granting its own. Without it, or if Postgres cannot be reached, the count is
+    this process's own: a limiter that fails closed would take the whole public surface down with
+    the database."""
+    if n <= 0:
+        return None
+    dsn = os.environ.get("DATABASE_URL", "").strip()
+    if dsn and now is None:           # an explicit `now` is a test's clock, which only the local count follows
+        try:
+            allowed, wait = PostgresBackings(dsn).hit(key, n, limit, BACKING_WINDOW)
+            return None if allowed else wait
+        except Exception:
+            logging.getLogger("nota.api").exception("shared rate limit unreachable; counting in this process")
     now = now if now is not None else time.time()
+    # hits are appended in time order, so a key whose newest hit is expired is wholly expired
+    for k in [k for k, v in _BACKING_HITS.items() if now - v[-1] >= BACKING_WINDOW]:
+        del _BACKING_HITS[k]
+    if len(_BACKING_HITS) > HITS_MAX_KEYS:
+        _BACKING_HITS.clear()
     hits = [t for t in _BACKING_HITS.get(key, []) if now - t < BACKING_WINDOW]
     if len(hits) + n > limit:
-        _BACKING_HITS[key] = hits
+        if hits:
+            _BACKING_HITS[key] = hits
         return max(1, math.ceil(hits[0] + BACKING_WINDOW - now)) if hits else int(BACKING_WINDOW)
     _BACKING_HITS[key] = hits + [now] * n
     return None
 
 
-def _throttle(ip: str, now: float | None = None, limit: int = BACKING_LIMIT) -> None:
-    wait = _throttle_n(ip, 1, limit, now)
+def _throttle(key: str, now: float | None = None, limit: int = BACKING_LIMIT, cost: int = 1) -> None:
+    wait = _throttle_n(key, cost, limit, now)
     if wait is not None:
         raise HTTPException(429, f"too many requests from this address; limit {limit} per hour",
                             headers={"Retry-After": str(wait)})
 
 
+def _skill_cost(name: Any, args: Any) -> int:
+    """Units of the hourly budget one call spends: roughly the upstream fetches it makes. One
+    narrative call with 20 voices is 20 fetches, so it costs 20, not the 1 a price check costs;
+    the ledger-only track record fetches nothing and is free."""
+    if name == "verdict_track_record":
+        return 0
+    if name == "narrative_convergence":
+        voices = args.get("voices") if isinstance(args, dict) else None
+        return len(voices) if isinstance(voices, list) and voices else 1
+    return 2 if name == "news_verify" else 1
+
+
 @app.post("/api/decisions/{id}/back")
 def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
-    """Unauthenticated by design for the hackathon: one stance per handle per receipt, latest wins."""
+    """One stance per handle per receipt, latest wins. There are no accounts: the first post under a
+    handle claims it and gets an edit token back once, and every later post under that handle has to
+    carry the token. Only its SHA-256 is stored, so a leaked database does not leak the tokens."""
     handle = body.handle.strip(" ").lstrip("@").lower()  # "@Abc" and "abc" are one backer; a newline is refused, not trimmed
     if not HANDLE.fullmatch(handle):
         raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ . - (a leading @ is dropped)")
@@ -566,8 +716,22 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
         raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot and no DATABASE_URL is set; "
                                  "backing works on a writable `nota serve`")
     _receipt(led, id)
+    new_token = None
+    stored = store.token_sha(handle)
+    if stored is None:
+        new_token = secrets.token_urlsafe(24)
+        if not store.claim(handle, hashlib.sha256(new_token.encode()).hexdigest()):
+            stored = store.token_sha(handle)   # someone claimed it between the read and the write
+            new_token = None
+    if new_token is None:
+        sent = hashlib.sha256((body.token or "").encode()).hexdigest()
+        if not stored or not hmac.compare_digest(sent, stored):
+            raise HTTPException(409, "handle already claimed; send its edit token")
     store.add_backing(id, handle, body.stance)
-    return _backing_counts(led, id)
+    out = _backing_counts(led, id)
+    if new_token:
+        out["edit_token"] = new_token   # shown once; the server keeps only its hash
+    return out
 
 
 def backer_correct(stance: str, action: str, went_up: bool) -> bool | None:
@@ -670,7 +834,7 @@ def demo_page() -> FileResponse:
     return FileResponse(STATIC / "demo.html")
 
 
-@app.api_route("/demo.mp4", methods=["GET", "HEAD"], include_in_schema=False)   # players and link previews probe with HEAD
+@app.get("/demo.mp4", include_in_schema=False)
 def demo_video() -> FileResponse:
     """The submission walkthrough, served from the app itself so the demo URL needs no third party."""
     path = STATIC / "demo.mp4"
@@ -694,7 +858,9 @@ def permalink(id: str, request: Request) -> HTMLResponse:
     page = (STATIC / "index.html").read_text(encoding="utf-8")
     raw = _ledger().get_decision(id)
     if raw is None:
-        return HTMLResponse(page)
+        # the page still loads and says there is no such receipt, but the status says it too, so a
+        # crawler or a link checker does not index a made-up id as a real receipt
+        return HTMLResponse(page.replace("<!--OG-->", '<meta name="robots" content="noindex">', 1), status_code=404)
     r = Receipt.model_validate_json(raw)
     # the fallback comes from the Host header, so it is escaped like any other untrusted input
     base = html.escape(os.environ.get("NOTA_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/"))

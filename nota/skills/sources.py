@@ -10,6 +10,7 @@ import html
 import os
 import json
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -31,6 +32,26 @@ UA = "Mozilla/5.0 (compatible; nota/0.1; +https://ryobuild.com)"
 # somewhere of their choosing. Handles are letters, digits, underscore, dot and hyphen, and nothing
 # else gets near a URL.
 _HANDLE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+
+
+# The skills are public, and the same popular channel or feed is asked for again and again: a
+# narrative call names up to 20 voices, and every news check reads the same four feeds. A fetch that
+# succeeded is kept for five minutes, keyed by its URL, so repeats cost nothing upstream and do not
+# get this server's address rate limited. Failures are never kept: the next caller tries again.
+CACHE_TTL = 300.0
+CACHE_MAX = 500                       # ponytail: cleared whole when full; an LRU if hit rates ever matter
+_CACHE: dict[str, tuple[float, Any]] = {}
+
+
+def cached(url: str, fetch: Any) -> Any:
+    hit = _CACHE.get(url)
+    if hit and time.monotonic() - hit[0] < CACHE_TTL:
+        return hit[1]
+    value = fetch()
+    if len(_CACHE) >= CACHE_MAX:
+        _CACHE.clear()
+    _CACHE[url] = (time.monotonic(), value)
+    return value
 
 
 def clean_handle(raw: str, voice: str) -> str:
@@ -89,13 +110,18 @@ class TelegramPublic:
 
     def fetch(self, channel: str) -> list[Message]:
         voice = f"tg:{channel}"
-        try:
-            resp = self.http.get(f"https://t.me/s/{clean_handle(channel, voice)}")
-        except httpx.HTTPError as exc:
-            raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
-        if resp.status_code != 200:
-            raise SourceUnavailable(f"{voice}: HTTP {resp.status_code}")
-        return parse_telegram_preview(resp.text, voice)
+        url = f"https://t.me/s/{clean_handle(channel, voice)}"
+
+        def get() -> list[Message]:
+            try:
+                resp = self.http.get(url)
+            except httpx.HTTPError as exc:
+                raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
+            if resp.status_code != 200:
+                raise SourceUnavailable(f"{voice}: HTTP {resp.status_code}")
+            return parse_telegram_preview(resp.text, voice)
+
+        return cached(url, get)
 
 
 # --- X via its own public syndication endpoint (unofficial, keyless, rate limited) ------------
@@ -154,15 +180,20 @@ class XPublic:
 
     def fetch(self, handle: str) -> list[Message]:
         voice = f"x:{handle}"
-        try:
-            resp = self.http.get(f"{self.base}/{clean_handle(handle, voice)}")
-        except httpx.HTTPError as exc:
-            raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
-        if resp.status_code != 200:
-            raise SourceUnavailable(f"{voice}: syndication HTTP {resp.status_code}")
-        if "Rate limit exceeded" in resp.text[:2000]:
-            raise SourceUnavailable(f"{voice}: syndication rate limit reached for this address")
-        return parse_syndication(resp.text, voice)
+        url = f"{self.base}/{clean_handle(handle, voice)}"
+
+        def get() -> list[Message]:
+            try:
+                resp = self.http.get(url)
+            except httpx.HTTPError as exc:
+                raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
+            if resp.status_code != 200:
+                raise SourceUnavailable(f"{voice}: syndication HTTP {resp.status_code}")
+            if "Rate limit exceeded" in resp.text[:2000]:
+                raise SourceUnavailable(f"{voice}: syndication rate limit reached for this address")
+            return parse_syndication(resp.text, voice)
+
+        return cached(url, get)
 
 
 # --- Bluesky (public AppView API, no key) ----------------------------------------------------
@@ -174,9 +205,13 @@ class BlueskyPublic:
 
     def fetch(self, handle: str, limit: int = 30) -> list[Message]:
         voice = f"bs:{handle}"
+        actor = clean_handle(handle, voice)
+        return cached(f"bsky:{actor}:{limit}", lambda: self._get(voice, actor, handle, limit))
+
+    def _get(self, voice: str, actor: str, handle: str, limit: int) -> list[Message]:
         try:
             resp = self.http.get("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed",
-                                 params={"actor": clean_handle(handle, voice), "limit": limit,
+                                 params={"actor": actor, "limit": limit,
                                          "filter": "posts_no_replies"})
         except httpx.HTTPError as exc:
             raise SourceUnavailable(f"{voice}: network error {type(exc).__name__}") from exc
@@ -241,13 +276,16 @@ class RssNews:
 
     def _items(self, domain: str, url: str) -> list[dict[str, str | None]]:
         try:
-            resp = self.http.get(url)
-            if resp.status_code != 200:
-                raise SourceUnavailable(f"rss {domain}: HTTP {resp.status_code}")
-            root = ElementTree.fromstring(resp.content)
+            return cached(url, lambda: self._fetch(domain, url))
         except (httpx.HTTPError, ParseError, DefusedXmlException, SourceUnavailable) as exc:
             self.failed.append(f"{domain}: {exc if isinstance(exc, SourceUnavailable) else type(exc).__name__}")
             return []
+
+    def _fetch(self, domain: str, url: str) -> list[dict[str, str | None]]:
+        resp = self.http.get(url)
+        if resp.status_code != 200:
+            raise SourceUnavailable(f"rss {domain}: HTTP {resp.status_code}")
+        root = ElementTree.fromstring(resp.content)
         out = []
         for item in root.iter("item"):
             out.append({"title": (item.findtext("title") or "").strip(), "url": (item.findtext("link") or "").strip(),

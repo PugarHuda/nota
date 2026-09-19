@@ -126,7 +126,7 @@ def test_landing_renders_draws_its_mark_and_verifies_a_receipt_for_real(server, 
 
     # the button really calls the deployment's own API
     page.click("#verify")
-    page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')", timeout=20000)
+    page.wait_for_function("() => document.querySelector('#verify-out').textContent.includes('identical')", timeout=20000)
     assert "identical: true" in page.locator("#verify-out").inner_text()
 
     assert problems == [], problems
@@ -198,7 +198,7 @@ def test_no_horizontal_overflow_on_either_page_at_any_width(server, browser, wid
 def test_dashboard_is_legible_in_both_themes(server, browser, theme):
     page, problems = page_with_log(browser, viewport={"width": 1440, "height": 900})
     page.goto(server + "/app", wait_until="networkidle")
-    page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
+    page.wait_for_function("() => document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
     while page.evaluate("document.documentElement.dataset.theme || 'system'") != theme:
         page.click("#theme")
     page.wait_for_timeout(250)
@@ -243,7 +243,7 @@ def test_keyboard_alone_reaches_the_receipt_the_diff_and_the_replay_check(server
     page.keyboard.press("Escape")
 
     page.click("#verify")
-    page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')", timeout=30000)
+    page.wait_for_function("() => document.querySelector('#verify-out').textContent.includes('identical')", timeout=30000)
     assert "identical" in page.locator("#verify-out").inner_text()
     assert problems == [], problems
     page.close()
@@ -262,7 +262,7 @@ def test_the_skill_runner_lists_and_runs_every_skill(server, browser):
         for key, value in args.items():
             page.fill(f"#skill-args [data-arg='{key}']", value)
         page.click("#skill-run")
-        page.wait_for_function("document.querySelector('#skill-out').textContent.length > 40", timeout=90000)
+        page.wait_for_function("() => document.querySelector('#skill-out').textContent.length > 40", timeout=90000)
         out = page.locator("#skill-out").inner_text()
         assert skill.split("_")[0] in out.lower() or "envelope" in out.lower() or "data_mode" in out.lower()
         assert "traceback" not in out.lower()
@@ -282,7 +282,7 @@ def test_error_paths_say_what_is_wrong_instead_of_breaking(server, browser):
     page.wait_for_selector("#backing")
     page.fill("#handle", "not a handle!!")
     page.locator("#backing button").first.click()
-    page.wait_for_function("document.querySelector('#back-out').textContent.length > 0", timeout=15000)
+    page.wait_for_function("() => document.querySelector('#back-out').textContent.length > 0", timeout=15000)
     said = page.locator("#back-out").inner_text().lower()
     assert "handle" in said or "read-only" in said or "503" in said     # refused, and it says why
     problems[:] = [p for p in problems if "404" not in p and "503" not in p]
@@ -377,7 +377,7 @@ def test_body_and_muted_text_meet_wcag_aa_in_both_themes(server, browser, theme)
     """Track 2 is scored on working for everyone, so the contrast is measured, not assumed."""
     page, problems = page_with_log(browser, viewport={"width": 1440, "height": 900})
     page.goto(server + "/app", wait_until="networkidle")
-    page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
+    page.wait_for_function("() => document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
     while page.evaluate("document.documentElement.dataset.theme || 'system'") != theme:
         page.click("#theme")
     page.wait_for_timeout(250)
@@ -487,3 +487,27 @@ def test_the_mcp_apps_view_completes_the_handshake_and_renders_data_as_text(brow
     page.screenshot(path=os.environ.get("NOTA_SHOT_DIR", str(tmp_path)) + "/mcp_app.png")
     assert problems == [], problems
     page.close()
+
+
+def test_no_page_breaks_its_own_content_security_policy(server, browser):
+    """The policy is 'self' only. Any inline handler, eval, third-party font or remote image a page
+    still relied on would show here as a violation, and in production as a silently missing piece."""
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
+        page = browser.new_page(viewport={"width": 1200, "height": 900})
+        violations: list[str] = []
+        page.on("console", lambda m: violations.append(m.text) if "Content Security Policy" in m.text else None)
+        page.on("pageerror", lambda e: violations.append(str(e)) if "Content Security Policy" in str(e) else None)
+        resp = page.goto(server + path, wait_until="networkidle")
+        assert "default-src 'self'" in resp.headers["content-security-policy"], path
+        assert violations == [], (path, violations)
+        page.close()
+
+
+def test_a_head_probe_over_the_wire_matches_get(server):
+    """uvicorn, not the test client: the length a player or link preview reads before it asks for bytes."""
+    import httpx
+
+    for path in ("/", "/app", "/demo.mp4", "/api/health", f"/r/{RECEIPT}.png"):
+        get, head = httpx.get(server + path, timeout=30), httpx.head(server + path, timeout=30)
+        assert head.status_code == get.status_code == 200, path
+        assert head.content == b"" and head.headers.get("content-length") == get.headers.get("content-length"), path

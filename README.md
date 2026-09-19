@@ -117,10 +117,28 @@ strangers:
   `BTC?x` never leaves the process. `GET /api/decisions` takes `limit` from 1 to 200, and a backing
   handle is one line: `@Abc` and `abc` are the same backer, `abc
 ` is refused.
-- `tools/call` over MCP is metered per address exactly like the REST route, 60 an hour, because it
-  reaches third-party APIs. `initialize`, `tools/list`, `resources/*` and the ledger-only
+- `tools/call` over MCP is metered per address exactly like the REST route, 60 units an hour,
+  because it reaches third-party APIs. A call costs roughly the fetches it makes: one unit for a
+  price or technicals check, two for `news_verify`, one per voice for `narrative_convergence` (so a
+  20-voice call is 20, not 1). `initialize`, `tools/list`, `resources/*` and the ledger-only
   `verdict_track_record` stay free: they touch nothing outside the process. A batch is checked
-  whole before any of it is charged, and a refusal is a JSON-RPC `429` with `Retry-After`.
+  whole before any of it is charged, and a refusal is a JSON-RPC `429` with `Retry-After`. With
+  `DATABASE_URL` set the count lives in Postgres (a `hits` table), so every serverless instance
+  draws on one budget instead of each granting its own; without it the count is per process,
+  pruned as it goes and cleared if it ever holds 10,000 addresses.
+- A Telegram, X or Bluesky voice and each of the four RSS feeds is fetched at most once per five
+  minutes per process; repeats come from that cache, and a failed fetch is never cached.
+- Every response carries `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, a
+  `Permissions-Policy` and a `Content-Security-Policy` of `'self'` only (fonts are self-hosted and
+  no page loads a third-party script, so nothing needs more; `/docs` is left out because Swagger UI
+  comes from a CDN). The read-only JSON under `/api/` and `/r/` and `llms.txt` answer any origin,
+  and the skill invoke route answers its CORS preflight, so a page elsewhere can call a skill;
+  `/mcp` keeps its `Origin` allowlist. Every page answers `HEAD` with the headers `GET` would send,
+  and `/r/<id>` for an id that is not in the ledger is a `404` with `noindex`.
+- `/api/health` probes RYO at most once a minute per process (one retry on a timeout) and says when
+  it did (`checked_at`), where a backing would be written (`backing`: `postgres`, `ledger` or
+  `none`), and how fresh the ledger is: the newest lock, receipt and settlement, and `stale: true`
+  when neither a lock nor a receipt has been written for 36 hours.
 - A JSON-RPC batch is capped at 25 messages and a body at 1 MB (checked while it streams, so a
   chunked upload cannot slip past), a body nested too deep to parse is a `-32700`, and `Origin` is
   validated on every MCP request as the transport spec's security section requires. Every refusal,
@@ -138,6 +156,10 @@ strangers:
   drop a stance whenever two people backed at the same moment, and a public record that silently
   loses someone's vote is worse than no public record. The 503 is still there for the case it was
   written for - nowhere to write at all.
+- A handle cannot be taken over. There are no accounts, so the first backing under a handle claims
+  it and returns an `edit_token` once; any later backing under that handle must carry the token or
+  gets a `409`. Only the token's SHA-256 is stored, and it is compared in constant time. The
+  dashboard keeps the token in the browser that claimed the handle.
 
 ## Honesty rules this code enforces
 
@@ -340,8 +362,9 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
 - **Backing**: anyone can back or disagree with a call under a handle (`POST
   /api/decisions/<id>/back`, one stance per handle per receipt, latest wins). When the call
   resolves, backers are scored against the outcome (`/api/backers`): agreeing with a long that
-  went up is right, disagreeing with it is wrong, `no_trade` calls are never scored. It is
-  public and unauthenticated on purpose; the ledger keeps every stance with its timestamp.
+  went up is right, disagreeing with it is wrong, `no_trade` calls are never scored. It needs no
+  account: the first backing under a handle claims it with an edit token that this browser keeps,
+  so nobody else can post under that handle. The ledger keeps every stance with its timestamp.
 
 ## Evaluate with zero keys
 

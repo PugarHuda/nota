@@ -151,3 +151,46 @@ def test_an_unavailable_envelope_does_not_claim_its_data_is_live():
     assert env.status == "unavailable" and env.data_mode == "unknown"
     ok = make_envelope("t", {}, {"x": 1}, {"a": "ok"}, [], "h")
     assert ok.status == "ok" and ok.data_mode == "live"
+
+
+def test_a_source_fetch_is_cached_for_five_minutes_and_a_failure_is_not():
+    import httpx
+
+    from nota.skills import sources
+
+    hits: list[str] = []
+    page = ('<section><div class="tgme_widget_message_wrap"><div data-post="chan/1">'
+            '<div class="tgme_widget_message_text">hi</div></div></section>')
+    status = {"code": 500}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hits.append(str(request.url))
+        return httpx.Response(status["code"], text=page)
+
+    tg = sources.TelegramPublic(http=httpx.Client(transport=httpx.MockTransport(handler)))
+    for _ in range(2):
+        try:
+            tg.fetch("chan")
+        except sources.SourceUnavailable:
+            pass
+    assert len(hits) == 2                       # a failure is never kept: the second call tried again
+    status["code"] = 200
+    assert tg.fetch("chan")[0].id == "chan/1" and tg.fetch("@chan")[0].id == "chan/1"
+    assert len(hits) == 3                       # the repeat came from the cache
+    sources._CACHE["https://t.me/s/chan"] = (0.0, [])   # older than the TTL
+    tg.fetch("chan")
+    assert len(hits) == 4
+
+
+def test_news_verify_does_not_echo_the_claim_in_data():
+    from nota.skills.news import news_verify
+    from nota.skills.sources import TavilyResult
+
+    class Search:
+        name = "stub"
+
+        def search(self, *a, **kw):
+            return [TavilyResult(url="https://a.com/x", title="t", score=0.9)]
+
+    env = news_verify("SOL ETF approved", tavily=Search(), rss=False)
+    assert env.request["claim"] == "SOL ETF approved" and "claim" not in env.data

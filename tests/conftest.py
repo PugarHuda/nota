@@ -10,10 +10,17 @@ judge running `uv run pytest -q` gets the same result every time.
 import pytest
 
 from nota import api
+from nota.skills import sources
 
 
 @pytest.fixture(autouse=True)
 def _clear_rate_limiter():
+    # the source cache and the health probe cache are process-global for the same reason, and a
+    # response mocked in one test must not answer for the next
     api._BACKING_HITS.clear()
+    sources._CACHE.clear()
+    api._health_cache = None
     yield
     api._BACKING_HITS.clear()
+    sources._CACHE.clear()
+    api._health_cache = None

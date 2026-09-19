@@ -56,7 +56,7 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     page.goto(base + "/app")
     page.wait_for_selector("#list .row")
     assert page.locator("#list .row").count() == 2
-    page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
+    page.wait_for_function("() => document.querySelector('#health').textContent.includes('receipts')", timeout=20000)
     assert "RYO" in page.locator("#health").inner_text()
     assert page.locator("#detail .headline").inner_text().startswith("SOL: LONG")  # newest receipt opens first
 
@@ -70,29 +70,29 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     page.goto(f"{base}/r/{second.id}")
     page.wait_for_selector("#verify")
     page.click("#verify")
-    page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')")
+    page.wait_for_function("() => document.querySelector('#verify-out').textContent.includes('identical')")
     assert "identical: true" in page.locator("#verify-out").inner_text()
 
     page.fill("#handle", "e2e_judge")
     page.click("#backing button[data-stance='agree']")
-    page.wait_for_function("document.querySelector('#back-counts').textContent.startsWith('1 agree')")
-    page.wait_for_function("document.querySelector('#backers').textContent.includes('e2e_judge')")
+    page.wait_for_function("() => document.querySelector('#back-counts').textContent.startsWith('1 agree')")
+    page.wait_for_function("() => document.querySelector('#backers').textContent.includes('e2e_judge')")
     page.fill("#handle", "x")
     page.click("#backing button[data-stance='disagree']")
     assert "3-32" in page.locator("#back-out").inner_text()
 
-    page.wait_for_function("document.querySelector('#summary-position').textContent.includes('open')")
-    page.wait_for_function("!document.querySelector('#attention').hidden")
+    page.wait_for_function("() => document.querySelector('#summary-position').textContent.includes('open')")
+    page.wait_for_function("() => !document.querySelector('#attention').hidden")
     assert "degraded evidence" in page.locator("#attention").inner_text()  # seeded receipts run on partial fixtures
     assert "Now:" in page.locator("#summary").inner_text() and "Next:" in page.locator("#summary").inner_text()
-    page.wait_for_function("document.querySelectorAll('#skill-name option').length === 7")
+    page.wait_for_function("() => document.querySelectorAll('#skill-name option').length === 7")
     page.select_option("#skill-name", "narrative_convergence")
     assert page.locator("#skill-args [data-arg='voices']").count() == 1 and page.locator("#skill-args [data-arg='hours']").count() == 1
     page.click("#skill-run")  # required arg missing: the API's 422 must surface, not a silent nothing
-    page.wait_for_function("document.querySelector('#skill-status').textContent.includes('missing required args')")
+    page.wait_for_function("() => document.querySelector('#skill-status').textContent.includes('missing required args')")
 
     page.fill("#filter", "no_trade")
-    page.wait_for_function("document.querySelectorAll('#list .row').length === 1")
+    page.wait_for_function("() => document.querySelectorAll('#list .row').length === 1")
     assert "no_trade" in page.locator("#list .row").first.get_attribute("aria-label")
     page.keyboard.press("Escape")
     page.keyboard.press("?")
