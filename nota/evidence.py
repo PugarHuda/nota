@@ -179,6 +179,17 @@ def candidate_symbols(node: Any) -> list[str]:
     return out
 
 
+def scan_for(env: Envelope, symbol: str) -> Envelope:
+    """scan_market's answer cut down to why SYMBOL was picked: its own candidate row (rank, 24 h change,
+    turnover, momentum score, established flag, RYO's reason) plus the filters and the selection method.
+    The other candidates are not evidence about this token."""
+    symbol = symbol.upper()
+    data = env.data if isinstance(env.data, dict) else {}
+    rows = [c for c in data.get("candidates") or [] if isinstance(c, dict) and str(c.get("symbol", "")).upper() == symbol]
+    keep = {k: data[k] for k in ("filters", "selection_method", "candidate_count", "excluded_candidate_count") if k in data}
+    return env.model_copy(update={"data": {**keep, "candidates": rows}})
+
+
 Extra = Callable[[str, "EvidencePack"], Envelope]  # our own skill, called with the symbol and the RYO sections gathered so far
 
 
@@ -190,7 +201,8 @@ def _fetch(source: RyoSource, tool: str, args: dict[str, Any]) -> Section:
         return Section(tool=tool, status="error", error=f"{exc.code}: {exc.message}", trace_id=exc.trace_id)
 
 
-def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: dict[str, Extra] | None = None) -> EvidencePack:
+def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: dict[str, Extra] | None = None,
+           scan: Envelope | None = None) -> EvidencePack:
     """The five RYO reads run three at a time (deep_analysis alone takes 20-46 s), and the client's pacer
     keeps them inside RYO's fan-out bucket. Sections are inserted in SECTIONS order whatever finishes
     first, so the stored pack and its hash are the same as a sequential gather's."""
@@ -201,6 +213,8 @@ def gather(source: RyoSource, symbol: str, include_perp: bool = True, extras: di
         futures = {key: pool.submit(_fetch, source, tool, args[key]) for key, tool in SECTIONS.items()}
     for key in SECTIONS:
         pack.sections[key] = futures[key].result()
+    if scan is not None:
+        pack.sections["scan"] = Section(tool="scan_market", status=scan.status, envelope=scan_for(scan, symbol))
     for key, fn in (extras or {}).items():
         try:
             env = fn(symbol, pack)

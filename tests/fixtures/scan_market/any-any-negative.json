@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "tool": "scan_market",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:52:27Z",
+  "request": {
+    "top_n": 5,
+    "filter_direction": "negative"
+  },
+  "data": {
+    "filters": {
+      "chain": null,
+      "theme": null,
+      "limit": 5
+    },
+    "selection_method": "Ranked by 24-hour momentum and market activity.",
+    "candidate_count": 5,
+    "candidates": [
+      {
+        "rank": 1,
+        "symbol": "AI",
+        "name": "Artificial Inu",
+        "chain": null,
+        "contract": "0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18",
+        "price_usd": 0.2838176167681017,
+        "change_24h_pct": -17.39,
+        "market_cap_usd": 283771493.24535155,
+        "volume_24h_usd": 18784856.68488725,
+        "turnover_ratio": 0.07,
+        "momentum_score": 0.03,
+        "established_asset": true,
+        "reason": "#1 momentum · -17.39% over 24h · 0.07 turnover ratio · momentum score 0.03"
+      },
+      {
+        "rank": 2,
+        "symbol": "BTW",
+        "name": "Bitway",
+        "chain": null,
+        "contract": "0x3A63DE3572c69a1307ff08394f3Ee7702C16d25d",
+        "price_usd": 0.572713550441872,
+        "change_24h_pct": -14.98,
+        "market_cap_usd": 1609193774.1422317,
+        "volume_24h_usd": 11619008.92954195,
+        "turnover_ratio": 0.01,
+        "momentum_score": 0.0,
+        "established_asset": true,
+        "reason": "#2 momentum · -14.98% over 24h · 0.01 turnover ratio · momentum score 0.00"
+      },
+      {
+        "rank": 3,
+        "symbol": "CAP",
+        "name": "Cap",
+        "chain": null,
+        "contract": "0x99991c6AAbba5a096f24f250b73580F5179b9999",
+        "price_usd": 0.04736446339444543,
+        "change_24h_pct": -13.33,
+        "market_cap_usd": 73888562.89533487,
+        "volume_24h_usd": 139740807.56049183,
+        "turnover_ratio": 1.89,
+        "momentum_score": 0.4,
+        "established_asset": true,
+        "reason": "#3 momentum · -13.33% over 24h · 1.89 turnover ratio · momentum score 0.40"
+      },
+      {
+        "rank": 4,
+        "symbol": "牛来",
+        "name": "牛来 (Niu Lai)",
+        "chain": null,
+        "contract": "0xbeea1d618e533a387d941f58a7d4c9b7bd377777",
+        "price_usd": 0.1078568727909225,
+        "change_24h_pct": -11.22,
+        "market_cap_usd": 107856872.7909225,
+        "volume_24h_usd": 31238840.21976324,
+        "turnover_ratio": 0.29,
+        "momentum_score": 0.12,
+        "established_asset": true,
+        "reason": "#4 momentum · -11.22% over 24h · 0.29 turnover ratio · momentum score 0.12"
+      },
+      {
+        "rank": 5,
+        "symbol": "PONS",
+        "name": "Pons",
+        "chain": null,
+        "contract": "0x39dbed3a2bd333467115de45665cc57f813c4571",
+        "price_usd": 0.6169738615940116,
+        "change_24h_pct": -9.98,
+        "market_cap_usd": 423250771.58971274,
+        "volume_24h_usd": 80147081.90107784,
+        "turnover_ratio": 0.19,
+        "momentum_score": 0.08,
+        "established_asset": true,
+        "reason": "#5 momentum · -9.98% over 24h · 0.19 turnover ratio · momentum score 0.08"
+      }
+    ],
+    "excluded_candidate_count": 0
+  },
+  "summary": {
+    "headline": "Found 5 ranked candidates.",
+    "key_points": [
+      "Highest-ranked candidates: AI, BTW, CAP."
+    ]
+  },
+  "availability": {
+    "ranked_candidates": "available",
+    "theme_filter": "not_requested"
+  },
+  "warnings": [],
+  "trace_id": "0a72a9b6e0894aac9421b7f402a6b742"
+}

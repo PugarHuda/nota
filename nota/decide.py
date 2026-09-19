@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from nota.calibration import role_scores, role_weights
 from nota.council import council_without_primary, run_council
+from nota.envelope import Envelope
 from nota.evidence import Extra, gather
 from nota.ledger import Ledger
 from nota.llm import LLM
@@ -13,8 +14,9 @@ from nota.ryo_client import RyoSource
 
 
 def decide(symbol: str, source: RyoSource, llm: LLM, ledger: Ledger, limits: RiskLimits | None = None, use_cache: bool = True,
-           extras: dict[str, Extra] | None = None) -> Receipt:
-    pack = gather(source, symbol, extras=extras)
+           extras: dict[str, Extra] | None = None, scan_env: Envelope | None = None) -> Receipt:
+    """`scan_env`: the scan_market answer that picked SYMBOL (scan/watch), kept in the pack as `scan`."""
+    pack = gather(source, symbol, extras=extras, scan=scan_env)
     ledger.save_pack(pack.pack_hash(), pack.symbol, pack.source, pack.model_dump_json())
     if pack.primary_ok:
         council = run_council(pack, llm, ledger, weights=role_weights(role_scores(ledger)), use_cache=use_cache)

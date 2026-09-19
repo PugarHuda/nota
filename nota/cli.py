@@ -120,7 +120,7 @@ def health(strict: bool = typer.Option(False, "--strict", help="Exit 1 when whoa
         typer.echo("MCP tools/list: " + ", ".join(t.get("name", "?") for t in client.tools_mcp()))
         catalog = client.tools()
         sent = {**{SECTIONS[k]: a for k, a in ryo_args("SOL").items()},
-                "scan_market": {"chain": "bsc", "theme": "news", "top_n": 5}}  # every key `nota scan` can send
+                "scan_market": {"chain": "bsc", "theme": "news", "top_n": 5, "filter_direction": "all"}}  # every key `nota scan` can send
         for tool, args in sent.items():
             problems += check_args(tool, args, catalog)
         for t in catalog:
@@ -212,26 +212,71 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
     return extras or None
 
 
+DIRECTION_HELP = "positive (gainers) | negative (losers, for shorts) | all; sent as scan_market filter_direction"
+
+
+def _direction(value: str) -> str:
+    if value not in ("positive", "negative", "all"):
+        raise typer.BadParameter("direction must be positive, negative or all")
+    return value
+
+
+def _scan_rows(env) -> list[dict]:
+    """RYO's ranked candidate rows; the symbols alone when an answer carries no `candidates` list."""
+    rows = env.data.get("candidates") if isinstance(env.data, dict) else None
+    if not (isinstance(rows, list) and rows):
+        rows = [{"symbol": s} for s in candidate_symbols(env.data)]
+    out = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        try:  # a scan symbol goes on into RYO calls, prompts and fixture paths, like a typed one
+            out.append({**r, "symbol": clean_symbol(r.get("symbol"))})
+        except ValueError:  # RYO does list tokens whose ticker is not Latin (seen live: a Chinese-named meme coin)
+            typer.echo(f"  skipped candidate {r.get('name')!a}: symbol {r.get('symbol')!a} is not 1-15 letters/digits")
+    return out
+
+
+def _print_scan(env, rows: list[dict]) -> None:
+    """The shortlist and why each token is on it, plus the two things that make a pick weaker than it looks."""
+    typer.echo(f"{'rank':>4} {'symbol':8} {'24h %':>8} {'turnover':>8} {'momentum':>8} {'estab.':6} reason")
+    for r in rows:
+        num = lambda k: "-" if r.get(k) is None else f"{r[k]:g}" if isinstance(r[k], (int, float)) else str(r[k])
+        estab = {True: "yes", False: "no"}.get(r.get("established_asset"), "-")
+        typer.echo(f"{num('rank'):>4} {str(r['symbol']).upper():8} {num('change_24h_pct'):>8} {num('turnover_ratio'):>8} "
+                   f"{num('momentum_score'):>8} {estab:6} {r.get('reason') or '-'}")
+        if r.get("established_asset") is False:
+            typer.echo(f"  warning: {str(r['symbol']).upper()} is not an established asset (RYO's flag); thin history, wider noise")
+    excluded = env.data.get("excluded_candidate_count") if isinstance(env.data, dict) else None
+    if excluded:
+        typer.echo(f"  warning: RYO excluded {excluded} candidate(s) from this scan; the shortlist is not the whole market")
+
+
 @app.command()
 def scan(
     top_n: int = typer.Option(5, help="Candidates to take from scan_market"),
     chain: str = typer.Option("", help="Optional chain filter, e.g. bsc"),
     theme: str = typer.Option("", help="Optional theme context, e.g. news"),
+    direction: str = typer.Option("all", help=DIRECTION_HELP),
     source: str = typer.Option("live", help="live | recorded"),
     decide_top: int = typer.Option(0, help="Run the council on the first N candidates"),
     llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP),
 ):
-    """RYO's research funnel: scan_market -> analyze_token on each candidate -> optional council decisions."""
+    """RYO's research funnel: scan_market -> analyze_token on each candidate -> optional council decisions.
+    Each decision keeps the scan row that nominated it (the `scan` section of its evidence)."""
+    direction = _direction(direction)
     src = _source(source)
     args = {k: v for k, v in {"chain": chain, "theme": theme, "top_n": top_n}.items() if v}
-    env = src.call("scan_market", args)
+    env = src.call("scan_market", {**args, "filter_direction": direction})
     typer.echo(f"scan_market: {env.status}, data_mode {env.data_mode}, as_of {env.as_of} | {env.summary.headline}")
     for w in env.warnings:
         typer.echo(f"  warning: {w}")
-    candidates = candidate_symbols(env.data)[:top_n]
-    if not candidates:
+    rows = _scan_rows(env)[:top_n]
+    if not rows:
         typer.echo("no candidate symbols found in scan_market data")
         raise typer.Exit(1)
+    _print_scan(env, rows)
+    candidates = [str(r["symbol"]).upper() for r in rows]
     for sym in candidates:
         try:
             a = src.call("analyze_token", {"symbol": sym})
@@ -239,7 +284,7 @@ def scan(
         except RyoError as exc:
             typer.echo(f"{sym:8} {'error':12} {exc.code}: {exc.message}")
     for sym in candidates[:decide_top]:
-        r = decide(sym, src, _llm(llm), _ledger(), RiskLimits())
+        r = decide(sym, src, _llm(llm), _ledger(), RiskLimits(), scan_env=env)
         typer.echo(f"decided {sym}: {r.headline} (receipt {r.id})")
 
 
@@ -247,6 +292,7 @@ def scan(
 def watch(
     symbols: str = typer.Argument("", help="Comma list, e.g. SOL,BTC (may be empty with --scan-top)"),
     scan_top: int = typer.Option(0, help="Each cycle, also take the top N candidates from scan_market"),
+    direction: str = typer.Option("all", help=DIRECTION_HELP),
     every: int = typer.Option(3600, help="Seconds between cycles"),
     cycles: int = typer.Option(0, help="Stop after N cycles (0 = run until interrupted)"),
     source: str = typer.Option("live", help="live | recorded"),
@@ -259,6 +305,7 @@ def watch(
 ):
     """Autonomous loop: decide every symbol each cycle, exit practice positions at stop/target, score matured decisions, publish receipts."""
     fixed = [_sym(s) for s in symbols.split(",") if s.strip()]
+    direction = _direction(direction)
     if not fixed and not scan_top:
         raise typer.BadParameter("give symbols, --scan-top N, or both")
     n = 0
@@ -266,17 +313,21 @@ def watch(
         n += 1
         src, led = _source(source), _ledger()
         syms = list(fixed)
+        scan_env = None
         if scan_top:
             try:
-                env = src.call("scan_market", {"top_n": scan_top})
-                picked = [s for s in candidate_symbols(env.data)[:scan_top] if s not in syms]
-                typer.echo(f"[{now_iso()}] scan_market {env.status}: {', '.join(picked) or 'no new candidates'}")
+                scan_env = src.call("scan_market", {"top_n": scan_top, "filter_direction": direction})
+                rows = _scan_rows(scan_env)[:scan_top]
+                picked = [s for s in (str(r["symbol"]).upper() for r in rows) if s not in syms]
+                typer.echo(f"[{now_iso()}] scan_market {scan_env.status}: {', '.join(picked) or 'no new candidates'} (direction {direction})")
+                _print_scan(scan_env, [r for r in rows if str(r["symbol"]).upper() in picked])
                 syms += picked
             except RyoError as exc:
                 typer.echo(f"[{now_iso()}] scan_market failed {exc.code}: {exc.message}; using fixed symbols only")
         for sym in syms:
             try:
-                r = decide(sym, src, _llm(llm), led, RiskLimits(), extras=_extras(src, voices, news, price_check))
+                r = decide(sym, src, _llm(llm), led, RiskLimits(), extras=_extras(src, voices, news, price_check),
+                           scan_env=scan_env if sym not in fixed else None)
                 typer.echo(f"[{now_iso()}] {sym}: {r.headline} (receipt {r.id}, cache hits {r.cache_hits})")
                 if notify and r.cache_hits < 4:  # a fully cached receipt is a repeat, not news
                     for out in notify_receipt(r):

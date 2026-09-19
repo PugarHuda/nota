@@ -8,7 +8,7 @@ from nota.council import Citation, Opinion, Verdict
 from nota.decide import decide
 from nota.envelope import Envelope
 from nota.ledger import Ledger
-from nota.llm import FakeLLM
+from tests.fakes import FakeLLM
 from nota.ryo_client import RecordedRyoClient
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -119,3 +119,28 @@ def test_a_receipt_not_built_on_ryo_evidence_is_never_scored():
     fresh = Ledger(":memory:")  # same evidence, so the same receipt id: keep the two apart
     real = decide("SOL", RecordedRyoClient(FIXTURES), llm(), fresh)
     assert due(fresh, now=datetime.now(timezone.utc) + timedelta(days=30)) == [real.id]
+
+
+def test_skill_vs_ryo_counts_council_against_ryos_own_call():
+    """Two recorded SOL packs (2026-09-19 and 2026-09-07); RYO called both 'constructive'. The council goes
+    long on one and short on the other, and SOL rises after both: RYO 2/2, the council 1/2."""
+    from nota.calibration import skill_vs_ryo
+
+    led = Ledger(":memory:")
+
+    def council(action, p):
+        op = lambda role: (lambda _u: Opinion(role=role, stance="neutral", p_up_7d=p, confidence="medium", thesis="t",
+                                              citations=[Citation(path="deep_analysis.data.technical_analysis.rsi_14")], invalidation="i"))
+        return FakeLLM({r: op(r) for r in ("macro", "technician", "narrative")} | {"judge": lambda _u: Verdict(action=action, p_up_7d=p, rationale="r")})
+
+    a = decide("SOL", RecordedRyoClient(FIXTURES), council("long", 0.7), led)
+    b = decide("SOL", RecordedRyoClient(FIXTURES / "recorded_0907"), council("short", 0.3), led)
+    assert a.ryo_view["deep_verdict"] == b.ryo_view["deep_verdict"] == "constructive"
+    assert a.agrees_with_ryo is True and b.agrees_with_ryo is False
+    assert skill_vs_ryo(led)["n"] == 0                       # nothing scored yet
+    for r in (a, b):
+        assert r.trade.kind == "trade"                       # both sized, so each is priced at its own entry
+        resolve(r.id, led, PriceSource(r.trade.entry_price * 1.1))
+    s = skill_vs_ryo(led)
+    assert s["n"] == 2 and s["council_hit_rate"] == 0.5 and s["ryo_hit_rate"] == 1.0
+    assert s["disagreed"] == 1 and s["council_right_when_disagreeing"] == 0 and s["enough_to_read"] is False

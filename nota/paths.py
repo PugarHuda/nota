@@ -32,6 +32,8 @@ RSI_14 = [
 # RYO ships its own ATR-based preview plan. Nota sizes independently and then compares, because a
 # provider's plan is evidence about the provider, not an instruction.
 RYO_PLAN = "deep_analysis.data.trade_plan"
+# RYO's derivatives read, including its own `veto` on a setup and `squeeze_risk`.
+RYO_DERIVATIVES = "deep_analysis.data.derivatives"
 
 # market_overview's own index first, then the dated reading in the seven-day sentiment pack.
 FEAR_GREED = [

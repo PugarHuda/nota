@@ -15,6 +15,7 @@ from nota.council import CouncilResult, Opinion, Verdict
 from nota.evidence import EvidencePack
 from nota.ledger import now_iso
 from nota.risk import Blocked, PracticeTrade
+from nota.scorecard import BEARISH, BULLISH
 
 
 class Receipt(BaseModel):
@@ -36,10 +37,39 @@ class Receipt(BaseModel):
     # What this decision cost to produce, as the provider reported it. Not compared on replay - a
     # cached rebuild spends nothing - so it carries no reproducibility claim, only a measurement.
     spend: dict[str, Any] | None = None
+    # RYO's own call on the same evidence, read from the hashed pack, and whether the council's direction
+    # matches it. None on receipts made before these existed, and when either side took no direction.
+    ryo_view: dict[str, Any] | None = None
+    agrees_with_ryo: bool | None = None
 
 
 def receipt_id(pack_hash: str, model: str, prompt_version: str) -> str:
     return hashlib.sha256(f"{pack_hash}|{model}|{prompt_version}".encode()).hexdigest()[:12]
+
+
+def ryo_view(pack: EvidencePack) -> dict[str, Any] | None:
+    """What RYO itself concluded: deep_analysis's call and why, analyze_token's verdict, compare's pick."""
+    view = {
+        "deep_verdict": pack.get("deep_analysis.data.verdict.call"),
+        "key_driver": pack.get("deep_analysis.data.verdict.key_driver"),
+        "what_changes_it": pack.get("deep_analysis.data.verdict.what_changes_it"),
+        "confluence_state": pack.get("deep_analysis.data.confluence.state"),
+        "analyze_verdict": pack.get("analyze_token.data.verdict"),
+        "compare_pick": pack.get("compare.data.conclusion.pick"),
+        "compare_confidence": pack.get("compare.data.conclusion.confidence"),
+    }
+    return view if any(v is not None for v in view.values()) else None
+
+
+def ryo_direction(view: dict[str, Any] | None) -> str | None:
+    """RYO's call as a side: deep_analysis first, analyze_token when deep_analysis gave none."""
+    for key in ("deep_verdict", "analyze_verdict"):
+        call = str((view or {}).get(key) or "").lower()
+        if call in BULLISH:
+            return "long"
+        if call in BEARISH:
+            return "short"
+    return None
 
 
 def build_receipt(pack: EvidencePack, council: CouncilResult, trade: PracticeTrade | Blocked) -> Receipt:
@@ -47,6 +77,9 @@ def build_receipt(pack: EvidencePack, council: CouncilResult, trade: PracticeTra
         headline = f"{pack.symbol}: {trade.side.upper()} practice trade, {trade.size_usd:.0f} USD, stop {trade.stop_price:g}"
     else:
         headline = f"{pack.symbol}: no trade ({trade.reason})"
+    ryo = ryo_view(pack)
+    ryo_side = ryo_direction(ryo)
+    action = council.verdict.action
     return Receipt(
         id=receipt_id(pack.pack_hash(), council.model, council.prompt_version),
         created_at=now_iso(),
@@ -64,7 +97,21 @@ def build_receipt(pack: EvidencePack, council: CouncilResult, trade: PracticeTra
         trade=trade,
         cache_hits=council.cache_hits,
         spend=council.spend,
+        ryo_view=ryo,
+        agrees_with_ryo=(action == ryo_side) if ryo_side and action != "no_trade" else None,
     )
+
+
+def ryo_said(r: Receipt) -> str:
+    """One line: RYO's call beside the council's, e.g. 'RYO said: constructive (confluence CONFIRMED) - council: long, agrees'."""
+    v = r.ryo_view or {}
+    call = v.get("deep_verdict") or v.get("analyze_verdict") or "no call"
+    extra = f" (confluence {v['confluence_state']})" if v.get("confluence_state") else ""
+    agree = {True: "agrees", False: "disagrees", None: "no comparison"}[r.agrees_with_ryo]
+    out = f"RYO said: {call}{extra} - council: {r.verdict.action}, {agree}"
+    if v.get("key_driver"):
+        out += f". RYO's driver: {v['key_driver']}"
+    return out
 
 
 def render_markdown(r: Receipt) -> str:
@@ -85,6 +132,8 @@ def render_markdown(r: Receipt) -> str:
             lines.append(f"- _{o.dropped_citations} citation(s) dropped: path not present in evidence_")
         lines.append(f"- Invalidation: {o.invalidation}")
         lines.append("")
+    if r.ryo_view:
+        lines += ["## RYO said", "", f"- {ryo_said(r)}", ""]
     v = r.verdict
     lines += [f"## Verdict: {v.action} (p_up_7d {v.p_up_7d:.2f})", "", v.rationale, ""]
     if v.agreed_with:

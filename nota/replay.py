@@ -8,6 +8,7 @@ the same evidence and reports the differences honestly as model drift.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from pydantic import BaseModel
@@ -20,7 +21,11 @@ from nota.llm import LLM
 from nota.receipt import Receipt, build_receipt
 from nota.risk import RiskLimits, size_trade
 
-COMPARE_FIELDS = ("opinions", "verdict", "trade", "headline", "availability")
+COMPARE_FIELDS = ("opinions", "verdict", "trade", "headline", "availability", "ryo_view", "agrees_with_ryo")
+# Receipt fields added after receipts were first stored. All are derived from the hashed pack, so they are
+# compared whenever the stored receipt carries them; a receipt written before they existed lacks the key,
+# and a replay that fills it in is not drift.
+ADDED_LATER = ("ryo_view", "agrees_with_ryo", "trade.vs_ryo_plan.squeeze_risk", "trade.vs_ryo_plan.liquidation_pressure")
 
 
 class CacheOnlyLLM:
@@ -56,13 +61,25 @@ def _flat(prefix: str, node: Any, out: dict[str, Any]) -> None:
         out[prefix] = node
 
 
-def diff_receipts(a: Receipt, b: Receipt) -> list[str]:
+def _absent(stored: dict[str, Any], dotted: str) -> bool:
+    node: Any = stored
+    for part in dotted.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return True
+        node = node[part]
+    return False
+
+
+def diff_receipts(a: Receipt, b: Receipt, skip: tuple[str, ...] = ()) -> list[str]:
+    """Field-by-field differences over COMPARE_FIELDS, ignoring flattened keys under any `skip` prefix."""
     fa: dict[str, Any] = {}
     fb: dict[str, Any] = {}
     _flat("", a.model_dump(mode="json", include=set(COMPARE_FIELDS)), fa)
     _flat("", b.model_dump(mode="json", include=set(COMPARE_FIELDS)), fb)
     out = []
     for k in sorted(set(fa) | set(fb)):
+        if any(k == s or k.startswith(s + ".") for s in skip):
+            continue
         if fa.get(k) != fb.get(k):
             out.append(f"{k}: {fa.get(k)!r} -> {fb.get(k)!r}")
     return out
@@ -90,5 +107,6 @@ def replay(decision_id: str, ledger: Ledger, llm: LLM | None = None, limits: Ris
         council = run_council(pack, llm, ledger, weights=weights, use_cache=not fresh, prompt_version=original.prompt_version)
     trade = size_trade(council.verdict, pack, limits)
     replayed = build_receipt(pack, council, trade)
-    diff = diff_receipts(original, replayed)
+    stored = json.loads(raw)
+    diff = diff_receipts(original, replayed, skip=tuple(f for f in ADDED_LATER if _absent(stored, f)))
     return ReplayResult(original=original, replayed=replayed, fresh=fresh, identical=not diff, diff=diff)

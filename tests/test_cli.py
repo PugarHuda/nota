@@ -134,7 +134,8 @@ def test_health_strict_checks_expiry_and_every_argument_against_the_live_catalog
     monkeypatch.setattr(cli.RyoClient, "tools", lambda self: catalog)
     res = runner.invoke(cli.app, ["health", "--strict"])
     assert res.exit_code == 0, res.output
-    assert "published but unused by Nota: scan_market(filter_direction)" in res.output
+    assert "published but unused by Nota: monitor_market_sentiment_shift(time_window)" in res.output
+    assert "scan_market(" not in res.output  # filter_direction is sent now (`scan --direction`)
 
     who["expires_at"] = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
     res = runner.invoke(cli.app, ["health", "--strict"])

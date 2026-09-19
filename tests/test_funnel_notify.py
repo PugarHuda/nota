@@ -74,3 +74,45 @@ def test_notify_telegram_and_discord_payloads(monkeypatch):
     assert embed["url"] == f"https://nota.example/r/{r.id}" and embed["title"] == r.headline
     tg.mock(return_value=Response(400, json={"ok": False, "description": "chat not found"}))
     assert notify.telegram(r)["status"] == "error"
+
+
+def test_scan_direction_is_sent_and_the_pick_reason_travels_into_the_pack(tmp_path, monkeypatch):
+    """RYO's real losers scan (filter_direction=negative, recorded 2026-09-19): the CLI sends the direction,
+    prints why each token is on the list, skips a ticker that is not letters/digits, and a decision on a
+    candidate keeps its own scan row, which enters the pack hash and the technician's and narrative's view."""
+    from typer.testing import CliRunner
+
+    from nota import cli
+    from nota.evidence import scan_for
+
+    sent = []
+
+    class Capturing(RecordedRyoClient):
+        def call(self, tool, args=None):
+            sent.append((tool, dict(args or {})))
+            return super().call(tool, args)
+
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "f.db"))
+    monkeypatch.setattr(cli, "_source", lambda kind: Capturing(FIXTURES))
+    monkeypatch.setattr(cli, "_llm", lambda kind: make_llm())
+    res = CliRunner().invoke(cli.app, ["scan", "--source", "recorded", "--direction", "negative", "--decide-top", "1"])
+    assert res.exit_code == 0, res.output
+    assert sent[0] == ("scan_market", {"top_n": 5, "filter_direction": "negative"})
+    scan = json.loads((FIXTURES / "scan_market" / "any-any-negative.json").read_text(encoding="utf-8"))
+    first = scan["data"]["candidates"][0]
+    assert first["change_24h_pct"] < 0 and f"{first['change_24h_pct']:g}" in res.output and first["reason"] in res.output
+    assert "skipped candidate" in res.output          # RYO lists a meme coin whose ticker is not Latin
+    assert CliRunner().invoke(cli.app, ["scan", "--source", "recorded", "--direction", "down"]).exit_code == 2
+
+    led = Ledger(str(tmp_path / "f.db"))
+    receipt = json.loads(led.get_decision(led.list_decisions(1)[0]["id"]))
+    stored = json.loads(led.get_pack(receipt["pack_hash"]))["sections"]["scan"]["envelope"]["data"]
+    assert [c["symbol"] for c in stored["candidates"]] == [first["symbol"]] and stored["selection_method"] == scan["data"]["selection_method"]
+
+    from nota.envelope import Envelope
+
+    env = Envelope.model_validate(scan)
+    with_scan, without = gather(RecordedRyoClient(FIXTURES), "SOL", scan=env), gather(RecordedRyoClient(FIXTURES), "SOL")
+    assert with_scan.pack_hash() != without.pack_hash() and scan_for(env, "SOL").data["candidates"] == []
+    assert "scan" in _section_view(with_scan, ROLE_SECTIONS["technician"]) and "scan" in _section_view(with_scan, ROLE_SECTIONS["narrative"])
+    assert "scan" not in _section_view(with_scan, ROLE_SECTIONS["macro"])

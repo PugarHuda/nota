@@ -67,6 +67,8 @@ def compare_to_ryo_plan(pack: EvidencePack, entry: float, stop: float, target: f
     if not isinstance(plan, dict):
         return None
     ryo_stop, ryo_targets = plan.get("stop"), plan.get("targets") or []
+    deriv = pack.get(paths.RYO_DERIVATIVES)
+    deriv = deriv if isinstance(deriv, dict) else {}
     ryo_target = ryo_targets[0] if ryo_targets else plan.get("target")
     out: dict[str, Any] = {
         "path": paths.RYO_PLAN,
@@ -75,6 +77,8 @@ def compare_to_ryo_plan(pack: EvidencePack, entry: float, stop: float, target: f
         "nota_atr_multiplier": None,
         "ryo_entry": plan.get("entry"), "ryo_stop": ryo_stop, "ryo_target": ryo_target,
         "stop_diff_pct": None, "target_diff_pct": None, "agrees_on_direction": None,
+        # RYO's read of the crowd around the plan: a stop sitting where a squeeze would run is worth seeing
+        "squeeze_risk": deriv.get("squeeze_risk"), "liquidation_pressure": deriv.get("liquidation_pressure"),
     }
     if isinstance(ryo_stop, (int, float)) and not isinstance(ryo_stop, bool) and entry:
         out["stop_diff_pct"] = round((stop - ryo_stop) / entry * 100, 3)
@@ -97,6 +101,10 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
         return Blocked(reason="primary evidence is simulated data (data_mode=simulated); no practice trade on simulated prices")
     if verdict.action == "no_trade":
         return Blocked(reason="judge decided no_trade")
+    deriv = pack.get(paths.RYO_DERIVATIVES)
+    if isinstance(deriv, dict) and deriv.get("veto") is True and f"{paths.RYO_DERIVATIVES}.veto" not in pack.withheld():
+        # RYO's own derivatives gate refused this setup; the council may disagree, but a practice trade does not
+        return Blocked(reason=f"RYO derivatives veto: {deriv.get('veto_reason') or 'no reason given'}")
     edge = verdict.p_up_7d if verdict.action == "long" else 1.0 - verdict.p_up_7d
     if edge < limits.min_edge:
         return Blocked(reason=f"edge {edge:.2f} below minimum {limits.min_edge:.2f}")

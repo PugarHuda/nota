@@ -16,7 +16,7 @@ from nota import paths
 from nota.council import ROLES
 from nota.evidence import SCORED_SOURCES, EvidencePack, Section, first_present
 from nota.ledger import Ledger, now_iso
-from nota.receipt import Receipt
+from nota.receipt import Receipt, ryo_direction
 from nota.risk import PracticeTrade
 from nota.ryo_client import RyoError, RyoSource
 
@@ -227,6 +227,30 @@ def skill_vs_base(ledger: Ledger) -> dict[str, Any]:
                        "skill": round(1 - b / r, 4) if r else None}
     n = max((v["n"] for v in roles.values()), default=0)
     return {"roles": roles, "n": n, "enough_to_read": n >= MEANINGFUL_N, "meaningful_at": MEANINGFUL_N}
+
+
+def skill_vs_ryo(ledger: Ledger) -> dict[str, Any]:
+    """Did Nota beat RYO's own call? Over scored outcomes whose receipt has both a council direction and a
+    RYO direction (`agrees_with_ryo` is not None), how often each side's direction matched the move.
+    `disagreed` counts the calls where the two pointed opposite ways, the only ones that can separate them."""
+    council_hits = ryo_hits = n = disagreed = council_won = 0
+    for o in _scored_outcomes(ledger):
+        stored = ledger.get_decision(o["decision_id"])
+        rec = Receipt.model_validate_json(stored) if stored else None
+        if rec is None or rec.agrees_with_ryo is None:
+            continue
+        up = "long" if o["went_up"] else "short"
+        c_hit, r_hit = rec.verdict.action == up, ryo_direction(rec.ryo_view) == up
+        n += 1
+        council_hits += c_hit
+        ryo_hits += r_hit
+        if not rec.agrees_with_ryo:
+            disagreed += 1
+            council_won += c_hit
+    rate = lambda k: round(k / n, 4) if n else None
+    return {"n": n, "council_hit_rate": rate(council_hits), "ryo_hit_rate": rate(ryo_hits), "agreed": n - disagreed,
+            "disagreed": disagreed, "council_right_when_disagreeing": council_won if disagreed else None,
+            "enough_to_read": n >= MEANINGFUL_N, "meaningful_at": MEANINGFUL_N}
 
 
 def source_scores(ledger: Ledger) -> dict[str, Any]:

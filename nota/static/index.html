@@ -224,6 +224,7 @@ async function open(id, push = true) {
       <div><b>Now:</b> ${t.kind === 'trade' ? `${t.side.toUpperCase()} practice trade, ${t.size_usd.toFixed(0)} USD at ${px(t.entry_price)}, stop ${px(t.stop_price)}, target ${px(t.target_price)}` : `no trade — ${esc(t.reason)}`}</div>
       <div><b>Biggest change:</b> ${d.changes.length ? `<code>${esc(d.changes[0].path)}</code> ${fmt(d.changes[0].before)} → ${fmt(d.changes[0].after)} (${esc(d.changes[0].why)})` : (d.previous_id ? 'nothing changed since the previous receipt' : 'first receipt for this symbol')}</div>
       <div id="summary-position"><b>Position:</b> <span class="muted">checking…</span></div>
+      ${ryoSaid(r)}
       <div><b>Next:</b> ${d.outcome ? `scored: ${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}% (${d.outcome.went_up ? 'went up' : 'went down'})` : nextStep(r)}</div>
     </div>
     <div class="meta"><span>receipt <a href="/r/${r.id}">${r.id}</a></span><span>${esc(r.created_at)}</span>
@@ -256,7 +257,7 @@ async function open(id, push = true) {
       ${t.vs_ryo_plan ? `<div class="cite" style="margin-top:8px">against RYO's own plan (<code>${esc(t.vs_ryo_plan.path)}</code>, ${esc(t.vs_ryo_plan.method)}):
         RYO stops ${px(t.vs_ryo_plan.ryo_stop)} and targets ${px(t.vs_ryo_plan.ryo_target)} on ${t.vs_ryo_plan.ryo_atr_multiplier}x ATR,
         this sizing uses ${t.vs_ryo_plan.nota_atr_multiplier}x, so the stop is ${t.vs_ryo_plan.stop_diff_pct}% and the target
-        ${t.vs_ryo_plan.target_diff_pct}% of entry away, <b>${t.vs_ryo_plan.agrees_on_direction ? 'same direction' : 'opposite direction'}</b></div>` : ''}`
+        ${t.vs_ryo_plan.target_diff_pct}% of entry away, <b>${t.vs_ryo_plan.agrees_on_direction ? 'same direction' : 'opposite direction'}</b>${t.vs_ryo_plan.squeeze_risk || t.vs_ryo_plan.liquidation_pressure ? `; RYO reads squeeze risk ${esc(t.vs_ryo_plan.squeeze_risk ?? 'n/a')}, liquidation pressure ${esc(t.vs_ryo_plan.liquidation_pressure ?? 'n/a')}` : ''}</div>` : ''}`
       : `<b>Blocked:</b> ${esc(t.reason)}`}</div>
 
     ${d.outcome ? `<h2>Outcome</h2><div class="card">${px(d.outcome.price_then)} → ${px(d.outcome.price_now)} (${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}%), ${d.outcome.horizon_reached ? 'at the 7-day horizon' : 'closed before the 7-day horizon'}
@@ -406,8 +407,26 @@ async function loadSide() {
       <table><tr><th>p_up bin</th><th class="num">n</th><th class="num">mean p</th><th class="num">hit rate</th></tr>
       ${sc.reliability.bins.map(b => `<tr><td>${b.bin}</td><td class="num">${b.n}</td><td class="num">${b.mean_p ?? '—'}</td><td class="num">${b.hit_rate ?? '—'}</td></tr>`).join('')}</table>
       <div class="small muted">judge Brier ${sc.reliability.judge_brier ?? '—'} over ${sc.reliability.n} resolved at the 7-day horizon${sc.reliability.excluded_before_horizon ? `, ${sc.reliability.excluded_before_horizon} closed earlier and left out` : ''}</div>
+      ${vsRyoLine(sc.vs_ryo)}
       ${sourcesTable(sc.sources)}${baseRateTable(sc.vs_base_rate)}`
     : `<div class="muted small">No resolved decisions yet (${sc.unresolved} awaiting <code>nota resolve</code>). Weights are all 1.0 until then.</div>`;
+}
+
+// RYO's own call on the same evidence beside the council's: the question a reader asks first.
+function ryoSaid(r) {
+  const v = r.ryo_view;
+  if (!v) return '';
+  const call = v.deep_verdict ?? v.analyze_verdict ?? 'no call';
+  const agree = r.agrees_with_ryo === true ? 'agrees' : r.agrees_with_ryo === false ? 'disagrees' : 'no comparison';
+  return `<div id="ryo-said"><b>RYO said:</b> ${esc(call)}${v.confluence_state ? ` (confluence ${esc(v.confluence_state)})` : ''} - council: ${esc(r.verdict.action.replace('_', ' '))}, <b>${agree}</b>${v.key_driver ? `<div class="small muted">RYO's driver: ${esc(String(v.key_driver).replace(/\.$/, ''))}${v.compare_pick ? `; compare_tokens picks ${esc(v.compare_pick)} (${esc(v.compare_confidence ?? 'no confidence given')})` : ''}</div>` : ''}</div>`;
+}
+
+// Did Nota beat RYO's own call? Hit rates over the scored calls where both took a direction.
+function vsRyoLine(s) {
+  if (!s) return '';
+  const body = s.n ? `council right ${esc(Math.round(s.council_hit_rate * 100))}%, RYO right ${esc(Math.round(s.ryo_hit_rate * 100))}% over ${esc(s.n)} scored call${s.n === 1 ? '' : 's'}; they disagreed ${esc(s.disagreed)} time${s.disagreed === 1 ? '' : 's'}${s.disagreed ? `, council right in ${esc(s.council_right_when_disagreeing)}` : ''}${s.enough_to_read ? '' : ` (too few to read; meaningful at ${esc(s.meaningful_at)})`}`
+    : 'no scored call yet where both the council and RYO took a direction';
+  return `<div class="small" id="vs-ryo"><b>Nota vs RYO:</b> ${body}</div>`;
 }
 
 // Which sources earned their place: the judge's Brier when a section answered against when it did

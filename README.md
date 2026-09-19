@@ -66,22 +66,40 @@ gather ──────────► council ──► judge ──► risk 
 
 - **Evidence pack**: `market_overview`, `monitor_market_sentiment_shift`, `deep_analysis`,
   `analyze_token`, `compare_tokens` (the token against BTC/ETH peers). `scan_market` drives
-  `nota scan`, RYO's recommended funnel. A failed tool becomes a section with status `error`;
+  `nota scan`, RYO's recommended funnel; `--direction negative` sends its `filter_direction` to shortlist
+  losers for a short, and a decision on a scanned token keeps its own scan row (rank, 24 h change,
+  turnover, momentum score, `established_asset`, RYO's reason) as a `scan` section inside the hashed
+  pack. A failed tool becomes a section with status `error`;
   the pack still exists. Own skills are added as further sections (`price_check` by default,
   `narrative_signal` with `--voices`, `news_check` with `--news`).
 - **Council**: three agents (macro, technician, narrative) each return a stance, a
   probability, and **citations as dotted paths into the evidence**. Citations that point at
   a missing or null value are dropped in code (after normalising `x[0].y` to `x.0.y`) and the
   opinion is downgraded.
+- **Third-party text is data, not instructions**: post text from `narrative_signal` and headlines and
+  snippets from `news_check` reach the council wrapped as `{"untrusted": ...}` with control and
+  bidi characters stripped, flagged `injection_suspect` when they read like "ignore your rules", and
+  every agent is told such text is evidence to weigh, never a request to follow. RYO's token-profile
+  prose (about 2.7 KB, repeated in `deep_analysis` and in every `compare_tokens` row) is shown once,
+  to the narrative agent; everyone else sees its status and missing inputs at the same paths, which
+  cuts the technician's prompt by more than 30% (prompts `v4`).
 - **Judge**: weighs opinions by each agent's historical Brier score and decides
   long / short / no_trade.
 - **RYO's own plan is evidence, not an instruction**: `deep_analysis.data.trade_plan` carries RYO's
   ATR preview (entry, stop, targets, multiplier, method). Nota sizes independently and then reports
   the gap on the receipt: on the shipped ETH call, RYO stops at 2357.83 on a 1.5× ATR while this
   sizing uses 2.0×, so the stop sits 1.8% of entry lower and the first target 5.4% further, both in
-  the same direction.
+  the same direction. RYO's `squeeze_risk` and `liquidation_pressure` sit beside that comparison.
+- **RYO's call on every receipt**: each receipt records `ryo_view` (deep_analysis's call, key driver,
+  what would change it, confluence state, analyze_token's verdict, compare_tokens' pick) and
+  `agrees_with_ryo` (long against constructive/bullish/accumulate, short against
+  cautious/bearish/avoid), printed as "RYO said: constructive (confluence CONFIRMED) - council: long,
+  agrees". Both come from the hashed pack, so replay compares them; receipts stored before they existed
+  still replay identical. `/api/scores.vs_ryo` and the dashboard's "Nota vs RYO" line answer whether
+  the council beats RYO's own call: both hit rates over the scored calls where each took a direction.
 - **Risk**: a pure function. Stop = 2×ATR(14), target = 3×ATR, size from 1% account risk,
-  capped at 20% of the account. No price or no ATR means **Blocked**, never a guessed number,
+  capped at 20% of the account. RYO's own derivatives `veto` blocks the practice trade ("RYO
+  derivatives veto: <reason>") unless the positioning gate withheld it. No price or no ATR means **Blocked**, never a guessed number,
   and so does an ATR big enough to put the stop or target at or below zero: on an instrument that
   volatile the fixed-multiple rule does not apply, and a receipt must not print a negative price.
 - **Replay**: LLM outputs are cached by `(evidence hash, role, prompt version, model)`.
@@ -198,6 +216,7 @@ uv run nota llm-check --llm openai   # one 1-token completion; exit 2 when the k
 uv run nota decide SOL         # live evidence + price cross-check, council, receipt
 uv run nota decide SOL --voices tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social --news --notify
 uv run nota scan --top-n 5 --decide-top 2      # scan_market -> analyze_token -> council
+uv run nota scan --direction negative          # RYO's losers shortlist, the funnel for a short
 uv run nota watch SOL,BTC --every 3600 --notify
 uv run nota replay <id>        # identical: True
 uv run nota replay <id> --fresh
@@ -498,7 +517,7 @@ nota/
 scripts/          screenshots.py, narration.py, demo_video.py
 video/            Remotion composition that puts the narration onto the recording
 docs/             hackathon analysis, MCP builder guide copy, design spec, skill spec, submission draft
-tests/            pytest, no network (respx + FakeLLM test double)
+tests/            pytest, no network (respx + the FakeLLM test double in tests/fakes.py)
 ```
 
 ## Disclosed third-party libraries

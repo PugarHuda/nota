@@ -30,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 
 from nota import paths
 from nota.backings import PostgresBackings, store_for
-from nota.calibration import due, reliability, role_scores, role_weights, skill_vs_base, source_scores
+from nota.calibration import due, reliability, role_scores, role_weights, skill_vs_base, skill_vs_ryo, source_scores
 from nota.card import render_card
 from nota.evidence import EvidencePack, first_present
 from nota.ledger import Ledger
@@ -292,7 +292,8 @@ def scores() -> dict[str, Any]:
     led = _ledger()
     s = role_scores(led)
     return {"scores": s, "weights": role_weights(s), "resolved": len(led.list_outcomes()), "unresolved": len(led.unresolved()),
-            "reliability": reliability(led), "sources": source_scores(led), "vs_base_rate": skill_vs_base(led)}
+            "reliability": reliability(led), "sources": source_scores(led), "vs_base_rate": skill_vs_base(led),
+            "vs_ryo": skill_vs_ryo(led)}
 
 
 @app.get("/api/scorecard")

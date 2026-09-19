@@ -1,0 +1,164 @@
+{
+  "_note": "MODIFIED COPY of tests/fixtures/deep_analysis/SOL.json (RYO's real 2026-09-19 SOL answer). Only data.derivatives.veto (false -> true) and data.derivatives.veto_reason (null -> text) were changed, to exercise RYO's own veto; no live RYO answer with veto=true has been observed yet.",
+  "schema_version": "1.0",
+  "tool": "deep_analysis",
+  "status": "ok",
+  "data_mode": "live",
+  "as_of": "2026-09-19T15:24:42Z",
+  "request": {
+    "symbol": "SOL",
+    "include_perp": true
+  },
+  "data": {
+    "asset": {
+      "symbol": "SOL",
+      "name": "Solana",
+      "chain": null,
+      "contract": null,
+      "rank": 7
+    },
+    "market": {
+      "mcap_usd": 65643997603.389275,
+      "fdv_usd": 70897645045.28,
+      "volume_24h_usd": 4061812048.809725,
+      "dominance_pct": 2.3515,
+      "circulating_supply": 587367925.4821943,
+      "max_supply": null,
+      "price_usd": 111.75958842066399
+    },
+    "performance": {
+      "h1": 0.01010417,
+      "h24": 1.32106213,
+      "d7": 9.54038797,
+      "d30": 28.62096034
+    },
+    "technical_analysis": {
+      "trend": "up",
+      "rsi_14": 66.9,
+      "momentum_30d_pct": 28.62096034,
+      "atr_14_pct": 4.3
+    },
+    "confluence": {
+      "state": "CONFIRMED",
+      "score": 1.0,
+      "gates": [
+        {
+          "name": "momentum",
+          "passed": true,
+          "detail": {
+            "trend": "up",
+            "rsi_14": 66.9
+          }
+        },
+        {
+          "name": "market_activity",
+          "passed": true,
+          "detail": {
+            "volume_to_market_cap": 0.0619
+          }
+        },
+        {
+          "name": "derivatives",
+          "passed": true,
+          "detail": {
+            "veto": false
+          }
+        }
+      ],
+      "status": "available"
+    },
+    "verdict": {
+      "call": "constructive",
+      "headline": "SOL deep analysis: constructive.",
+      "bottom_line": "Positive seven-day momentum with an upward technical trend.",
+      "key_driver": "Positive seven-day momentum with an upward technical trend.",
+      "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture.",
+      "confluence_score": 1.0
+    },
+    "token_profile": {
+      "ok": true,
+      "data": {
+        "type": "evidence_pack",
+        "skill_id": "altcoin_token_profile",
+        "timestamp": "2026-09-19T15:24:08Z",
+        "data": {
+          "status": "partial",
+          "confidence": "low",
+          "missing_or_stale_inputs": [
+            "live holder coverage",
+            "stable protocol-history deltas"
+          ],
+          "decision_report": {
+            "title": "SOL Token Profile",
+            "brand_line": "Powered By CoinMarketCap",
+            "conclusion": "Solana token profile has resolved identity, current market, protocol, and public content context, with explicit unresolved coverage gaps limiting overall confidence in fundamental analysis.",
+            "analysis": "### Token Identity\nSolana (SOL) is a layer-1 platform coin ranked #7 by market capitalization, launched on March 16, 2020. The native asset of the Solana blockchain, it has an on-chain contract address on its home network, and is categorized as a layer-1, proof-of-stake ecosystem asset. The token appears on common venture portfolio and ecosystem tracking lists as a top-tier layer-1 asset.\n\n### Market Context\nThe latest market snapshot shows SOL trading at ~$111.76 USD, with a circulating market cap of ~$65.64 billion and fully diluted valuation of ~$70.9 billion. 24h trading volume totals ~$4.06 billion, equal to ~6.19% of current market capitalization indicating near-term active liquidity. Price performance trends are positive across all recent windows: +1.32% over the last 24 hours, +9.54% over 7 days, +28.62% over 30 days, and +51.13% over the trailing 90 days. SOL outperformed BTC by 0.32% in the most recent 24h period.\n\n### Protocol Context\nThe token maps directly to the Solana mainnet protocol. On-chain metrics show 24h network fees totaling $965,963, with 24h protocol revenue recorded at $111,051. No current or historical TVL data is available for this profile, as TVL tracking is an unresolved coverage gap.\n\n### Public Content Context\nRecent public coverage is dominated by announcements of an upcoming network speed upgrade targeting 250ms block times, with reporting noting that the optimization will improve network responsiveness without requiring capacity increases. Additional recent coverage includes long-term wealth building analysis that lists SOL among assets under consideration for extended holding periods.\n\n### Explicit Coverage Gaps\nThis profile carries low confidence due to two unresolved data gaps: \n1. Live holder coverage is currently unavailable, meaning ownership distribution, whale concentration, and holder behavior metrics cannot be assessed for this profile.\n2. Stable protocol-history deltas including TVL trends and longer-term protocol traction metrics are missing, so fundamental trend analysis of protocol adoption cannot be completed.\n\nAll gaps are reported explicitly rather than being filled with inferred or estimated values."
+          },
+          "action_guidance": {
+            "bias": "context_only",
+            "reference_action": "Use as research context, not as an execution instruction."
+          }
+        }
+      },
+      "execution": {
+        "status": "completed",
+        "elapsed_ms": 34290
+      }
+    },
+    "derivatives": {
+      "symbol": "SOL",
+      "funding_rate_bps": 0.0,
+      "funding_trend": "stable",
+      "open_interest_change_24h_pct": -0.69032,
+      "long_short_ratio": null,
+      "liquidation_pressure": "balanced",
+      "squeeze_risk": "low",
+      "veto": true,
+      "veto_reason": "crowded longs into rising open interest"
+    },
+    "trade_plan": {
+      "entry": 111.7596,
+      "stop": 104.5511,
+      "targets": [
+        118.9681,
+        126.1766
+      ],
+      "atr_14_usd": 4.8057,
+      "atr_14_pct": 4.3,
+      "atr_multiplier": 1.5,
+      "risk_reward": [
+        1.0,
+        2.0
+      ],
+      "method": "wilder_atr_14_from_daily_ohlcv",
+      "preview_only": true
+    },
+    "intelligence": {
+      "narrative": "coin, pos, platform, solana-ecosystem, cms-holdings-portfolio",
+      "catalysts": [
+        "Positive seven-day price momentum.",
+        "Daily technical trend is upward."
+      ],
+      "risks": []
+    }
+  },
+  "summary": {
+    "headline": "SOL deep analysis: constructive.",
+    "key_points": [
+      "Positive seven-day momentum with an upward technical trend.",
+      "Key driver: Positive seven-day momentum with an upward technical trend.",
+      "What changes the view: A material change in trend, momentum, activity, or derivatives posture."
+    ]
+  },
+  "availability": {
+    "market_data": "available",
+    "technical_analysis": "available",
+    "token_profile": "partial",
+    "derivatives": "available",
+    "trade_plan": "available"
+  },
+  "warnings": [
+    "Optional Skill Hub token-profile evidence is incomplete or unavailable."
+  ],
+  "trace_id": "eecd7cc824c14d309887ce99a14ff038"
+}

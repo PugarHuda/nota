@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from nota.llm import FakeLLM
+from tests.fakes import FakeLLM
 
 
 class Out(BaseModel):

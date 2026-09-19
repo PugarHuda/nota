@@ -121,3 +121,38 @@ def test_sizing_is_held_against_ryos_own_published_plan():
     bare = _priced(100.0, 6.0)
     bare.sections["deep_analysis"].envelope.data.pop("trade_plan")
     assert size_trade(v("long", 0.8), bare, RiskLimits()).vs_ryo_plan is None
+
+
+def _veto_pack():
+    """RYO's real SOL deep_analysis with only the veto flipped on (see the file's _note)."""
+    from nota.envelope import Envelope
+    from nota.evidence import Section
+
+    raw = json.loads((FIXTURES / "deep_analysis_veto_case.json").read_text(encoding="utf-8"))
+    assert raw.pop("_note").startswith("MODIFIED COPY")
+    p = pack()
+    p.sections["deep_analysis"] = Section(tool="deep_analysis", status=raw["status"], envelope=Envelope.model_validate(raw))
+    return p
+
+
+def test_ryos_own_derivatives_veto_blocks_the_practice_trade():
+    p = _veto_pack()
+    out = size_trade(v("long", 0.8), p)
+    assert isinstance(out, Blocked) and out.reason == "RYO derivatives veto: crowded longs into rising open interest"
+    p.sections["deep_analysis"].envelope.data["derivatives"]["veto_reason"] = None
+    assert size_trade(v("short", 0.2), p).reason == "RYO derivatives veto: no reason given"
+    # a veto the positioning gate ruled not citable does not block
+    from nota.envelope import Envelope
+    from nota.evidence import Section
+
+    path = "deep_analysis.data.derivatives.veto"
+    gate = {"gate": [{"path": path, "verdict": "not_token_specific"}], "withheld_paths": [path]}
+    p.sections["positioning_check"] = Section(tool="positioning_check", status="ok", envelope=Envelope(
+        tool="positioning_check", status="ok", data_mode="live", as_of="x", request={}, data=gate))
+    assert isinstance(size_trade(v("long", 0.8), p), PracticeTrade)
+
+
+def test_vs_ryo_plan_carries_ryos_squeeze_and_liquidation_read():
+    t = size_trade(v("long", 0.7), pack())
+    deriv = json.loads((FIXTURES / "deep_analysis" / "SOL.json").read_text(encoding="utf-8"))["data"]["derivatives"]
+    assert t.vs_ryo_plan["squeeze_risk"] == deriv["squeeze_risk"] and t.vs_ryo_plan["liquidation_pressure"] == deriv["liquidation_pressure"]

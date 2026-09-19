@@ -3,7 +3,7 @@ from pathlib import Path
 from nota.council import Citation, Opinion, Verdict
 from nota.decide import decide
 from nota.ledger import Ledger
-from nota.llm import FakeLLM
+from tests.fakes import FakeLLM
 from nota.receipt import Receipt, render_markdown
 from nota.replay import replay
 from nota.risk import PracticeTrade
@@ -105,3 +105,27 @@ def test_without_primary_evidence_the_council_is_not_convened_and_replays():
     assert r.availability["deep_analysis"] != "ok" and r.opinions == [] and r.verdict.action == "no_trade"
     assert r.spend["model_calls"] == 0 and r.trade.kind == "blocked"
     assert replay(r.id, led).identical
+
+
+def test_receipt_carries_ryos_call_and_older_receipts_without_it_still_replay():
+    import json
+
+    led = Ledger(":memory:")
+    r = decide("SOL", RecordedRyoClient(FIXTURES), make_llm(), led)
+    deep = json.loads((FIXTURES / "deep_analysis" / "SOL.json").read_text(encoding="utf-8"))["data"]
+    assert r.ryo_view["deep_verdict"] == deep["verdict"]["call"] and r.ryo_view["confluence_state"] == deep["confluence"]["state"]
+    assert r.agrees_with_ryo is True                                   # long against RYO's 'constructive'
+    assert f"RYO said: {deep['verdict']['call']} (confluence {deep['confluence']['state']}) - council: long, agrees" in render_markdown(r)
+    # a receipt stored before these fields existed
+    old = json.loads(led.get_decision(r.id))
+    for k in ("ryo_view", "agrees_with_ryo"):
+        old.pop(k)
+    for k in ("squeeze_risk", "liquidation_pressure"):
+        old["trade"]["vs_ryo_plan"].pop(k)
+    led.conn.execute("UPDATE decisions SET receipt_json=? WHERE id=?", (json.dumps(old), r.id))
+    assert replay(r.id, led).identical
+    # and one that carries them is compared on them
+    tampered = {**json.loads(led.get_decision(r.id)), "agrees_with_ryo": False}
+    led.conn.execute("UPDATE decisions SET receipt_json=? WHERE id=?", (json.dumps(tampered), r.id))
+    res = replay(r.id, led)
+    assert not res.identical and res.diff == ["agrees_with_ryo: False -> True"]
