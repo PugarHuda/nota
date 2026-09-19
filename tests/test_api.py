@@ -199,3 +199,12 @@ def test_server_json_matches_the_registry_schema_and_this_deployment():
     assert remote["url"].startswith("https://")                              # the registry requires reachable
     # the declared endpoint is the one this app really serves
     assert c.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 200
+
+
+def test_the_walkthrough_answers_a_head_probe():
+    from fastapi.testclient import TestClient
+
+    from nota.api import app
+
+    r = TestClient(app).head("/demo.mp4")
+    assert r.status_code in (200, 404) and r.status_code != 405   # 404 only in a checkout without the video
