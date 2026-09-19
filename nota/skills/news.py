@@ -38,6 +38,31 @@ def _sign(x: float | None) -> int:
     return 0 if x is None or abs(x) < SIGN_MIN else (1 if x > 0 else -1)
 
 
+STOP = {"about", "after", "again", "against", "also", "been", "being", "from", "have", "into", "more", "news", "over",
+        "said", "says", "than", "that", "their", "there", "this", "those", "what", "when", "which", "while", "will",
+        "with", "would", "week", "crypto", "today"}
+
+
+def _terms(text: str) -> set[str]:
+    return {w for w in "".join(c.lower() if c.isalnum() else " " for c in text).split() if len(w) >= 3 and w not in STOP}
+
+
+def on_topic(claim: str, text: str) -> bool:
+    """A hit is about the claim only if it shares the claim's content words: two of them, or one when the
+    claim itself has three or fewer. A search hit that is merely not hostile is not corroboration."""
+    want = _terms(claim)
+    shared = want & _terms(text)
+    return len(shared) >= (1 if len(want) <= 3 else 2)
+
+
+def stance(claim_sign: int, headline_sign: int) -> str:
+    """supports: same direction (or any on-topic report of a claim that has no direction); contradicts:
+    the opposite direction; mentions: on topic but neutral about a claim that does have a direction."""
+    if claim_sign == 0 or headline_sign == claim_sign:
+        return "supports"
+    return "contradicts" if headline_sign == -claim_sign else "mentions"
+
+
 def _domain(url: str) -> str:
     host = urlparse(url).netloc.lower()
     return host[4:] if host.startswith("www.") else host
@@ -85,9 +110,12 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
         claim_sign = _sign(sentiment(claim))
         sources = [{"title": r.title, "url": r.url, "domain": _domain(r.url), "score": r.score,
                     "published_date": r.published_date, "snippet": r.content[:300],
-                    "stance": "contradicts" if claim_sign and _sign(sentiment(r.title)) == -claim_sign else "supports"}
+                    # the report is the headline and its opening lines, so both carry its direction
+                    "stance": stance(claim_sign, _sign(sentiment(f"{r.title}. {r.content[:300]}"))),
+                    "on_topic": on_topic(claim, f"{r.title} {r.content[:300]}")}
                    for r in results]
-        relevant = [s for s in sources if s["score"] is None or s["score"] >= MIN_SCORE]
+        # relevant = about the claim, and (when the backend scores) scored at least MIN_SCORE
+        relevant = [s for s in sources if s["on_topic"] and (s["score"] is None or s["score"] >= MIN_SCORE)]
         domains = sorted({s["domain"] for s in relevant if s["stance"] == "supports"})
         against = sorted({s["domain"] for s in relevant if s["stance"] == "contradicts"})
         scores = [s["score"] for s in sources if s["score"] is not None]
@@ -95,6 +123,8 @@ def news_verify(claim: str, symbol: str | None = None, max_results: int = 6,
                    "corroborated" if len(domains) >= CORROBORATED_DOMAINS else "weak" if domains else "unverified")
         data.update(sources=sources, distinct_domains=len(domains), domains=domains, contradicting_domains=against,
                     supports=len(domains), contradicts=len(against), claim_sentiment=sentiment(claim),
+                    mentions=len({s["domain"] for s in relevant if s["stance"] == "mentions"}),
+                    off_topic=sum(not s["on_topic"] for s in sources),
                     top_score=max(scores) if scores else None, verdict=verdict,
                     thresholds={"corroborated_domains": CORROBORATED_DOMAINS, "min_score": MIN_SCORE,
                                 "sentiment_sign": SIGN_MIN})

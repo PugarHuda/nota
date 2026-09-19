@@ -161,9 +161,12 @@ function settledAnswer(s) {
   if (!s.lock_days) return "No plan has been locked yet. The first lock runs with the next daily cycle.";
   if (!n) {
     const next = s.open.find(r => !r.overdue && new Date(r.settles_at) > Date.now());
+    // plans whose window has already closed are waiting for the next settle run, not for their window
+    const closed = s.open.filter(r => new Date(r.settles_at) <= Date.now()).length;
     return `${num(s.open.length)} plans are locked across ${num(s.lock_days)} day${s.lock_days > 1 ? "s" : ""}; none has settled at ${num(s.horizon_h)} h yet.` +
-      (next ? ` The next settles ${when(next.settles_at)}. Until then this page can only show what was locked.`
-            : s.open.length ? ` Their windows have closed; the outcome is ${CLOSED}.` : "");
+      (closed ? ` The windows of ${num(closed)} of them have closed; their outcomes are written by the next hourly cycle.` : "") +
+      (next ? ` The next window closes ${when(next.settles_at)}.` : "") +
+      (!closed && next ? " Until then this page can only show what was locked." : "");
   }
   let out = `Of <strong>${num(n)}</strong> plans that touched a level within ${num(s.horizon_h)} h, <strong>${num(t)}</strong> reached RYO's +1R target before its stop (${pct(t, n)}).`;
   const c = s.contrasts.find(x => x.distinguishable) || s.contrasts.find(x => x.diff_pct !== null);
@@ -274,7 +277,32 @@ load(asked === "72" ? 72 : 24);
   const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
   const fit = () => { if (menu) menu.open = wide.matches; };
   wide.addEventListener('change', fit); fit();
-  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  document.addEventListener('keydown', e => {  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  });  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
   const theme = document.getElementById('theme'), root = document.documentElement;
   const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
   theme.addEventListener('click', () => {

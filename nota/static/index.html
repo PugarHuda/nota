@@ -230,6 +230,9 @@ function renderList() {
 
 // `user`: the reader asked for this receipt (a click, Enter, a link), so the page takes them to it;
 // the receipt opened on load leaves focus and scroll where the browser put them.
+// only RYO's own tools carry a trace id; a Nota skill section has none to show, which is not a missing value
+const RYO_TOOLS = new Set(['market_overview', 'monitor_market_sentiment_shift', 'deep_analysis', 'analyze_token', 'compare_tokens', 'scan_market']);
+
 async function open(id, push = true, user = false) {
   let d; try { d = await api(`/api/decisions/${id}`); } catch (e) {
     $('#detail').innerHTML = `<div class="banner">${e.message.endsWith('404') ? `No receipt with id <code>${esc(id)}</code> in this ledger.` : esc(e.message)}</div>`;
@@ -314,7 +317,7 @@ async function open(id, push = true, user = false) {
 
     <h2>Evidence provenance</h2>
     <div class="tscroll" tabindex="0" role="region" aria-label="evidence provenance"><table><tr><th>section</th><th>tool</th><th>status</th><th>as_of</th><th>data_mode</th><th>trace</th></tr>
-      ${Object.entries(r.provenance).map(([k, p]) => `<tr><td>${esc(k)}</td><td>${esc(p.tool)}</td><td><span class="badge ${esc(p.status)}">${esc(p.status)}</span></td><td>${fmt(p.as_of)}</td><td>${fmt(p.data_mode)}</td><td class="muted">${fmt(p.trace_id)}</td></tr>`).join('')}
+      ${Object.entries(r.provenance).map(([k, p]) => `<tr><td>${esc(k)}</td><td>${esc(p.tool)}</td><td><span class="badge ${esc(p.status)}">${esc(p.status)}</span></td><td>${fmt(p.as_of)}</td><td>${fmt(p.data_mode)}</td><td class="muted">${p.trace_id ? fmt(p.trace_id) : RYO_TOOLS.has(p.tool) ? 'none returned' : 'no RYO trace (Nota skill)'}</td></tr>`).join('')}
     </table></div>
     ${r.warnings.length ? `<h2>Warnings</h2>${r.warnings.map(w => `<div class="small${w.includes('withheld ') ? ' withheld' : ''}">• ${esc(w)}</div>`).join('')}` : ''}
     <p class="small muted">Replay: <button type="button" id="verify" class="badge">Verify replay now</button> <span id="verify-out" aria-live="polite"></span>
@@ -536,8 +539,8 @@ async function renderSkillArgs() {
   const d = skillDefs.find(x => x.name === $('#skill-name').value);
   $('#skill-args').innerHTML = d ? `<div class="small muted">${esc(d.description)}</div>` + d.args.map(a => `
     <label class="small" style="display:block; margin-top:4px">${esc(a.name)}${a.required ? ' *' : ''} <span class="muted">(${esc(a.type)}${a.items ? ' of ' + esc(a.items.type) : ''}${isJson(a) ? ', JSON' : ''})</span>
-      ${isJson(a) ? `<textarea data-arg="${esc(a.name)}" data-type="${esc(a.type)}" data-json="1" spellcheck="false" placeholder="${esc(a.description)}"></textarea>`
-        : `<input data-arg="${esc(a.name)}" data-type="${esc(a.type)}" placeholder="${esc(a.description)}" style="margin-top:2px">`}</label>`).join('') : '';
+      ${isJson(a) ? `<textarea data-arg="${esc(a.name)}" data-type="${esc(a.type)}"${a.required ? ' data-required="1"' : ''} data-json="1" spellcheck="false" placeholder="${esc(a.description)}"></textarea>`
+        : `<input data-arg="${esc(a.name)}" data-type="${esc(a.type)}"${a.required ? ' data-required="1"' : ''} placeholder="${esc(a.description)}" style="margin-top:2px">`}</label>`).join('') : '';
   // A JSON field's example is the value the newest receipt actually sent that skill, not an invented one.
   if (!d || !d.args.some(isJson) || !all[0]) return;
   try { newestRequests ??= (await api(`/api/decisions/${all[0].id}`)).requests || {}; } catch (_) { return; }
@@ -553,6 +556,7 @@ function readSkillArgs() {
   const args = {};
   for (const inp of $('#skill-args').querySelectorAll('[data-arg]')) {
     const v = inp.value.trim(), name = inp.dataset.arg, type = inp.dataset.type;
+    if (!v && inp.dataset.required) throw new Error(`${name} is required`);   // named here, before anything is sent
     if (!v) continue;
     if (inp.dataset.json) {
       let parsed;

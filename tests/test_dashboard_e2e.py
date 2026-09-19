@@ -90,8 +90,8 @@ def test_keyboard_navigation_verify_replay_backing_and_filter(server, browser):
     page.wait_for_function("() => document.querySelectorAll('#skill-name option').length === 9")
     page.select_option("#skill-name", "narrative_convergence")
     assert page.locator("#skill-args [data-arg='voices']").count() == 1 and page.locator("#skill-args [data-arg='hours']").count() == 1
-    page.click("#skill-run")  # required arg missing: the API's 422 must surface, not a silent nothing
-    page.wait_for_function("() => document.querySelector('#skill-status').textContent.includes('missing required args')")
+    page.click("#skill-run")  # required arg missing: refused in the page, by name, before anything is sent
+    page.wait_for_function("() => document.querySelector('#skill-status').textContent.includes('voices is required')")
 
     page.fill("#filter", "no_trade")
     page.wait_for_function("() => document.querySelectorAll('#list .row').length === 1")

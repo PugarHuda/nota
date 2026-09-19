@@ -533,3 +533,17 @@ def test_static_assets_are_cacheable_at_the_cdn(tmp_path, monkeypatch):
     vercel = json.loads((Path(__file__).resolve().parents[1] / "vercel.json").read_text(encoding="utf-8"))
     assert vercel["regions"] == ["hnd1"]
     assert {h["source"] for h in vercel["headers"]} >= {"/landing.css", "/landing.js", "/img/(.*)", "/fonts/(.*)", "/demo.mp4", "/demo.vtt"}
+
+
+def test_an_unknown_skill_is_a_readable_404_and_a_crashing_skill_is_a_502(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from nota import api, skills
+
+    c = TestClient(api.app)
+    r = c.post("/api/skills/nope/invoke", json={"args": {}})
+    assert r.status_code == 404 and r.json()["detail"].startswith("unknown skill 'nope'; known: ")
+    definition, _ = skills.SKILLS["price_crosscheck"]
+    monkeypatch.setitem(skills.SKILLS, "price_crosscheck", (definition, lambda **_: {}["boom"]))
+    r = c.post("/api/skills/price_crosscheck/invoke", json={"args": {"symbol": "SOL"}})
+    assert r.status_code == 502 and "boom" not in r.text

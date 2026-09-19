@@ -54,9 +54,9 @@ def test_search_backend_prefers_tavily_then_venice(monkeypatch):
 @respx.mock
 def test_news_verify_on_venice_warns_about_missing_dates():
     respx.post(VENICE).mock(return_value=_venice_reply([
-        {"title": "A", "url": "https://coindesk.com/a", "content": "x"},
-        {"title": "B", "url": "https://theblock.co/b", "content": "y"},
-        {"title": "C", "url": "https://www.theblock.co/c", "content": "z"},
+        {"title": "SEC approves spot SOL ETF", "url": "https://coindesk.com/a", "content": "The SOL ETF was approved"},
+        {"title": "SOL ETF gets the green light", "url": "https://theblock.co/b", "content": "Approval for the SOL ETF"},
+        {"title": "SOL ETF approved, trading starts", "url": "https://www.theblock.co/c", "content": "SOL ETF approved"},
     ]))
     env = news_verify("SOL ETF approved", tavily=VeniceSearch(api_key="k"), rss=False)
     assert env.status == "ok" and env.data["method"]["search"] == "venice_web_search"

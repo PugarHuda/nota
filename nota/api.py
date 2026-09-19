@@ -437,7 +437,7 @@ def scorecard_page(request: Request) -> HTMLResponse:
         "description": ("RYO's deep_analysis trade plans for 25 major tokens, locked once a day before the outcome "
                         "is known and settled on OKX hourly candles at 24 and 72 hours: which level was touched first, "
                         "after how many hours, and the return at the horizon."),
-        "url": f"{base}/scorecard", "license": "https://creativecommons.org/licenses/by/4.0/",
+        "url": f"{base}/scorecard",   # no licence is declared: the owner has not chosen one
         "isAccessibleForFree": True,
         "creator": {"@type": "Organization", "name": "Nota", "url": "https://github.com/PugarHuda/nota"},
         "keywords": ["crypto", "trade plans", "forecast verification", "RYO", "OKX"],
@@ -829,12 +829,15 @@ def invoke_skill(name: str, body: SkillCallRequest, request: Request) -> dict[st
     _throttle(f"skill:{request.client.host if request.client else 'unknown'}", limit=60, cost=_skill_cost(name, body.args))
     deps = live_deps(name, body.args) if name in SKILLS else {}
     started = time.time()
+    if name not in SKILLS:
+        raise HTTPException(404, f"unknown skill {name!r}; known: {', '.join(sorted(SKILLS))}")
     try:
         env = skill_invoke(name, body.args, **deps)
-    except KeyError as exc:
-        raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:   # a skill crashing is a failed source, not "no such skill", and never a traceback
+        logging.getLogger("nota.skills").exception("skill %s failed", name)
+        raise HTTPException(502, f"source failure while running {name}; nothing was fabricated in its place") from exc
     # SkillCastStatus enum in RYO's OpenAPI: pending | running | success | error
     return {"name": name, "status": "success" if env.status != "unavailable" else "error", "result": env.model_dump(mode="json"),
             "latency_ms": int((time.time() - started) * 1000), "xp": 0, "guard_decision": None}

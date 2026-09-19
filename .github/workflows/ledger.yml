@@ -90,8 +90,8 @@ jobs:
         env:
           RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
-          NOTA_MODEL: ${{ vars.NOTA_MODEL }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}   # set as a secret on this repo
+          NOTA_MODEL: ${{ secrets.NOTA_MODEL || vars.NOTA_MODEL }}
           NOTA_LLM: openai
           NOTA_MAX_TOKENS: "8000"
           NOTA_VOICES: tg:WatcherGuru,bs:decrypt.co,bs:unusualwhales.bsky.social

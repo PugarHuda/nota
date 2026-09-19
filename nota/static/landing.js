@@ -10,7 +10,32 @@
   const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
   const fit = () => { if (menu) menu.open = wide.matches; };
   wide.addEventListener('change', fit); fit();
-  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  document.addEventListener('keydown', e => {  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  });  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
+  });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
   const theme = document.getElementById('theme'), root = document.documentElement;
   const paint = () => theme?.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
   theme?.addEventListener('click', () => {

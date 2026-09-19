@@ -121,9 +121,16 @@ def call_from(message: dict[str, Any]) -> tuple[str, dict[str, Any]]:
             raise A2AError(INVALID_PARAMS, f"no skill named in the text; known: {sorted(SKILLS)}", f"message.parts[{i}].text")
         name = named[0]
         rest = [w for w in words if w != name]
-        required = [a.name for a in SKILLS[name][0].args if a.required]
-        # ponytail: free text maps only onto a lone symbol; any other argument needs a data part
-        return name, ({"symbol": rest[0]} if required == ["symbol"] and len(rest) == 1 else {})
+        declared = {a.name: a for a in SKILLS[name][0].args}
+        if not rest:
+            return name, {}
+        # ponytail: free text maps only onto a lone symbol; any other argument needs a data part. Words that
+        # cannot be placed are refused rather than dropped: "verdict_track_record ETH" must not quietly
+        # answer for every token.
+        if "symbol" in declared and len(rest) == 1 and all(a.name == "symbol" or not a.required for a in declared.values()):
+            return name, {"symbol": rest[0]}
+        raise A2AError(INVALID_PARAMS, f"could not map {' '.join(rest)!r} onto {name}'s arguments; send a data part "
+                       f"{{\"skill\": \"{name}\", \"args\": {{...}}}}", f"message.parts[{i}].text")
     raise A2AError(CONTENT_TYPE_NOT_SUPPORTED, "only text and data parts are accepted", "message.parts")
 
 

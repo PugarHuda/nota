@@ -33,7 +33,7 @@ page also reports how often each lane of RYO's answer came back available, per R
 [/scorecard](https://nota-ryo.vercel.app/scorecard) shows it, most urgent first;
 `/api/scorecard?horizon=24|72` is the raw record and `/api/scorecard.csv` the same table as CSV
 (one row per lock and horizon, failures included). The page carries a schema.org `Dataset`
-description (JSON-LD) naming both downloads; the data is offered under CC BY 4.0.
+description (JSON-LD) naming both downloads.
 
 **Anchored in Bitcoin, not in Nota's clock.** "Locked before the move" is only worth something if
 nobody, Nota included, can backdate a lock. `nota stamp` submits the SHA-256 of every good lock row and
@@ -187,9 +187,11 @@ strangers:
 - A Telegram, X or Bluesky voice and each of the four RSS feeds is fetched at most once per five
   minutes per process; repeats come from that cache, and a failed fetch is never cached.
 - Every response carries `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, a
-  `Permissions-Policy` and a `Content-Security-Policy` of `'self'` only (fonts are self-hosted and
-  no page loads a third-party script, so nothing needs more; `/docs` is left out because Swagger UI
-  comes from a CDN). The read-only JSON under `/api/` and `/r/`, `llms.txt`, the feeds, the
+  `Permissions-Policy` and a `Content-Security-Policy` that allows this origin only: fonts are
+  self-hosted and no page loads a third-party script. It still permits `'unsafe-inline'` for scripts
+  and styles, because the pages keep their behaviour inline; that is weaker than a nonce policy against
+  injected script, which is why every value the pages insert is escaped first. `/docs` is left out
+  because Swagger UI comes from a CDN. The read-only JSON under `/api/` and `/r/`, `llms.txt`, the feeds, the
   captions and the agent card answer any origin,
   and the skill invoke route answers its CORS preflight, so a page elsewhere can call a skill;
   `/mcp` keeps its `Origin` allowlist. Every page answers `HEAD` with the headers `GET` would send,

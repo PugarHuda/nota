@@ -81,3 +81,17 @@ def test_the_endpoint_checks_version_origin_and_json(tmp_path, monkeypatch):
     assert c.post("/a2a?A2A-Version=1.0", json={"jsonrpc": "2.0", "id": 1, "method": "CancelTask"}).json()["error"]["code"] == -32004
     assert c.post("/a2a", content=b"{nope", headers=H).json()["error"]["code"] == -32700
     assert c.post("/a2a", json=_send([]), headers={**H, "Origin": "https://evil.example"}).status_code == 403
+
+
+def test_text_maps_a_lone_symbol_onto_an_optional_symbol_and_refuses_what_it_cannot_place():
+    from nota.a2a import A2AError, call_from
+
+    msg = lambda t: {"parts": [{"text": t}]}
+    assert call_from(msg("verdict_track_record ETH")) == ("verdict_track_record", {"symbol": "ETH"})
+    assert call_from(msg("verdict_track_record")) == ("verdict_track_record", {})
+    try:
+        call_from(msg("price_crosscheck SOL please"))
+    except A2AError as exc:
+        assert "could not map" in str(exc.message if hasattr(exc, "message") else exc)
+    else:
+        raise AssertionError("extra words were silently dropped")

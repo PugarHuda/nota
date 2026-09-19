@@ -842,3 +842,18 @@ def test_feeds_csv_and_agent_card_answer_over_the_wire(server, browser):
     art = task["result"]["task"]["artifacts"][0]["parts"][0]["data"]
     assert art["tool"] == "verdict_track_record"
     assert "Sitemap: " + server + "/sitemap.xml" in ctx.get(server + "/robots.txt").text()
+
+
+def test_the_folded_menu_closes_on_escape_and_on_a_click_elsewhere(server, browser):
+    page, problems = page_with_log(browser, viewport={"width": 390, "height": 844})
+    for path in ("/", "/scorecard", "/demo"):
+        page.goto(server + path, wait_until="networkidle")
+        page.click("body > nav .menu summary")
+        assert page.evaluate("document.querySelector('body > nav .menu').open")
+        page.keyboard.press("Escape")
+        assert not page.evaluate("document.querySelector('body > nav .menu').open"), path
+        page.click("body > nav .menu summary")
+        page.mouse.click(200, 700)
+        assert not page.evaluate("document.querySelector('body > nav .menu').open"), path
+    assert [p for p in problems if "demo.mp4" not in p] == [], problems
+    page.close()

@@ -113,9 +113,11 @@ def test_x_voice_via_tavily_marks_missing_times():
 # --- news_verify ------------------------------------------------------------------------
 TAVILY = {"results": [
     {"title": "A", "url": "https://www.coindesk.com/a", "content": "SOL ETF filed", "score": 0.9},
-    {"title": "B", "url": "https://theblock.co/b", "content": "...", "score": 0.7},
-    {"title": "C", "url": "https://coindesk.com/c", "content": "...", "score": 0.6},
-    {"title": "D", "url": "https://randomblog.example/d", "content": "...", "score": 0.2},
+    {"title": "B", "url": "https://theblock.co/b", "content": "Asset manager files for a spot SOL ETF", "score": 0.7},
+    {"title": "C", "url": "https://coindesk.com/c", "content": "The SOL ETF application, filed Monday", "score": 0.6},
+    {"title": "D", "url": "https://randomblog.example/d", "content": "SOL ETF rumours", "score": 0.2},
+    # scored high by the search backend but about something else: not corroboration
+    {"title": "E", "url": "https://decrypt.co/e", "content": "Bitcoin miners sell as hashprice falls", "score": 0.95},
 ]}
 
 
@@ -126,7 +128,7 @@ def test_news_verify_corroboration_and_market_context():
                       ryo=RecordedRyoClient(FIXTURES))
     assert route.calls[0].request.headers["Authorization"] == "Bearer tvly-test"
     assert env.status == "ok" and env.data["verdict"] == "weak"  # coindesk + theblock = 2 relevant domains
-    assert env.data["distinct_domains"] == 2 and env.data["top_score"] == 0.9
+    assert env.data["distinct_domains"] == 2 and env.data["top_score"] == 0.95 and env.data["off_topic"] == 1
     assert env.data["market_context"]["symbol"] == "SOL" and env.data["market_context"]["headline"] == json.loads(
         (FIXTURES / "analyze_token" / "SOL.json").read_text(encoding="utf-8"))["summary"]["headline"]
     assert env.availability == {"search": "available", "market": "available"}
@@ -391,3 +393,13 @@ def test_crowd_odds_monotone_and_clamped_interpolation():
     assert p_above([10, 20], [0.8, 0.2], 15) == (0.5, False)
     assert p_above([10, 20], [0.8, 0.2], 25) == (0.2, True)
     assert p_above([10, 20], [0.8, 0.2], 10) == (0.8, False)
+
+
+def test_news_stance_does_not_count_neutral_or_off_topic_hits_as_support():
+    from nota.skills.news import on_topic, stance
+
+    assert stance(1, 1) == "supports" and stance(1, -1) == "contradicts" and stance(1, 0) == "mentions"
+    assert stance(0, 0) == "supports" and stance(0, -1) == "supports"   # a claim with no direction: any on-topic report
+    assert on_topic("SEC approves spot Solana ETF", "Solana ETF approval lands at the SEC")
+    assert not on_topic("SEC approves spot Solana ETF", "Bitcoin miners sell as hashprice falls")
+    assert on_topic("Solana outage", "Solana network outage lasts five hours")
