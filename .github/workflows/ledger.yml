@@ -17,6 +17,9 @@ name: ledger
 on:
   schedule:
     - cron: "0 9 * * *"
+    # A second pass to settle scorecard windows that close during the day. Lock and decide are
+    # once a UTC day, so this run makes no RYO or model calls when the morning one already did.
+    - cron: "0 17 * * *"
   workflow_dispatch:
 
 permissions:
