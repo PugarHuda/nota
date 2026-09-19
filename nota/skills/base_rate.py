@@ -16,7 +16,8 @@ request's `k` is converted into OKX-ATR units with today's ratio of the two, and
 Only days in the same volatility tercile as today count. The result says how many days that is and
 how many of them are independent (overlapping `h`-day windows share their future). A holdout splits
 the history in time: the rate from the older three quarters against what happened in the newest
-quarter, so a base rate that has drifted says so.
+quarter, so a base rate that has drifted says so. The tercile cuts come from the older part only, and
+an older day counts only when its window closed before the split, so the fit never sees the holdout.
 """
 
 from __future__ import annotations
@@ -110,7 +111,11 @@ def base_rate(daily: list[dict[str, float]], k: float, h: int, direction: str, e
     days = [i for i in range(len(daily) - h) if atrs[i] is not None]
     if len(days) < MIN_DAYS or atrs[-1] is None:
         return {"p": None, "reason": f"{len(days)} usable days, need {MIN_DAYS}"}
-    ranked = sorted(atrs[i] for i in days)
+    split = days[int(len(days) * 0.75)]
+    # The fit sees nothing from the holdout: its tercile cuts come from fit days alone, and a fit day
+    # counts only if its whole h-day window closed before the split. Cuts ranked over every day would
+    # let the newest quarter's volatility decide which older days are "like today".
+    ranked = sorted(atrs[i] for i in days if i + h < split)
     cut = [ranked[len(ranked) // 3], ranked[2 * len(ranked) // 3]]
     tercile = lambda a: 0 if a < cut[0] else (1 if a < cut[1] else 2)
     today = tercile(atrs[-1])
@@ -121,8 +126,7 @@ def base_rate(daily: list[dict[str, float]], k: float, h: int, direction: str, e
         return sum(hit(daily, i, ke * atrs[i], h, direction, event) for i in ix), len(ix)
 
     hits, n = rate(same)
-    split = days[int(len(days) * 0.75)]
-    old, new = [i for i in same if i < split], [i for i in same if i >= split]
+    old, new = [i for i in same if i + h < split], [i for i in same if i >= split]
     (ho, no), (hn, nn) = rate(old), rate(new)
     return {"p": round(hits / n, 4) if n else None, "hits": hits, "n_days": n, "n_independent": n // max(h, 1),
             "tercile": ["low", "mid", "high"][today], "tercile_cuts_atr_pct": [round(x, 3) for x in cut],

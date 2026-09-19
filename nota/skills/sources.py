@@ -6,6 +6,7 @@ skill turns that into an `unavailable` section with a warning.
 
 from __future__ import annotations
 
+import functools
 import html
 import os
 import json
@@ -242,11 +243,26 @@ RSS_FEEDS = {
     "theblock.co": "https://www.theblock.co/rss.xml",
     "decrypt.co": "https://decrypt.co/feed",
 }
-_STOP = {"the", "a", "an", "of", "for", "in", "on", "to", "and", "is", "are", "this", "that", "with", "by", "at", "as", "news", "week", "crypto"}
+_STOP = {"the", "a", "an", "of", "for", "in", "on", "to", "and", "is", "are", "this", "that", "with", "by", "at", "as", "news",
+         "week", "crypto", "price", "today", "market"}
 
 
-def _keywords(text: str) -> set[str]:
-    return {w for w in re.findall(r"[a-z0-9]{2,}", text.lower()) if w not in _STOP}
+@functools.cache
+def _asset_words() -> frozenset[str]:
+    """Tickers and names of the majors. Nearly every crypto headline names one, so a claim matching a
+    headline on "bitcoin" and "price" says nothing about whether the headline reports the claim."""
+    from nota.scorecard import UNIVERSE
+    from nota.skills.narrative import NAMES
+    from nota.skills.price_check import COINGECKO_IDS
+
+    ids = {cid.split("-")[0] for cid in COINGECKO_IDS.values()}
+    return frozenset(w.lower() for w in (*UNIVERSE, *COINGECKO_IDS, *NAMES, *ids))
+
+
+def _keywords(text: str, drop_assets: bool = True) -> set[str]:
+    """The claim's distinctive terms: no stopwords, no generic market words, no asset names."""
+    return {w for w in re.findall(r"[a-z0-9]{2,}", text.lower())
+            if w not in _STOP and not (drop_assets and w in _asset_words())}
 
 
 def _rfc822(s: str | None) -> str | None:
@@ -259,8 +275,9 @@ def _rfc822(s: str | None) -> str | None:
 
 
 class RssNews:
-    """Headline search over four major crypto outlets' RSS feeds. `score` = share of claim keywords
-    present in title+description (0..1), `published_date` from the feed. Deterministic and dated."""
+    """Headline search over four major crypto outlets' RSS feeds. `score` = share of the claim's
+    distinctive terms (asset names and generic market words removed) present in title+description
+    (0..1); an item needs at least one. `published_date` from the feed. Deterministic and dated."""
 
     name = "rss_headlines"
     has_dates = True
@@ -295,7 +312,14 @@ class RssNews:
     def search(self, query: str, max_results: int = 6, topic: str = "general", time_range: str | None = None,
                include_domains: list[str] | None = None) -> list[TavilyResult]:
         self.failed = []
+        # a topic query ("SOL news this week") has nothing but the asset to match on, and then the asset is the topic
         keys = _keywords(query)
+        if not keys:
+            from nota.skills.narrative import NAMES
+
+            keys = _keywords(query, drop_assets=False)
+            # and a headline says "Solana" far more often than "SOL"
+            keys |= {name for name, sym in NAMES.items() if sym.lower() in keys}
         if not keys:
             raise SourceUnavailable("rss: claim has no searchable keywords")
         since = None
@@ -309,7 +333,7 @@ class RssNews:
             for it in self._items(domain, url):
                 if not it["url"]:
                     continue
-                score = len(keys & _keywords(f"{it['title']} {it['content']}")) / len(keys)
+                score = len(keys & _keywords(f"{it['title']} {it['content']}", drop_assets=False)) / len(keys)
                 if score == 0:
                     continue
                 if since and it["published_date"] and it["published_date"] < since.isoformat(timespec="seconds"):

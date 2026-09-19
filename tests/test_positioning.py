@@ -105,3 +105,80 @@ def test_the_council_never_sees_or_cites_a_withheld_field():
     assert '"funding_rate": "withheld: not_token_specific"' in seen["prompt"] and '"open_interest_usd": "1.1e9"' in seen["prompt"]
     assert [c.path for c in res.opinions[1].citations] == ["deep_analysis.data.derivatives.open_interest_usd"]
     assert res.opinions[1].dropped_citations == 1
+
+
+@respx.mock
+def test_the_headline_names_both_venues_when_they_disagree():
+    _okx(premium="-0.00026", hl_premium="0.00042")
+    env = positioning_check("SOL", http=httpx.Client())
+    assert "OKX -2.6 bps / Hyperliquid +4.2 bps: venues disagree" in env.summary.headline
+    assert "more demand to be short" not in env.summary.headline
+
+
+@respx.mock
+def test_without_a_reference_the_gate_says_nothing_was_passed_not_that_ryo_returned_null():
+    _okx()
+    env = positioning_check("SOL", http=httpx.Client())
+    assert {r["verdict"] for r in env.data["gate"]} == {"not_provided"}
+    assert all(r["why"] == "no reference_derivatives passed" for r in env.data["gate"])
+    assert "ryo_reference" not in env.availability
+
+
+@respx.mock
+def test_with_a_ryo_source_the_reference_is_fetched_and_peers_come_from_todays_locks():
+    import json
+    from datetime import datetime, timezone
+
+    _okx()
+    led = Ledger(":memory:")
+    today = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    for s in ("ETH", "WIF"):
+        row = {"symbol": s, "locked_at": today, "status": "locked",
+               "envelope": {"data": {"derivatives": {"funding_rate_bps": 0.0, "open_interest_change_24h_pct": -10.44}}}}
+        led.save_lock(f"l{s}", s, today, "locked", json.dumps(row))
+    env = positioning_check("SOL", http=httpx.Client(), ryo=RecordedRyoClient(FIXTURES, name="fixture"), ledger=led)
+    assert env.availability["ryo_reference"] == "available" and env.availability["ledger_peers"] == "available"
+    assert env.data["peers_compared"] == ["ETH", "WIF"]
+    # the recorded SOL block has no *_bps fields: RYO was asked and answered null, which is `absent`
+    assert {r["verdict"] for r in env.data["gate"]} == {"absent"}
+    assert env.status == "ok"  # RYO, ledger and DVOL are context; the venues are the primary sections
+
+
+# Deribit's documented response shape for public/get_volatility_index_data: result.data rows of
+# [timestamp_ms, open, high, low, close], DVOL in annualised percent. Built here, inside the test.
+DVOL = {"jsonrpc": "2.0", "result": {"continuation": None, "data": [
+    [1758067200000, 47.1, 48.0, 46.2, 46.9], [1758153600000, 46.9, 47.5, 44.8, 45.2], [1758240000000, 45.2, 45.9, 44.1, 44.6]]}}
+
+
+@respx.mock
+def test_dvol_gives_the_implied_week_and_flags_a_stop_inside_it():
+    _okx()
+    respx.post("https://api.hyperliquid.xyz/info").mock(return_value=Response(200, json=[
+        {"universe": [{"name": "BTC"}]}, [{"premium": "-0.00018"}]]))
+    route = respx.get("https://www.deribit.com/api/v2/public/get_volatility_index_data").mock(return_value=Response(200, json=DVOL))
+    env = positioning_check("BTC", atr_stop_pct=2.0, http=httpx.Client())
+    q = route.calls[0].request.url.params
+    assert q["currency"] == "BTC" and q["resolution"] == "1D"
+    iv = env.data["implied_vol"]
+    assert iv["dvol"] == 44.6 and iv["implied_7d_move_pct"] == round(44.6 / 365 ** 0.5 * 7 ** 0.5, 2) == 6.18
+    assert iv["as_of"].startswith("2025-09-19") and env.availability["deribit_dvol"] == "available"
+    assert env.data["stop_check"] == {"atr_stop_pct": 2.0, "half_implied_7d_move_pct": 3.09, "inside_noise": True}
+    assert any(w.startswith("stop inside normal 7-day noise") for w in env.warnings)
+    assert positioning_check("BTC", atr_stop_pct=4.0, http=httpx.Client()).data["stop_check"]["inside_noise"] is False
+
+
+@respx.mock
+def test_no_dvol_is_guessed_for_a_token_deribit_does_not_index():
+    _okx()
+    env = positioning_check("SOL", atr_stop_pct=1.0, http=httpx.Client())
+    assert env.availability["deribit_dvol"] == "unavailable" and env.data["implied_vol"] is None and env.data["stop_check"] is None
+    assert any(w.startswith("no DVOL index for SOL") for w in env.warnings)
+
+
+def test_a_side_called_from_one_venue_says_it_is_one_venue():
+    from nota.skills.positioning import premium_clause
+
+    okx = {"premium_bps": None}
+    hl = {"premium_bps": 5.273}
+    assert premium_clause("above_spot_1_venues", okx, hl) == "perp above spot (Hyperliquid +5.273 bps only): more demand to be long"
+    assert premium_clause("unavailable", okx, {"premium_bps": None}) is None

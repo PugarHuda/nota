@@ -41,7 +41,7 @@ from nota.risk import PracticeTrade
 from nota.ryo_client import RyoClient
 from nota.mcp_server import (HEADER_MISMATCH, SUPPORTED_PROTOCOLS, UNSUPPORTED_VERSION, VERSION_META,
                              handle as mcp_handle)
-from nota.skills import definitions as skill_definitions, invoke as skill_invoke
+from nota.skills import SKILLS, definitions as skill_definitions, invoke as skill_invoke, live_deps
 from nota.skills.contract import OK
 
 load_dotenv()
@@ -615,9 +615,7 @@ def invoke_skill(name: str, body: SkillCallRequest, request: Request) -> dict[st
     if body.name and body.name != name:
         raise HTTPException(422, "body.name does not match the path")
     _throttle(f"skill:{request.client.host if request.client else 'unknown'}", limit=60, cost=_skill_cost(name, body.args))
-    deps: dict[str, Any] = {}
-    if name == "news_verify" and body.args.get("symbol") and os.environ.get("RYO_MCP_KEY"):
-        deps["ryo"] = RyoClient()
+    deps = live_deps(name, body.args) if name in SKILLS else {}
     started = time.time()
     try:
         env = skill_invoke(name, body.args, **deps)

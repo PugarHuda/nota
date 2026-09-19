@@ -61,7 +61,7 @@ def test_news_verify_combines_rss_and_backend(monkeypatch):
     rss = RssNews(feeds={"coindesk.com": "https://www.coindesk.com/arc/outboundfeeds/rss/"})
     env = news_verify("SEC approves spot Solana ETF", tavily=Tavily(api_key="t", http=httpx.Client()), rss=rss)
     assert env.availability == {"headlines": "available", "search": "available"} and env.status == "ok"
-    assert env.data["method"] == {"search": "tavily", "headlines": "rss_headlines"}
+    assert env.data["method"] == {"search": "tavily", "headlines": "rss_headlines", "stance": "vader_3.3.2+crypto_lexicon_v3"}
     assert [s["domain"] for s in env.data["sources"]] == ["coindesk.com", "theblock.co"]  # de-duplicated by url
     assert env.data["sources"][0]["published_date"] == _NEW.isoformat() and env.data["verdict"] == "weak"
 
@@ -93,7 +93,7 @@ def test_vader_handles_negation_and_null():
     _, pos, _, _ = score_text("$SOL looks very bullish!!", None)
     _, neg, _, _ = score_text("Not bullish on $ETH here", None)
     _, none, _, _ = score_text("$BTC 21 million cap", None)
-    assert pos > 0.5 and neg < 0 and none is None
+    assert pos["SOL"] > 0.5 and neg["ETH"] < 0 and none["BTC"] is None
 
 
 def _prices(cg=150.0, cb=151.0, kr=None, bn=None, ll=None):

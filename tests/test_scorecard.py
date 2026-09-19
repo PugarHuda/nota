@@ -146,3 +146,23 @@ def test_track_record_says_when_a_symbol_is_never_locked():
 
     env = verdict_track_record("FOO", ledger=Ledger(":memory:"))
     assert env.status == "unavailable" and "not in the scorecard universe" in " ".join(env.warnings)
+
+
+def test_a_verdict_leaning_against_the_plan_is_flagged_on_either_side():
+    assert sc.verdict_contradicts_side("short", "Constructive") and sc.verdict_contradicts_side("long", "cautious")
+    assert not sc.verdict_contradicts_side("short", "cautious") and not sc.verdict_contradicts_side("long", "neutral")
+    assert not sc.verdict_contradicts_side("short", None)
+
+
+def test_track_record_counts_a_short_plan_under_a_constructive_verdict():
+    import json as _json
+
+    from nota.skills.track_record import verdict_track_record
+
+    led = Ledger(":memory:")
+    row = {"id": "s1", "symbol": "SOL", "inst": "SOL-USDT", "locked_at": "2026-09-10T09:00:00+00:00", "status": "locked",
+           "verdict": "constructive", "confluence_state": "MIXED", "confluence_score": 1, "okx_price": 100.0, "trace_id": "t",
+           "plan": {"entry": 100.0, "stop": 106.0, "targets": [94.0], "atr_14_pct": 4.0}}
+    led.save_lock("s1", "SOL", row["locked_at"], "locked", _json.dumps(row))
+    assert verdict_track_record("SOL", ledger=led).data["verdict_against_plan"] == 1
+    assert sc.summary(led)["contradictions"] == 1

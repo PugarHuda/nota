@@ -256,6 +256,14 @@ def contrast(settled: list[dict[str, Any]], key: str, a: str, b: str, seed: int 
 
 
 BEARISH = {"cautious", "bearish", "avoid", "negative"}
+BULLISH = {"constructive", "bullish", "positive", "accumulate"}
+
+
+def verdict_contradicts_side(side: str, verdict: str | None) -> bool:
+    """A long bracket under a bearish verdict, or a short one under a bullish verdict: RYO's words and
+    RYO's plan point opposite ways."""
+    v = (verdict or "").lower()
+    return (side == "long" and v in BEARISH) or (side == "short" and v in BULLISH)
 
 
 def summary(ledger: Ledger, horizon_h: int = 24) -> dict[str, Any]:
@@ -275,7 +283,7 @@ def summary(ledger: Ledger, horizon_h: int = 24) -> dict[str, Any]:
                 "settles_at": (start + timedelta(hours=horizon_h)).isoformat(), "trace_id": r.get("trace_id"),
                 "confluence_score": r.get("confluence_score"), "atr_14_pct": (r.get("plan") or {}).get("atr_14_pct"),
                 "verdict": r["verdict"], "confluence_state": r["confluence_state"], "side": side,
-                "verdict_contradicts_side": side == "long" and (r["verdict"] or "").lower() in BEARISH}
+                "verdict_contradicts_side": verdict_contradicts_side(side, r["verdict"])}
         if s is None:
             open_plans.append(base)
         else:

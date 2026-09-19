@@ -1,0 +1,47 @@
+name: probe
+
+# Captures raw responses from public market APIs that some networks cannot reach (Deribit is
+# DNS-blocked on the machine this project is built on), so a test fixture is a real answer rather
+# than one typed from documentation. Run by hand; the JSON comes back as a workflow artifact:
+#
+#   gh workflow run probe.yml -f currency=BTC
+#   gh run download <run-id> -n probe
+#
+# Read-only GETs against keyless public endpoints; nothing here touches a secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      currency:
+        description: "Deribit DVOL currency (BTC or ETH)"
+        required: false
+        default: "BTC"
+        type: choice
+        options: ["BTC", "ETH"]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch public endpoints
+        env:
+          CURRENCY: ${{ inputs.currency }}
+        run: |
+          mkdir -p probe
+          now=$(( $(date +%s) * 1000 ))
+          start=$(( now - 3 * 86400000 ))
+          lc=$(echo "$CURRENCY" | tr '[:upper:]' '[:lower:]')
+          curl -fsS --max-time 30 "https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${CURRENCY}&resolution=1D&start_timestamp=${start}&end_timestamp=${now}" -o "probe/deribit_dvol_${lc}.json"
+          curl -fsS --max-time 30 "https://gamma-api.polymarket.com/markets?limit=20&active=true&closed=false&tag_slug=crypto" -o probe/polymarket_markets.json
+          curl -fsS --max-time 30 "https://api.elections.kalshi.com/trade-api/v2/markets?limit=20&status=open&series_ticker=KXBTCD" -o probe/kalshi_markets.json
+          ls -l probe
+          head -c 400 "probe/deribit_dvol_${lc}.json"; echo
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe
+          path: probe/
+          retention-days: 7

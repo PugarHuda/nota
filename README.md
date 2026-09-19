@@ -213,8 +213,10 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
 
 - `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky public
   API, `x:` through X's own public syndication endpoint, the one that serves embedded timelines,
-  with a Tavily fallback), VADER sentiment plus a crypto lexicon, conviction, urgency, and
-  convergence detection. Silence is `null`, not 0. Nitter, which `x:` used to go through, was served
+  with a Tavily fallback), VADER sentiment plus a crypto lexicon scored per token on the clauses
+  that name it ("BTC pumping while ETH dumping" is two opposite reads), whole-word conviction and
+  urgency, and convergence: two or more voices with a net sentiment, all of the same sign. Only
+  known majors count as tokens, so `$HODL` or "CEO" is not a call. Silence is `null`, not 0. Nitter, which `x:` used to go through, was served
   cease-and-desist letters in August 2026 and its public mirrors went dark, so that reader was
   advertising a source that could not answer; syndication is keyless, dated and still open, and
   every failure is reported as `unavailable` rather than guessed. One measured limit worth knowing
@@ -226,7 +228,9 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
   as undated; without that key the warning says so in as many words.
 - `news_verify`: dated headlines from CoinDesk, Cointelegraph, The Block and Decrypt RSS,
   plus Tavily or Venice web search for breadth; counts independent domains and attaches RYO
-  `analyze_token` context.
+  `analyze_token` context. Headlines match on the claim's distinctive words, not on "Bitcoin" and
+  "price", and a headline that leans the other way is counted against the claim, so a story can come
+  back `disputed`. With no search key the headlines still decide, and the status says `partial`.
 - `price_crosscheck`: keyless CoinGecko, Coinbase, Kraken, Binance (public data mirror, USDT as the
   USD proxy) and DefiLlama spot prices, median, spread, and deviation of a reference price (RYO's)
   from the exchanges, plus the alternative.me Fear & Greed index against RYO's reading. A source
@@ -241,15 +245,21 @@ The dashboard's "Run a skill" panel builds its form from those definitions and s
   the 1 bp interest component and says nothing), open-interest change in coins, the long/short
   account ratio as a percentile of its last 100 hours, and Hyperliquid's premium as a second venue.
   `premium_consensus` is one side of spot on every venue or `venues_disagree`, never an average,
-  with one plain sentence in English and Japanese.
+  with one plain sentence in English and Japanese; the headline quotes both venues. Called without
+  RYO's block, it asks RYO's `deep_analysis` itself (when `RYO_MCP_KEY` is set) and compares it with
+  today's scorecard locks. For BTC and ETH it adds Deribit's DVOL: the options market's implied
+  7-day move, and with `atr_stop_pct` a warning when a stop sits inside that normal noise. Other
+  tokens have no DVOL and get none.
 - `move_base_rate`: how often this token reached (or closed beyond) k ATRs within h days, counted on
   ~400 days of OKX UTC candles restricted to days in today's volatility tercile, with the number of
-  independent days and a time-split holdout that warns when the rate has drifted. Given RYO's
+  independent days and a time-split holdout that warns when the rate has drifted (its tercile cuts
+  come from the older days only, so the fit never sees the holdout). Given RYO's
   `atr_14_pct` it measures in RYO's ATR (0.91-0.98 of a Wilder ATR from OKX, ratio printed). Every
   scored decision also carries this base rate, and `/api/scores.vs_base_rate` gives each agent
   1 - Brier / Brier(base rate): above zero it knew something the calendar did not.
 - `verdict_track_record`: the scorecard's settled record for a token, by verdict and confluence
-  state, with denominators and the latest locked verdict's trace id.
+  state, with denominators, the plans whose verdict leans against their own direction (a long under
+  a cautious verdict or a short under a constructive one), and the latest locked verdict's trace id.
 
 ## Nota is also an MCP server (Track 3)
 

@@ -66,8 +66,8 @@ def test_news_verify_on_venice_warns_about_missing_dates():
 
 def test_lexicon_v2_scores_news_wire_headlines():
     _, sent, _, _ = score_text("JUST IN: Bitcoin hits new record high above $120,000", None)
-    assert sent is not None and sent > 0.3
+    assert sent["BTC"] is not None and sent["BTC"] > 0.3
     _, sent, _, _ = score_text("Ethereum plunges 8% as ETF outflows continue", None)
-    assert sent is not None and sent < 0  # 'etf' counts bullish, two bear verbs outweigh it
+    assert sent["ETH"] is not None and sent["ETH"] < 0  # 'etf' counts bullish, two bear verbs outweigh it
     _, sent, _, _ = score_text("$1,000 in gold vs $BTC over 10 years. No opinion.", None)
-    assert sent is None
+    assert sent["BTC"] is None

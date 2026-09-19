@@ -426,11 +426,13 @@ def skill_run(name: str, args_json: str = typer.Argument("{}", help="JSON object
     if not isinstance(args, dict):
         raise typer.BadParameter("""ARGS_JSON must be a JSON object, e.g. '{"symbol": "SOL"}'""")
     deps = {}
-    if name == "news_verify" and args.get("symbol"):
+    if (name == "news_verify" and args.get("symbol")) or name == "positioning_check":
         try:
             deps["ryo"] = _source(source)
         except typer.BadParameter:
             pass  # skill reports the missing market context itself
+    if name == "positioning_check":
+        deps["ledger"] = _ledger()  # same-day scorecard locks are the peers RYO's values are compared across
     try:
         env = skill_invoke(name, args, **deps)
     except (KeyError, ValueError) as exc:

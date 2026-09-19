@@ -32,7 +32,8 @@ def test_base_rate_counts_same_tercile_days_and_splits_in_time():
     # tercile than the 100 days. Today (the last candle) closed at 102, only 102 days count, and from
     # 102 the next close is always 100: the conditioning is what makes this 0, not half.
     assert out["p"] == 0.0 and out["tercile"] == "low" and out["n_days"] >= 30 and out["n_independent"] == out["n_days"]
-    assert out["holdout"]["fit_days"] + out["holdout"]["recent_days"] == out["n_days"]
+    # a fit day whose window reaches past the split is in neither half
+    assert out["n_days"] - 1 <= out["holdout"]["fit_days"] + out["holdout"]["recent_days"] <= out["n_days"]
     assert base_rate(d[:40], 1, 3, "up", "touch")["p"] is None  # too little history is said, not guessed
 
 
@@ -60,3 +61,23 @@ def test_an_unlisted_symbol_is_unavailable_not_zero():
     respx.get("https://www.okx.com/api/v5/market/history-candles").mock(return_value=Response(200, json={"code": "51001", "msg": "Instrument ID doesn't exist.", "data": []}))
     env = move_base_rate("NOTACOIN", http=httpx.Client())
     assert env.status == "unavailable" and env.data["p"] is None and "doesn't exist" in env.warnings[0]
+
+
+def test_the_holdout_fit_never_sees_the_newest_quarter():
+    import random
+
+    rng = random.Random(3)
+    d = []
+    for i in range(240):
+        c = 100 * (1 + 0.05 * rng.random())
+        r = 0.2 if i >= 220 else 0.03 * rng.random()        # the last 20 days are wild, so today is high-volatility either way
+        d.append({"ts": 1_700_000_000_000 + i * DAY, "high": c * (1 + r), "low": c * (1 - r), "close": c})
+    before = base_rate(d, 1.0, 3, "up", "touch")
+    split = int((len(d) - 3 - 14) * 0.75) + 14            # first holdout day, as base_rate picks it
+    # the holdout goes quiet: ranking cuts over every day would move them, and with them the fit
+    calm = d[:split] + [{**c, "high": c["close"] * 1.001, "low": c["close"] * 0.999} for c in d[split:220]] + d[220:]
+    after = base_rate(calm, 1.0, 3, "up", "touch")
+    assert before["tercile"] == after["tercile"] == "high"
+    assert after["holdout"]["recent_from"] == before["holdout"]["recent_from"]
+    assert after["tercile_cuts_atr_pct"] == before["tercile_cuts_atr_pct"]
+    assert after["holdout"]["fit_p"] == before["holdout"]["fit_p"] and after["holdout"]["fit_days"] == before["holdout"]["fit_days"]

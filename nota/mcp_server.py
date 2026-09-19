@@ -26,7 +26,7 @@ from typing import Any
 from nota.envelope import Envelope
 from nota.ledger import Ledger
 from nota.receipt import Receipt, render_markdown
-from nota.skills import SKILLS, definitions, invoke
+from nota.skills import SKILLS, definitions, invoke, live_deps
 
 SERVER_NAME = "nota"
 SERVER_VERSION = "0.1.0"
@@ -317,7 +317,8 @@ def _dispatch(method: str, id_: Any, params: dict[str, Any], deps: dict[str, Any
         if name not in SKILLS:
             return _error(id_, INVALID_PARAMS, f"unknown tool {name!r}", {"tools": sorted(SKILLS)})
         try:
-            envelope = invoke(name, args, **(deps or {}))
+            # a caller-supplied deps map (tests, embedding) wins; otherwise the same live deps as REST
+            envelope = invoke(name, args, **(deps if deps else live_deps(name, args)))
         except ValueError:                             # bad arguments: handle() answers -32602
             raise
         except Exception:                              # a source failed in a way the skill could not absorb

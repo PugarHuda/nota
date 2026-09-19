@@ -61,6 +61,26 @@ def _check_arg(skill: str, a: SkillArg, v: Any) -> Any:
     return v
 
 
+def live_deps(name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """What a public call (REST or MCP) gets beyond its arguments: RYO for the two skills that read it
+    when a RYO key is configured, and the ledger's same-day locks for positioning_check when a ledger
+    file exists. A missing key or file leaves the dependency out and the skill reports that itself."""
+    import os
+
+    deps: dict[str, Any] = {}
+    wants_ryo = name == "positioning_check" or (name == "news_verify" and isinstance(args, dict) and args.get("symbol"))
+    if wants_ryo and os.environ.get("RYO_MCP_KEY"):
+        from nota.ryo_client import RyoClient
+
+        deps["ryo"] = RyoClient()
+    db = os.environ.get("NOTA_DB", "nota.db")
+    if name == "positioning_check" and os.path.exists(db):
+        from nota.ledger import Ledger
+
+        deps["ledger"] = Ledger(db)
+    return deps
+
+
 def definitions() -> list[SkillDefinition]:
     return [d for d, _ in SKILLS.values()]
 

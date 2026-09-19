@@ -62,11 +62,11 @@ def test_parse_private_channel_is_unavailable():
 # --- lexicon ----------------------------------------------------------------------------
 def test_score_text_tokens_sentiment_conviction_urgency():
     toks, sent, conv, urg = score_text("BREAKING: $SOL breakout confirmed, buying more now! Bullish on solana.", None)
-    assert toks == ["SOL"] and sent is not None and sent > 0.5 and urg > 0 and conv > 0
+    assert toks == ["SOL"] and sent["SOL"] is not None and sent["SOL"] > 0.5 and urg > 0 and conv > 0
     toks, sent, _, _ = score_text("$1,000 in gold vs $BTC over 10 years. No opinion.", None)
-    assert toks == ["BTC"] and sent is None  # no sentiment words -> None, not 0
+    assert toks == ["BTC"] and sent["BTC"] is None  # no sentiment words -> None, not 0
     toks, sent, _, _ = score_text("$ETH resistance rejection, bearish. $USDT fine", {"ETH"})
-    assert toks == ["ETH"] and sent is not None and sent < -0.3
+    assert toks == ["ETH"] and sent["ETH"] is not None and sent["ETH"] < -0.3
 
 
 # --- narrative_convergence --------------------------------------------------------------
@@ -194,3 +194,88 @@ def test_news_verify_does_not_echo_the_claim_in_data():
 
     env = news_verify("SOL ETF approved", tavily=Search(), rss=False)
     assert env.request["claim"] == "SOL ETF approved" and "claim" not in env.data
+
+
+# --- news_verify: RSS survives a missing search backend; stance ------------------------------
+def _rss(items_by_domain):
+    """Three outlets' feeds served from memory; each item is (title, description)."""
+    from email.utils import format_datetime
+
+    when = format_datetime(NOW - timedelta(hours=3))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        items = items_by_domain[request.url.host]
+        body = "".join(f"<item><title>{t}</title><link>https://{request.url.host}/{i}</link><description>{d}</description>"
+                       f"<pubDate>{when}</pubDate></item>" for i, (t, d) in enumerate(items))
+        return httpx.Response(200, text=f"<rss><channel>{body}</channel></rss>")
+
+    from nota.skills.sources import RssNews
+
+    return RssNews(http=httpx.Client(transport=httpx.MockTransport(handler)),
+                   feeds={d: f"https://{d}/rss" for d in items_by_domain})
+
+
+class _NoSearch:
+    name = "tavily"
+
+    def search(self, *a, **kw):
+        raise SourceUnavailable("tavily: TAVILY_API_KEY not set")
+
+
+def test_headlines_still_count_when_the_search_backend_is_missing():
+    rss = _rss({d: [("Solana ETF approved by the SEC", "The regulator approved the first Solana ETF")]
+                for d in ("coindesk.com", "cointelegraph.com", "decrypt.co")})
+    env = news_verify("Solana ETF approved by SEC", rss=rss, tavily=_NoSearch())
+    assert env.data["verdict"] == "corroborated" and env.data["supports"] == 3 and env.data["contradicts"] == 0
+    assert env.status == "partial" and env.availability == {"headlines": "available", "search": "unavailable"}
+    assert env.data["method"]["search"] is None and any("TAVILY_API_KEY" in w for w in env.warnings)
+
+
+def test_headlines_about_the_asset_are_not_corroboration_of_a_claim_about_it():
+    # the same week's real wire headlines: all about Bitcoin's price, none says it crashed to zero
+    rss = _rss({"coindesk.com": [("Bitcoin price rises above $117,000 as ETF inflows return", "BTC price today")],
+                "cointelegraph.com": [("Bitcoin hits record high this week", "Crypto market news")],
+                "decrypt.co": [("Bitcoin price climbs as traders eye Fed cut", "Bitcoin this week")]})
+    env = news_verify("Bitcoin price crashed to zero this week", rss=rss, tavily=_NoSearch())
+    assert env.data["verdict"] in ("unverified", "disputed") and env.data["supports"] == 0
+
+
+def test_a_headline_leaning_the_other_way_is_counted_against_the_claim():
+    rss = _rss({"coindesk.com": [("Bitcoin crashed below $90,000 as liquidations mount", "")],
+                "cointelegraph.com": [("Bitcoin crashed to a six-month low", "")],
+                "decrypt.co": [("Bitcoin soared after it crashed overnight, record rebound", "")]})
+    env = news_verify("Bitcoin crashed to zero", rss=rss, tavily=_NoSearch())
+    stances = {s["domain"]: s["stance"] for s in env.data["sources"]}
+    assert stances == {"coindesk.com": "supports", "cointelegraph.com": "supports", "decrypt.co": "contradicts"}
+    assert env.data["verdict"] == "weak" and env.data["contradicts"] == 1
+    rss = _rss({"coindesk.com": [("Bitcoin crashed overnight", "")], "decrypt.co": [("Bitcoin soared, crashed shorts wiped out, record rally", "")]})
+    assert news_verify("Bitcoin crashed", rss=rss, tavily=_NoSearch()).data["verdict"] == "disputed"
+
+
+# --- narrative lexicon: whole words, known tickers, per-clause sentiment ----------------------
+def test_urgency_and_conviction_match_whole_words_only():
+    assert score_text("I know nothing about $SOL", None)[3] == 0
+    assert score_text("uneasy about $ETH", None)[2] == 0
+    assert score_text("buy $SOL now", None)[3] > 0
+
+
+def test_chart_words_carry_no_stance():
+    toks, sent, _, _ = score_text("The top story on $BTC", None)
+    assert toks == ["BTC"] and not sent["BTC"]
+
+
+def test_one_post_can_lean_opposite_ways_on_two_tokens():
+    toks, sent, _, _ = score_text("BTC pumping while ETH dumping", None)
+    assert toks == ["BTC", "ETH"] and sent["BTC"] > 0 > sent["ETH"]
+
+
+def test_only_known_symbols_count_as_tokens():
+    toks, _, _, _ = score_text("CEO says $HODL, NFT and $WIF are the plays", None)
+    assert toks == ["WIF"]
+    assert score_text("$HODL mooning", {"HODL"})[0] == ["HODL"]  # a tracked token is always looked for
+
+
+def test_a_topic_query_with_only_an_asset_matches_on_the_asset_and_its_name():
+    rss = _rss({"coindesk.com": [("Solana speeds up blocks by 17%", "")], "decrypt.co": [("Fed holds rates", "")]})
+    env = news_verify("SOL crypto news this week", rss=rss, tavily=_NoSearch())
+    assert [s["domain"] for s in env.data["sources"]] == ["coindesk.com"]
