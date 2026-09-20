@@ -678,8 +678,9 @@ def test_the_scorecard_horizon_lives_in_the_url_and_times_say_utc(server, browse
     assert page.get_attribute(".horizon button[data-h='72']", "aria-pressed") == "true"
     page.click(".horizon button[data-h='24']")
     page.wait_for_url("**/scorecard?h=24")
-    cells = page.locator("#open-t td:last-child").all_inner_texts()     # the Locked column
-    assert cells and all(c.endswith("UTC") for c in cells), cells[:3]
+    # the Locked column carries the time on its first line and the lock's timestamp proof under it
+    times = [c.splitlines()[0].strip() for c in page.locator("#open-t td:last-child").all_inner_texts()]
+    assert times and all(t.endswith("UTC") for t in times), times[:3]
     assert problems == [], problems
     page.close()
 

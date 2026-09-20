@@ -1,7 +1,7 @@
 """Round-two gap fixes: simulated-data guard, MCP transport, Bluesky voices, fear/greed cross-check, reliability, watch --scan-top."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -65,11 +65,14 @@ def test_mcp_transport_calls_tools_call_and_maps_errors():
         RyoClient(key="k", transport="grpc")
 
 
+# Dated relative to now: the look-back window is clamped to 14 days, so fixed dates expire as a test bomb.
+_BSKY_AT = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+_BSKY_AT2 = (datetime.now(timezone.utc) - timedelta(days=2, hours=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 BSKY = {"feed": [
     {"post": {"uri": "at://did:plc:abc/app.bsky.feed.post/3k1", "author": {"handle": "alpha.bsky.social"}, "likeCount": 12,
-              "record": {"text": "$SOL breakout, buying more. Bullish on solana", "createdAt": "2026-09-06T01:00:00.000Z"}}},
+              "record": {"text": "$SOL breakout, buying more. Bullish on solana", "createdAt": _BSKY_AT}}},
     {"post": {"uri": "at://did:plc:abc/app.bsky.feed.post/3k2", "author": {"handle": "alpha.bsky.social"},
-              "record": {"text": "gm", "createdAt": "2026-09-06T00:00:00.000Z"}}},
+              "record": {"text": "gm", "createdAt": _BSKY_AT2}}},
 ]}
 
 
@@ -77,7 +80,7 @@ BSKY = {"feed": [
 def test_bluesky_voice_parses_and_scores():
     respx.get("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed").mock(return_value=Response(200, json=BSKY))
     msgs = BlueskyPublic(http=httpx.Client()).fetch("@alpha.bsky.social")
-    assert msgs[0].url == "https://bsky.app/profile/alpha.bsky.social/post/3k1" and msgs[0].at == "2026-09-06T01:00:00.000Z" and msgs[0].views == "12"
+    assert msgs[0].url == "https://bsky.app/profile/alpha.bsky.social/post/3k1" and msgs[0].at == _BSKY_AT and msgs[0].views == "12"
     env = narrative_convergence(["bs:alpha.bsky.social"], hours=24 * 30, bluesky=BlueskyPublic(http=httpx.Client()))
     assert env.availability == {"bs:alpha.bsky.social": "available"} and env.data["tokens"][0]["symbol"] == "SOL" and env.data["tokens"][0]["sentiment_mean"] > 0
     respx.get("https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed").mock(return_value=Response(400, json={"message": "Profile not found"}))
