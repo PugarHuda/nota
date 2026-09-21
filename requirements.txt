@@ -6,7 +6,7 @@ annotated-doc==0.0.5
     #   typer
 annotated-types==0.8.0
     # via pydantic
-anthropic==1.3.0
+anthropic==1.6.0
     # via nota
 anyio==4.15.0
     # via
@@ -38,11 +38,11 @@ h11==0.16.0
     #   uvicorn
 httpcore==1.0.9
     # via httpx
-httpcore2==2.12.0 ; sys_platform != 'emscripten'
+httpcore2==2.13.0 ; sys_platform != 'emscripten'
     # via httpx2
 httpx==0.28.1
     # via nota
-httpx2==2.12.0
+httpx2==2.13.0
     # via anthropic
 httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
     # via httpx2
@@ -52,7 +52,7 @@ idna==3.19
     #   httpx
     #   httpx2
     #   requests
-jiter==0.16.0
+jiter==0.17.0
     # via anthropic
 markdown-it-py==4.2.0
     # via rich
@@ -106,11 +106,11 @@ typing-inspection==0.4.4
     # via
     #   fastapi
     #   pydantic
-tzdata==2026.3 ; sys_platform == 'win32'
+tzdata==2026.4 ; sys_platform == 'win32'
     # via psycopg
 urllib3==2.7.0
     # via requests
-uvicorn==0.52.4
+uvicorn==0.53.0
     # via nota
 vadersentiment==3.3.2
     # via nota
