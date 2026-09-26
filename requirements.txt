@@ -60,7 +60,7 @@ mdurl==0.1.2
     # via markdown-it-py
 pillow==12.3.0
     # via nota
-psycopg==3.3.5
+psycopg==3.3.6
     # via nota
 psycopg-binary==3.3.5 ; implementation_name != 'pypy'
     # via psycopg
