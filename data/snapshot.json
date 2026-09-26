@@ -1,6 +1,416 @@
 {
- "exported_at": "2026-09-26T07:44:11+00:00",
+ "exported_at": "2026-09-26T13:12:56+00:00",
  "receipts": [
+  {
+   "agrees_with_ryo": null,
+   "availability": {
+    "analyze_token": "error",
+    "compare": "error",
+    "crowd_odds": "ok",
+    "deep_analysis": "error",
+    "liquidity": "ok",
+    "market_overview": "partial",
+    "narrative_signal": "ok",
+    "positioning_check": "ok",
+    "price_check": "ok",
+    "sentiment_shift": "unavailable",
+    "technicals_check": "ok"
+   },
+   "cache_hits": 0,
+   "created_at": "2026-09-26T13:12:47+00:00",
+   "headline": "ETH: no trade (primary evidence (deep_analysis) unavailable; no trade without it)",
+   "id": "4ac2d7263037",
+   "model": "qwen3-235b-a22b-instruct-2507",
+   "opinions": [],
+   "pack_hash": "ff17a63f85a11c246aa29afd6845443eb0b374a1626dfb9bb028b7f7d444b4fa",
+   "prompt_version": "v5",
+   "provenance": {
+    "analyze_token": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "analyze_token",
+     "trace_id": "df5ed778ce9440049497fc640abd2de0"
+    },
+    "compare": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "compare_tokens",
+     "trace_id": "5acf94517c634469a80d8c7564f37b52"
+    },
+    "crowd_odds": {
+     "as_of": "2026-09-26T13:12:47+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "crowd_odds",
+     "trace_id": null
+    },
+    "deep_analysis": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "deep_analysis",
+     "trace_id": "b1dc6fa847844ebbafd919165660f2ee"
+    },
+    "liquidity": {
+     "as_of": "2026-09-26T13:12:47+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "liquidity_check",
+     "trace_id": null
+    },
+    "market_overview": {
+     "as_of": "2026-09-26T13:12:42Z",
+     "data_mode": "live",
+     "status": "partial",
+     "tool": "market_overview",
+     "trace_id": "8252092dbfbe40148299e357e475bfda"
+    },
+    "narrative_signal": {
+     "as_of": "2026-09-26T13:12:44+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "narrative_convergence",
+     "trace_id": null
+    },
+    "positioning_check": {
+     "as_of": "2026-09-26T13:12:47+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "positioning_check",
+     "trace_id": null
+    },
+    "price_check": {
+     "as_of": "2026-09-26T13:12:45+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "price_crosscheck",
+     "trace_id": null
+    },
+    "sentiment_shift": {
+     "as_of": "2026-09-26T13:12:41Z",
+     "data_mode": "unknown",
+     "status": "unavailable",
+     "tool": "monitor_market_sentiment_shift",
+     "trace_id": "f6244f7741594de8a99cf784c0e0aad8"
+    },
+    "technicals_check": {
+     "as_of": "2026-09-26T13:12:46+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "technicals_crosscheck",
+     "trace_id": null
+    }
+   },
+   "ryo_view": null,
+   "source": "live",
+   "spend": {
+    "cached_calls": 0,
+    "completion_tokens": null,
+    "model_calls": 0,
+    "ms": 0,
+    "prompt_tokens": null,
+    "usd": null
+   },
+   "symbol": "ETH",
+   "trade": {
+    "kind": "blocked",
+    "reason": "primary evidence (deep_analysis) unavailable; no trade without it"
+   },
+   "verdict": {
+    "action": "no_trade",
+    "agreed_with": [],
+    "disagreed_with": [],
+    "key_risks": [],
+    "p_up_7d": 0.5,
+    "rationale": "primary evidence (deep_analysis) unavailable; the council was not convened and no trade is taken without it"
+   },
+   "warnings": [
+    "market_overview: Market sentiment is unavailable for this snapshot.",
+    "market_overview: Market breadth is unavailable for this snapshot.",
+    "market_overview: Top movers are unavailable for this snapshot.",
+    "sentiment_shift: No measurements were inferred from an unavailable upstream result; retry later.",
+    "deep_analysis: VALIDATION_FAILED: Current USD market data is unavailable for ETH.",
+    "analyze_token: VALIDATION_FAILED: couldn't analyze ETH right now",
+    "compare: VALIDATION_FAILED: Current USD market data is unavailable for enough tokens to compare them.",
+    "price_check: binance: USDT used as USD proxy"
+   ]
+  },
+  {
+   "agrees_with_ryo": null,
+   "availability": {
+    "analyze_token": "error",
+    "compare": "error",
+    "crowd_odds": "ok",
+    "deep_analysis": "error",
+    "liquidity": "ok",
+    "market_overview": "partial",
+    "narrative_signal": "ok",
+    "positioning_check": "ok",
+    "price_check": "ok",
+    "sentiment_shift": "unavailable",
+    "technicals_check": "ok"
+   },
+   "cache_hits": 0,
+   "created_at": "2026-09-26T13:12:40+00:00",
+   "headline": "BTC: no trade (primary evidence (deep_analysis) unavailable; no trade without it)",
+   "id": "bcd7deff632c",
+   "model": "qwen3-235b-a22b-instruct-2507",
+   "opinions": [],
+   "pack_hash": "fdd69bc4bbb355f7baa531a9f43924c0929cd0a60b01717c23f4370750f1f676",
+   "prompt_version": "v5",
+   "provenance": {
+    "analyze_token": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "analyze_token",
+     "trace_id": "8b35c784ee1f4814bd70d2f4c303b93e"
+    },
+    "compare": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "compare_tokens",
+     "trace_id": "e3b581a5d45a4c8389cc05971ac22724"
+    },
+    "crowd_odds": {
+     "as_of": "2026-09-26T13:12:40+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "crowd_odds",
+     "trace_id": null
+    },
+    "deep_analysis": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "deep_analysis",
+     "trace_id": "915cbe40f9e84fd3ae31d64c45e36892"
+    },
+    "liquidity": {
+     "as_of": "2026-09-26T13:12:40+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "liquidity_check",
+     "trace_id": null
+    },
+    "market_overview": {
+     "as_of": "2026-09-26T13:11:34Z",
+     "data_mode": "live",
+     "status": "partial",
+     "tool": "market_overview",
+     "trace_id": "cfb779fddb164d97a463ac46dbda5af7"
+    },
+    "narrative_signal": {
+     "as_of": "2026-09-26T13:12:37+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "narrative_convergence",
+     "trace_id": null
+    },
+    "positioning_check": {
+     "as_of": "2026-09-26T13:12:40+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "positioning_check",
+     "trace_id": null
+    },
+    "price_check": {
+     "as_of": "2026-09-26T13:12:38+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "price_crosscheck",
+     "trace_id": null
+    },
+    "sentiment_shift": {
+     "as_of": "2026-09-26T13:11:33Z",
+     "data_mode": "unknown",
+     "status": "unavailable",
+     "tool": "monitor_market_sentiment_shift",
+     "trace_id": "18ba45a8f9a54b17a81a2b6b0b868842"
+    },
+    "technicals_check": {
+     "as_of": "2026-09-26T13:12:39+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "technicals_crosscheck",
+     "trace_id": null
+    }
+   },
+   "ryo_view": null,
+   "source": "live",
+   "spend": {
+    "cached_calls": 0,
+    "completion_tokens": null,
+    "model_calls": 0,
+    "ms": 0,
+    "prompt_tokens": null,
+    "usd": null
+   },
+   "symbol": "BTC",
+   "trade": {
+    "kind": "blocked",
+    "reason": "primary evidence (deep_analysis) unavailable; no trade without it"
+   },
+   "verdict": {
+    "action": "no_trade",
+    "agreed_with": [],
+    "disagreed_with": [],
+    "key_risks": [],
+    "p_up_7d": 0.5,
+    "rationale": "primary evidence (deep_analysis) unavailable; the council was not convened and no trade is taken without it"
+   },
+   "warnings": [
+    "market_overview: Market sentiment is unavailable for this snapshot.",
+    "market_overview: Market breadth is unavailable for this snapshot.",
+    "market_overview: Top movers are unavailable for this snapshot.",
+    "sentiment_shift: No measurements were inferred from an unavailable upstream result; retry later.",
+    "deep_analysis: VALIDATION_FAILED: Current USD market data is unavailable for BTC.",
+    "analyze_token: VALIDATION_FAILED: couldn't analyze BTC right now",
+    "compare: VALIDATION_FAILED: Current USD market data is unavailable for enough tokens to compare them.",
+    "price_check: binance: USDT used as USD proxy",
+    "liquidity: BTC has no DeFi chain whose TVL tracks demand for it (DefiLlama's Bitcoin chain is mostly restaking deposits)"
+   ]
+  },
+  {
+   "agrees_with_ryo": null,
+   "availability": {
+    "analyze_token": "error",
+    "compare": "error",
+    "crowd_odds": "ok",
+    "deep_analysis": "error",
+    "liquidity": "ok",
+    "market_overview": "partial",
+    "narrative_signal": "ok",
+    "positioning_check": "ok",
+    "price_check": "ok",
+    "sentiment_shift": "unavailable",
+    "technicals_check": "ok"
+   },
+   "cache_hits": 0,
+   "created_at": "2026-09-26T13:11:32+00:00",
+   "headline": "SOL: no trade (primary evidence (deep_analysis) unavailable; no trade without it)",
+   "id": "1bc327a6ef41",
+   "model": "qwen3-235b-a22b-instruct-2507",
+   "opinions": [],
+   "pack_hash": "b958ecf794042f1510179e694476cd38b9b089d9c7fb8b5df8ff1abb383e6677",
+   "prompt_version": "v5",
+   "provenance": {
+    "analyze_token": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "analyze_token",
+     "trace_id": "9c01eeec176c44ed975d3bf76917a7a9"
+    },
+    "compare": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "compare_tokens",
+     "trace_id": "a40c7ad8580f4980959654505069938a"
+    },
+    "crowd_odds": {
+     "as_of": "2026-09-26T13:11:32+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "crowd_odds",
+     "trace_id": null
+    },
+    "deep_analysis": {
+     "as_of": null,
+     "data_mode": null,
+     "status": "error",
+     "tool": "deep_analysis",
+     "trace_id": "c844529a035843c8ab07af85e2001133"
+    },
+    "liquidity": {
+     "as_of": "2026-09-26T13:11:32+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "liquidity_check",
+     "trace_id": null
+    },
+    "market_overview": {
+     "as_of": "2026-09-26T13:10:26Z",
+     "data_mode": "live",
+     "status": "partial",
+     "tool": "market_overview",
+     "trace_id": "d1ce31c8bf9d43658e1ebb48ee3619b2"
+    },
+    "narrative_signal": {
+     "as_of": "2026-09-26T13:11:29+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "narrative_convergence",
+     "trace_id": null
+    },
+    "positioning_check": {
+     "as_of": "2026-09-26T13:11:31+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "positioning_check",
+     "trace_id": null
+    },
+    "price_check": {
+     "as_of": "2026-09-26T13:11:30+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "price_crosscheck",
+     "trace_id": null
+    },
+    "sentiment_shift": {
+     "as_of": "2026-09-26T13:10:26Z",
+     "data_mode": "unknown",
+     "status": "unavailable",
+     "tool": "monitor_market_sentiment_shift",
+     "trace_id": "c91bb2ee30764df69d50fd7985f70022"
+    },
+    "technicals_check": {
+     "as_of": "2026-09-26T13:11:31+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "technicals_crosscheck",
+     "trace_id": null
+    }
+   },
+   "ryo_view": null,
+   "source": "live",
+   "spend": {
+    "cached_calls": 0,
+    "completion_tokens": null,
+    "model_calls": 0,
+    "ms": 0,
+    "prompt_tokens": null,
+    "usd": null
+   },
+   "symbol": "SOL",
+   "trade": {
+    "kind": "blocked",
+    "reason": "primary evidence (deep_analysis) unavailable; no trade without it"
+   },
+   "verdict": {
+    "action": "no_trade",
+    "agreed_with": [],
+    "disagreed_with": [],
+    "key_risks": [],
+    "p_up_7d": 0.5,
+    "rationale": "primary evidence (deep_analysis) unavailable; the council was not convened and no trade is taken without it"
+   },
+   "warnings": [
+    "market_overview: Market sentiment is unavailable for this snapshot.",
+    "market_overview: Market breadth is unavailable for this snapshot.",
+    "market_overview: Top movers are unavailable for this snapshot.",
+    "sentiment_shift: No measurements were inferred from an unavailable upstream result; retry later.",
+    "deep_analysis: VALIDATION_FAILED: Current USD market data is unavailable for SOL.",
+    "analyze_token: VALIDATION_FAILED: couldn't analyze SOL right now",
+    "compare: VALIDATION_FAILED: Current USD market data is unavailable for enough tokens to compare them.",
+    "price_check: binance: USDT used as USD proxy",
+    "positioning_check: no DVOL index for SOL (Deribit publishes BTC and ETH only)"
+   ]
+  },
   {
    "agrees_with_ryo": true,
    "availability": {
@@ -8277,7 +8687,9 @@
     }
    ],
    "coverage": {
+    "aborted": 1,
     "locked": 200,
+    "ryo_unavailable": 3,
     "settled_neither": 129,
     "settled_stop": 5,
     "settled_target": 41
@@ -12237,7 +12649,9 @@
     }
    ],
    "coverage": {
+    "aborted": 1,
     "locked": 200,
+    "ryo_unavailable": 3,
     "settled_neither": 38,
     "settled_stop": 12,
     "settled_target": 75
