@@ -382,7 +382,7 @@ def watch(
             except Exception as exc:  # one symbol failing must not stop the loop
                 typer.echo(f"[{now_iso()}] {sym}: failed {type(exc).__name__}: {exc}")
         if close_on_stop:
-            from nota.api import positions as open_positions
+            from nota.api.receipts import positions as open_positions
 
             for p in open_positions():
                 if p["status"] in ("stopped", "target") and p["latest_price"] is not None:
@@ -601,7 +601,7 @@ def scores():
     """Per-agent Brier scores and the weights the judge currently uses, with how many decisions are
     scored and how many are still waiting for their horizon - an empty table means "nothing due yet",
     not "nothing works"."""
-    from nota.api import scores as scores_api  # same numbers the dashboard reads
+    from nota.api.receipts import scores as scores_api  # same numbers the dashboard reads
 
     v = scores_api()
     if not v["reliability"]["n"]:  # five empty bins say less than one sentence does
@@ -622,7 +622,7 @@ def show(decision_id: str, as_json: bool = typer.Option(False, "--json")):
 def positions_cmd(as_json: bool = typer.Option(False, "--json")):
     """Open practice positions against the newest evidence price - an independent exchange median when
     that receipt carries one, otherwise RYO's own price. The as_of beside it says which moment it is."""
-    from nota.api import positions as open_positions
+    from nota.api.receipts import positions as open_positions
 
     rows = open_positions()
     if as_json:

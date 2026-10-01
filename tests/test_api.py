@@ -98,10 +98,10 @@ def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
                        summary={"headline": "h", "key_points": []}, availability={}, warnings=[])
         return EvidencePack(symbol="SOL", created_at="x", source="fixture", sections={"news_check": Section(tool="news_verify", status="ok", envelope=env)})
 
-    a = api._leaves(pack(["b.com", "a.com"], "t1"))
-    b = api._leaves(pack(["a.com", "b.com"], "t2"))
+    a = api.receipts._leaves(pack(["b.com", "a.com"], "t1"))
+    b = api.receipts._leaves(pack(["a.com", "b.com"], "t2"))
     assert a == b and a["news_check.data.domains"] == ["a.com", "b.com"] and "news_check.data.since" not in a
-    assert api._leaves(pack(["a.com"], "t1"))["news_check.data.domains"] == ["a.com"]
+    assert api.receipts._leaves(pack(["a.com"], "t1"))["news_check.data.domains"] == ["a.com"]
 
 
 def test_leaves_key_ranked_records_by_identity_not_position():
@@ -114,14 +114,14 @@ def test_leaves_key_ranked_records_by_identity_not_position():
                        summary={"headline": "h", "key_points": []}, availability={}, warnings=[])
         return EvidencePack(symbol="SOL", created_at="x", source="fixture", sections={"market_overview": Section(tool="market_overview", status="ok", envelope=env)})
 
-    a = api._leaves(pack([{"symbol": "AAA", "price_usd": 0.78}, {"symbol": "BBB", "price_usd": 285.0}]))
-    b = api._leaves(pack([{"symbol": "BBB", "price_usd": 285.0}, {"symbol": "AAA", "price_usd": 0.78}]))
+    a = api.receipts._leaves(pack([{"symbol": "AAA", "price_usd": 0.78}, {"symbol": "BBB", "price_usd": 285.0}]))
+    b = api.receipts._leaves(pack([{"symbol": "BBB", "price_usd": 285.0}, {"symbol": "AAA", "price_usd": 0.78}]))
     assert a == b and a["market_overview.data.gainers.AAA.price_usd"] == 0.78  # a reshuffle is not a +36000% move
     assert a["market_overview.data.dupes.1.v"] == 2  # duplicate identities fall back to the index
 
 
 def test_demo_video_is_served_when_bundled(tmp_path, monkeypatch):
-    from nota.api import STATIC
+    from nota.api.common import STATIC
     _seed(tmp_path, monkeypatch)
     r = TestClient(api.app).get("/demo.mp4")
     if (STATIC / "demo.mp4").exists():
@@ -250,10 +250,10 @@ def test_backing_handle_is_one_line_and_normalised(tmp_path, monkeypatch):
 
 
 def test_every_get_page_answers_head_with_the_same_status_and_no_body(tmp_path, monkeypatch):
-    from nota.api import STATIC
+    from nota.api.common import STATIC
 
     _, second = _seed(tmp_path, monkeypatch)
-    monkeypatch.setattr(api.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
+    monkeypatch.setattr(api.receipts.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
     c = TestClient(api.app)
     paths = ["/", "/ja", "/app", "/scorecard", "/demo", "/api/health", "/llms.txt", f"/r/{second.id}.png",
              "/landing.css", "/r/nope", "/api/decisions/nope"]
@@ -309,12 +309,12 @@ def test_health_probes_ryo_once_a_minute_and_retries_one_timeout(tmp_path, monke
 
     _seed(tmp_path, monkeypatch)
     calls: list[int] = []
-    monkeypatch.setattr(api.RyoClient, "health", lambda self: calls.append(1) or {"status": "ok", "tools": 6})
+    monkeypatch.setattr(api.receipts.RyoClient, "health", lambda self: calls.append(1) or {"status": "ok", "tools": 6})
     c = TestClient(api.app)
     a, b = c.get("/api/health").json(), c.get("/api/health").json()
     assert len(calls) == 1 and a["checked_at"] == b["checked_at"] and a["ryo"]["status"] == "ok"
 
-    api._health_cache = None
+    api.receipts._health_cache = None
     attempts: list[int] = []
 
     def flaky(self):
@@ -323,17 +323,17 @@ def test_health_probes_ryo_once_a_minute_and_retries_one_timeout(tmp_path, monke
             raise RyoError(0, "TIMEOUT", "slow")
         return {"status": "ok", "tools": 6}
 
-    monkeypatch.setattr(api.RyoClient, "health", flaky)
+    monkeypatch.setattr(api.receipts.RyoClient, "health", flaky)
     assert c.get("/api/health").json()["ryo"]["status"] == "ok" and len(attempts) == 2
 
-    api._health_cache = None
-    monkeypatch.setattr(api.RyoClient, "health", lambda self: (_ for _ in ()).throw(RuntimeError("down")))
+    api.receipts._health_cache = None
+    monkeypatch.setattr(api.receipts.RyoClient, "health", lambda self: (_ for _ in ()).throw(RuntimeError("down")))
     assert c.get("/api/health").json()["ryo"]["error"].startswith("RuntimeError")
 
 
 def test_health_says_where_backings_go_and_how_fresh_the_ledger_is(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
-    monkeypatch.setattr(api.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
+    monkeypatch.setattr(api.receipts.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
     monkeypatch.delenv("DATABASE_URL", raising=False)
     c = TestClient(api.app)
     h = c.get("/api/health").json()
@@ -343,7 +343,7 @@ def test_health_says_where_backings_go_and_how_fresh_the_ledger_is(tmp_path, mon
     assert led["last_decision_at"] and led["last_lock_at"] is None and led["stale"] is False  # a receipt was just written
 
     Ledger(str(tmp_path / "t.db")).conn.execute("UPDATE decisions SET created_at='2020-01-01T00:00:00+00:00'")
-    api._health_cache = None
+    api.receipts._health_cache = None
     assert c.get("/api/health").json()["ledger"]["stale"] is True
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pw@host/db")
@@ -352,7 +352,7 @@ def test_health_says_where_backings_go_and_how_fresh_the_ledger_is(tmp_path, mon
 
 def test_health_names_the_provider_actually_configured(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
-    monkeypatch.setattr(api.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
+    monkeypatch.setattr(api.receipts.RyoClient, "health", lambda self: {"status": "ok", "tools": 6})
     monkeypatch.delenv("NOTA_LLM", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "k")
     llm = TestClient(api.app).get("/api/health").json()["llm"]
@@ -363,14 +363,14 @@ def test_a_twenty_voice_call_costs_twenty_units(tmp_path, monkeypatch):
     from nota.skills.contract import make_envelope
 
     _seed(tmp_path, monkeypatch)
-    monkeypatch.setattr(api, "skill_invoke", lambda name, args, **kw: make_envelope(name, args, {}, {"x": "ok"}, [], "h"))
+    monkeypatch.setattr(api.agents, "skill_invoke", lambda name, args, **kw: make_envelope(name, args, {}, {"x": "ok"}, [], "h"))
     c = TestClient(api.app)
     voices = [f"tg:channel{i}" for i in range(20)]
     assert c.post("/api/skills/narrative_convergence/invoke", json={"args": {"voices": voices}}).status_code == 200
-    assert len(api._BACKING_HITS["skill:testclient"]) == 20
+    assert len(api.common._BACKING_HITS["skill:testclient"]) == 20
     c.post("/api/skills/news_verify/invoke", json={"args": {"claim": "x"}})
     c.post("/api/skills/verdict_track_record/invoke", json={"args": {}})
-    assert len(api._BACKING_HITS["skill:testclient"]) == 22            # news costs 2, the track record nothing
+    assert len(api.common._BACKING_HITS["skill:testclient"]) == 22            # news costs 2, the track record nothing
     for _ in range(2):
         assert c.post("/api/skills/narrative_convergence/invoke", json={"args": {"voices": voices}}).status_code == 200 \
             or True
@@ -378,13 +378,13 @@ def test_a_twenty_voice_call_costs_twenty_units(tmp_path, monkeypatch):
 
 
 def test_the_local_throttle_prunes_expired_keys_and_is_bounded():
-    api._throttle("1.1.1.1", now=1000.0)
-    api._throttle("2.2.2.2", now=1000.0 + api.BACKING_WINDOW + 1)
-    assert "1.1.1.1" not in api._BACKING_HITS and "2.2.2.2" in api._BACKING_HITS
-    for i in range(api.HITS_MAX_KEYS + 1):
-        api._BACKING_HITS[f"k{i}"] = [5000.0]
-    api._throttle("3.3.3.3", now=5001.0)
-    assert len(api._BACKING_HITS) <= 1
+    api.common._throttle("1.1.1.1", now=1000.0)
+    api.common._throttle("2.2.2.2", now=1000.0 + api.common.BACKING_WINDOW + 1)
+    assert "1.1.1.1" not in api.common._BACKING_HITS and "2.2.2.2" in api.common._BACKING_HITS
+    for i in range(api.common.HITS_MAX_KEYS + 1):
+        api.common._BACKING_HITS[f"k{i}"] = [5000.0]
+    api.common._throttle("3.3.3.3", now=5001.0)
+    assert len(api.common._BACKING_HITS) <= 1
 
 
 def _seed_open_data(tmp_path, monkeypatch):
@@ -405,7 +405,7 @@ def _seed_open_data(tmp_path, monkeypatch):
 
 
 def test_captions_come_from_the_chapters_and_the_demo_card_is_absolute():
-    chapters = json.loads((api.STATIC / "demo.json").read_text(encoding="utf-8"))["chapters"]
+    chapters = json.loads((api.common.STATIC / "demo.json").read_text(encoding="utf-8"))["chapters"]
     c = TestClient(api.app)
     vtt = c.get("/demo.vtt")
     assert vtt.headers["content-type"].startswith("text/vtt") and vtt.text.startswith("WEBVTT")
@@ -537,7 +537,7 @@ def test_proofs_are_served_beside_the_exact_bytes_they_anchor(tmp_path, monkeypa
 def test_health_reports_the_newest_snapshot_attestation(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
     f = tmp_path / "attestations.json"
-    monkeypatch.setattr(api, "ATTESTATIONS", f)
+    monkeypatch.setattr(api.receipts, "ATTESTATIONS", f)
     assert TestClient(api.app).get("/api/health").json()["attestation"] is None  # none recorded yet
     rows = [{"url": "https://github.com/PugarHuda/nota/attestations/1"}, {"url": "https://github.com/PugarHuda/nota/attestations/2"}]
     f.write_text(json.dumps(rows), encoding="utf-8")
@@ -583,13 +583,13 @@ def test_live_council_says_what_is_missing_then_runs_unstored_and_is_capped(tmp_
     r = c.post("/api/council/SOL")
     assert r.status_code == 503 and "LLM" in r.json()["detail"]
     monkeypatch.setenv("OPENAI_API_KEY", "test")
-    monkeypatch.setattr(api, "RyoClient", lambda: RecordedRyoClient(Path(__file__).parent / "fixtures"))
+    monkeypatch.setattr(api.live, "RyoClient", lambda: RecordedRyoClient(Path(__file__).parent / "fixtures"))
     monkeypatch.setattr(nota.llm, "OpenAICompatLLM", make_llm)
     monkeypatch.setattr(nota.cli, "_extras", lambda *a, **k: None)  # no live cross-check fetches in a unit test
-    monkeypatch.setattr(api, "_BACKING_HITS", {})
+    monkeypatch.setattr(api.common, "_BACKING_HITS", {})
     assert c.post("/api/council/not a symbol!").status_code == 422
     ok = c.post("/api/council/SOL").json()
     assert ok["stored"] is False and ok["receipt"]["symbol"] == "SOL" and ok["markdown"].startswith("# Decision receipt")
     assert Ledger(str(tmp_path / "l.db")).conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0] == 0
-    codes = [c.post("/api/council/SOL").status_code for _ in range(api.COUNCIL_PER_IP)]
+    codes = [c.post("/api/council/SOL").status_code for _ in range(api.live.COUNCIL_PER_IP)]
     assert codes[-1] == 429  # the per-address budget, so one visitor cannot spend the model budget

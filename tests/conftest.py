@@ -1,6 +1,6 @@
 """Shared test setup.
 
-The API's rate limiter is deliberately process-global (`nota.api._BACKING_HITS`), which is right for
+The API's rate limiter is deliberately process-global (`nota.api.common._BACKING_HITS`), which is right for
 a single `nota serve` but makes the suite order-dependent: the browser tests post backings and invoke
 skills through a real server in this same process, so by the time the SocialFi tests run the bucket
 for `testclient` can already be full and they get 429 instead of 200. Clear it around every test so a
@@ -17,16 +17,16 @@ from nota.skills import price_check, sources
 def _clear_rate_limiter():
     # the source cache and the health probe cache are process-global for the same reason, and a
     # response mocked in one test must not answer for the next
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
     sources._CACHE.clear()
     price_check._CG_IDS.clear()
-    api._health_cache = None
-    api._scorecard_cache.clear()
+    api.receipts._health_cache = None
+    api.scorecard._scorecard_cache.clear()
     yield
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
     sources._CACHE.clear()
     price_check._CG_IDS.clear()
-    api._health_cache = None
+    api.receipts._health_cache = None
 
 
 @pytest.fixture(autouse=True)

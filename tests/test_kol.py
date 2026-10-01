@@ -147,7 +147,7 @@ def test_api_runs_stores_lists_replays_and_validates(tmp_path, monkeypatch):
     assert "no RYO evidence" in no_key["run"]["decisions"][0]["trade"]["reason"]
 
     monkeypatch.setenv("RYO_MCP_KEY", "test")
-    monkeypatch.setattr(api, "RyoClient", lambda: RYO)
+    monkeypatch.setattr(api.live, "RyoClient", lambda: RYO)
     ok = c.post("/api/kol/run", json=body).json()
     trade = ok["run"]["decisions"][0]["trade"]
     assert ok["stored"] is True and trade["kind"] == "trade" and trade["edge"] is None

@@ -1,9 +1,8 @@
-import json
 
 from fastapi.testclient import TestClient
 
 from nota import api
-from nota.api import backer_correct
+from nota.calibration import backer_correct
 from nota.calibration import Outcome
 from nota.card import render_card
 from nota.ledger import Ledger
@@ -61,15 +60,15 @@ def test_backing_throttle_per_ip():
     from fastapi import HTTPException
     import pytest
 
-    api._BACKING_HITS.clear()
-    for i in range(api.BACKING_LIMIT):
-        api._throttle("1.2.3.4", now=1000.0 + i)
+    api.common._BACKING_HITS.clear()
+    for i in range(api.common.BACKING_LIMIT):
+        api.common._throttle("1.2.3.4", now=1000.0 + i)
     with pytest.raises(HTTPException) as exc:
-        api._throttle("1.2.3.4", now=1000.0 + api.BACKING_LIMIT)
+        api.common._throttle("1.2.3.4", now=1000.0 + api.common.BACKING_LIMIT)
     assert exc.value.status_code == 429
-    api._throttle("5.6.7.8", now=1000.0)  # other addresses unaffected
-    api._throttle("1.2.3.4", now=1000.0 + api.BACKING_WINDOW + 1)  # window expired
-    api._BACKING_HITS.clear()
+    api.common._throttle("5.6.7.8", now=1000.0)  # other addresses unaffected
+    api.common._throttle("1.2.3.4", now=1000.0 + api.common.BACKING_WINDOW + 1)  # window expired
+    api.common._BACKING_HITS.clear()
 
 
 def test_card_png_and_open_graph_tags(tmp_path, monkeypatch):

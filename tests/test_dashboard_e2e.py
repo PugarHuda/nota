@@ -153,7 +153,7 @@ def test_the_feed_renders_hostile_text_as_text_and_the_watchlist_form_round_trip
     r = json.loads(led.get_decision(second.id))
     r["opinions"][0]["thesis"] = '<img src=x onerror="window.__pwned=1">Dissent.'
     led.conn.execute("UPDATE decisions SET receipt_json=? WHERE id=?", (json.dumps(r), second.id))
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
     page = browser.new_page(viewport={"width": 390, "height": 844})
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))

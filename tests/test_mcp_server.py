@@ -125,7 +125,7 @@ def test_initialize_advertises_the_resources_capability():
 def test_tools_call_over_mcp_is_metered_like_the_rest_route(monkeypatch):
     """The endpoint is public and unauthenticated on purpose, so the expensive verb is capped;
     listing and initialising stay free because they touch nothing outside this process."""
-    from nota.api import BACKING_LIMIT, _BACKING_HITS
+    from nota.api.common import _BACKING_HITS
 
     _BACKING_HITS.clear()
     for _ in range(70):                       # cheap verbs never consume the budget
@@ -246,7 +246,7 @@ def test_an_oversized_body_is_refused_before_it_is_parsed():
 
 
 def test_requests_without_an_id_are_notifications_with_no_reply_and_no_charge():
-    from nota.api import _BACKING_HITS
+    from nota.api.common import _BACKING_HITS
 
     for method in ("ping", "tools/list", "tools/call"):
         r = rpc({"jsonrpc": "2.0", "method": method, "params": {"name": "price_crosscheck",
@@ -386,7 +386,7 @@ def test_the_61st_call_is_a_json_rpc_429_with_retry_after_and_ledger_lookups_are
 
 
 def test_a_batch_over_budget_is_refused_whole_and_charges_nothing():
-    from nota.api import _BACKING_HITS
+    from nota.api.common import _BACKING_HITS
 
     call = {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "price_crosscheck", "arguments": {}}}
     for i in range(50):

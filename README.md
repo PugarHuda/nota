@@ -702,7 +702,15 @@ nota/
   stamp.py        OpenTimestamps: .ots writer/parser, calendar submit, upgrade checked against mempool.space
   ledger.py       SQLite: evidence, llm_cache, decisions, outcomes, backings, locks, settlements, stamps; merge_from()
   backings.py     Postgres store for backings, handle claims and the shared rate limit
-  api.py          FastAPI: pages, read API, feeds, CSV, sitemap, /mcp, /a2a
+  api/            FastAPI, one APIRouter per area
+    __init__.py   the app: HEAD handling, CSP and security headers, CORS, router mounting (pages last)
+    common.py     shared helpers: ledger handle, absolute links, page templating, receipt loader, hourly budget
+    receipts.py   decisions, impact-ranked diff, replay, positions, scores, health, /r/<id>.md|.json|.ots|.png
+    scorecard.py  scorecard JSON, CSV, lock files and proofs, the /scorecard page
+    agents.py     skills over REST, /mcp, /a2a, llms.txt, server.json, robots, sitemap, Atom and JSON feeds
+    social.py     backings, watchlist, reputation board, reasoning feed, profiles
+    live.py       on-demand runs: live council, failure drill, multi-KOL agent
+    pages.py      HTML pages, fonts, images, walkthrough files, the /r/<id> permalink
   mcp_server.py   MCP server (tools, resources, prompts, completion, MCP Apps view)
   a2a.py          A2A 1.0 agent card and SendMessage
   card.py         receipt PNG card

@@ -1,4 +1,3 @@
-import httpx
 import respx
 from fastapi.testclient import TestClient
 from httpx import Response
@@ -22,7 +21,7 @@ def test_skill_catalog_follows_ryo_shape(tmp_path, monkeypatch):
 @respx.mock
 def test_invoke_returns_skill_call_response(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
     respx.get("https://api.alternative.me/fng/").mock(return_value=Response(200, json={"data": [{"value": "50", "value_classification": "Neutral", "timestamp": "1788652800"}]}))
     respx.get("https://api.coingecko.com/api/v3/simple/price").mock(return_value=Response(200, json={"solana": {"usd": 100.0, "last_updated_at": 1788678000}}))
     respx.get("https://api.coinbase.com/v2/prices/SOL-USD/spot").mock(return_value=Response(200, json={"data": {"amount": "101"}}))
@@ -42,7 +41,7 @@ def test_invoke_returns_skill_call_response(tmp_path, monkeypatch):
 
 
 def test_positions_report_stopped_target_open(tmp_path, monkeypatch):
-    from nota.api import positions
+    from nota.api.receipts import positions
 
     first, second = _seed(tmp_path, monkeypatch)  # second: long from 1.1x RYO's price (perturbed recording), stop 2 ATR below
     rows = positions()
