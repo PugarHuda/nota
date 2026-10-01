@@ -340,5 +340,14 @@
    "data/demo.db": "73ea5272275c4299d6c64d942bcd063ffcf695847ce6ef7a46f809d914b578e1",
    "data/snapshot.json": "d550aa593988a80aa7a3d8da8ce1a23b2ae7afdb9332dab1b728ffb6c979ceb3"
   }
+ },
+ {
+  "at": "2026-10-01T19:53:26+00:00",
+  "url": "https://github.com/PugarHuda/nota/attestations/51938646",
+  "commit": "4cf2662069ac68cbf1ea397754e879505c02f7ea",
+  "subjects": {
+   "data/demo.db": "93c65ed6ee7c1d02b7c6ca95e13655999869e1221efd11d139b29adb291b9b61",
+   "data/snapshot.json": "089d43a707f1cbff3861811f2eb4270974312904aef167af57a478f4379f75a7"
+  }
  }
 ]
