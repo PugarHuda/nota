@@ -287,6 +287,7 @@ returning `SkillCallResponse {name, status: success|error, result, latency_ms, x
 The dashboard's "Run a skill" panel builds its form from those definitions and shows the envelope.
 `contrib/positioning_check/` is the flagship skill packaged as a drop-in for RYO's own backend:
 no Nota imports, a FastAPI router to include, and its own offline tests (see its README).
+`contrib/move_base_rate/` packages `move_base_rate` the same way: one OKX source, same router and test layout.
 
 - `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky public
   API, `x:` through X's own public syndication endpoint, the one that serves embedded timelines,

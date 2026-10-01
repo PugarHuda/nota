@@ -177,6 +177,9 @@ def move_base_rate(symbol: str, k: float = 1.0, horizon_days: int = 3, direction
             hd = data["holdout"]
             if hd["fit_p"] is not None and hd["recent_p"] is not None and abs(hd["fit_p"] - hd["recent_p"]) > DRIFT_WARN:
                 warnings.append(f"base rate drifted: {hd['fit_p']:.0%} before {hd['recent_from']}, {hd['recent_p']:.0%} since")
+    elif availability["okx_daily"] == "available":  # candles exist, but none closed before as_of: not an "ok" with p null
+        availability["okx_daily"] = "partial"
+        warnings.append(f"no daily candles closed before {as_of}")
     if k:
         dist = f"{'+' if direction == 'up' else '-'}{k:g} ATR {'above' if direction == 'up' else 'below'}"
         what = f"touch {dist} within {h}d" if event == "touch" else f"close {dist} after {h}d"
