@@ -23,15 +23,15 @@ import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 
-from nota import paths
+from nota import kol, paths
 from nota.a2a import (PROTOCOL_VERSION as A2A_VERSION, VERSION_NOT_SUPPORTED as A2A_UNSUPPORTED, A2AError,
                       agent_card, call_from as a2a_call_from, handle as a2a_handle)
 from nota.backings import PostgresBackings, store_for
@@ -779,6 +779,8 @@ LLMS_PAGES = {
     "/app": "Dashboard: every receipt, diffed against the one before it",
     "/scorecard": "RYO Verdict Scorecard",
     "/judges": "One screen per hackathon track: what to open and which rubric line it answers",
+    "/kol": "Multi-KOL narrative agent: up to 20 voices, transparent signal rules, a practice trade sized on RYO's ATR",
+    "/api/kol": "Stored multi-KOL agent runs: signals, rule trails and practice trades (JSON)",
     "/demo": "Narrated three-and-a-half-minute walkthrough with a clickable transcript",
     "/demo.json": "Walkthrough chapters and transcript with the second each line was spoken",
     "/demo.vtt": "Walkthrough captions (WebVTT)",
@@ -1162,13 +1164,79 @@ def demo_chapters() -> FileResponse:
     return FileResponse(path, media_type="application/json")
 
 
+# --- Multi-KOL narrative agent (Track 1 spotlight) ---------------------------------------------------
+# ponytail: all visitors together may spend this many RYO deep_analysis reads an hour on KOL sizing
+KOL_RYO_ALL = 30
+
+
+class KolIn(BaseModel):
+    voices: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=100)]] = Field(
+        min_length=1, max_length=20, description="x:handle, tg:channel or bs:handle.bsky.social")
+    rules: kol.KolRules = Field(default_factory=kol.KolRules)
+    limits: kol.KolLimits = Field(default_factory=kol.KolLimits)
+
+
+@app.post("/api/kol/run")
+def kol_run(body: KolIn, request: Request) -> dict[str, Any]:
+    """Read the voices now, apply the rules, size any signal on RYO's ATR. Stored in the ledger, except on
+    the read-only hosted snapshot, where the run is returned unstored and the response says so."""
+    ip = request.client.host if request.client else "unknown"
+    # the voices are the skill's own fetches; each RYO read for sizing is one more
+    slots = body.limits.max_open_positions if os.environ.get("RYO_MCP_KEY") else 0
+    _throttle(f"skill:{ip}", limit=60, cost=_skill_cost("narrative_convergence", {"voices": body.voices}) + slots)
+    _throttle("kol:ryo", limit=KOL_RYO_ALL, cost=slots)
+    led = _ledger()
+    try:
+        r, packs = kol.run(body.voices, body.rules, body.limits, RyoClient() if slots else None, kol.held_symbols(led))
+    except Exception as exc:  # a source crashing is a failed run, never a traceback
+        logging.getLogger("nota.kol").exception("kol run failed")
+        raise HTTPException(502, "source failure during the KOL run; nothing was fabricated in its place") from exc
+    note = None if slots else "no RYO builder key on this deployment, so a signal cannot be sized and no trade is made"
+    if led.readonly:
+        return {"stored": False, "note": "read-only demo: this run is not added to the ledger", "ryo_note": note,
+                "run": r.model_dump(mode="json")}
+    kol.save(led, r, packs)
+    return {"stored": True, "note": f"stored; GET /api/kol/{r.id} replays it", "ryo_note": note, "run": r.model_dump(mode="json")}
+
+
+@app.get("/api/kol")
+def kol_list(limit: int = Query(50, ge=1, le=200)) -> list[dict[str, Any]]:
+    """Stored KOL runs, newest first: what fired and what was traded."""
+    out = []
+    for id, created_at, raw in _ledger().list_kol(limit):
+        r = json.loads(raw)
+        out.append({"id": id, "created_at": created_at, "headline": r["headline"], "voices": r["voices"],
+                    "signals": {d["token"]: d["signal"] for d in r["decisions"] if d["signal"] != "none"},
+                    "trades": [d["token"] for d in r["decisions"] if (d.get("trade") or {}).get("kind") == "trade"]})
+    return out
+
+
+@app.get("/api/kol/{id}")
+def kol_get(id: str) -> dict[str, Any]:
+    """One stored run, with its decisions re-derived from the stored envelope and evidence."""
+    led = _ledger()
+    raw = led.get_kol(id)
+    if raw is None:
+        raise HTTPException(404, f"no KOL run {id}")
+    try:
+        again = kol.replay(id, led)
+    except KeyError as exc:  # its evidence pack is missing: say so rather than claim a result
+        again = {"id": id, "identical": None, "diff": [str(exc).strip("'\"")]}
+    return {"run": json.loads(raw), "replay": again}
+
+
+@app.get("/kol")
+def kol_page(request: Request) -> HTMLResponse:
+    return _page("kol.html", request, "/kol")
+
+
 # --- Discovery and open data: robots, sitemap, feeds, CSV --------------------------------------------
 @app.get("/robots.txt", include_in_schema=False)
 def robots(request: Request) -> PlainTextResponse:
     return PlainTextResponse(f"User-agent: *\nAllow: /\n\nSitemap: {_base(request)}/sitemap.xml\n")
 
 
-SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/judges", "/demo")
+SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/judges", "/kol", "/demo")
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

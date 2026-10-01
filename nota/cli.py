@@ -400,6 +400,85 @@ def watch(
 
 
 
+def print_kol(r) -> None:
+    """Per-voice coverage, per-token rule trail, and the practice position or why there is none."""
+    typer.echo(f"KOL run {r.id}: {r.headline}")
+    for v in r.envelope.data.get("voices") or []:
+        how = f"via {v['via']}, coverage {v['coverage']}, {v['messages']} message(s)" if v["status"] != "unavailable" else v.get("error")
+        typer.echo(f"  voice {v['id']}: {v['status']} ({how})")
+    for d in r.decisions:
+        typer.echo(f"  {d.token}: signal {d.signal} - {d.reason}")
+        for rule in d.rules:
+            typer.echo(f"    [{'pass' if rule.passed else 'FAIL'}] {rule.rule}: {rule.value} vs {rule.threshold}")
+    if not r.decisions:
+        typer.echo("  no token was mentioned by a readable voice")
+
+
+@app.command("kol")
+def kol_cmd(
+    voices: str = typer.Option(..., help="Up to 20 voices, comma separated: x:handle, tg:channel, bs:handle.bsky.social"),
+    min_voices: int = typer.Option(2, min=2, max=20, help="Voices with a stance that must agree"),
+    min_sentiment: float = typer.Option(0.3, min=0, max=1, help="Minimum |sentiment_mean|"),
+    min_conviction: float = typer.Option(0.0, min=0, max=1),
+    min_urgency: float | None = typer.Option(None, min=0, max=1, help="Optional urgency_max floor"),
+    tokens: str = typer.Option("", help="Allowed tokens, comma separated (default: any)"),
+    hours: int = typer.Option(24, min=1, max=336),
+    account: float = typer.Option(10_000.0, help="Practice account size, USD"),
+    risk_pct: float = typer.Option(1.0, help="Risk per trade, percent of the account"),
+    max_positions: int = typer.Option(3, min=0, max=10, help="Maximum open practice positions"),
+    source: str = typer.Option("live" if os.environ.get("RYO_MCP_KEY") else "none", help="RYO evidence for sizing: live | recorded | none"),
+    watch: bool = typer.Option(False, "--watch", help="Run again every --every seconds"),
+    every: int = typer.Option(3600, min=60),
+    cycles: int = typer.Option(0, help="With --watch: stop after N runs (0 = until interrupted)"),
+    as_json: bool = typer.Option(False, "--json"),
+):
+    """Multi-KOL narrative agent: monitor voices, apply transparent signal rules, size a practice trade on RYO's ATR."""
+    from pydantic import ValidationError
+
+    from nota import kol
+
+    try:
+        rules = kol.KolRules(min_voices=min_voices, min_sentiment=min_sentiment, min_conviction=min_conviction,
+                             min_urgency=min_urgency, tokens=[t for t in tokens.split(",") if t.strip()] or None, hours=hours)
+        limits = kol.KolLimits(account_usd=account, risk_per_trade_pct=risk_pct, max_open_positions=max_positions)
+    except ValidationError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    voice_list = [v.strip() for v in voices.split(",") if v.strip()]
+    if not 1 <= len(voice_list) <= 20:
+        raise typer.BadParameter("give 1 to 20 voices")
+    n = 0
+    while True:
+        n += 1
+        led = _ledger()
+        src = None if source == "none" else _source(source)
+        r, packs = kol.run(voice_list, rules, limits, src, kol.held_symbols(led))
+        kol.save(led, r, packs)
+        if as_json:
+            typer.echo(r.model_dump_json(indent=1))
+        else:
+            print_kol(r)
+            typer.echo(f"stored; replay with `nota kol-replay {r.id}`")
+        if not watch or (cycles and n >= cycles):
+            break
+        time.sleep(every)
+
+
+@app.command("kol-replay")
+def kol_replay_cmd(run_id: str):
+    """Re-derive a stored KOL run's decisions from its stored envelope and evidence; no network, no key."""
+    from nota import kol
+
+    try:
+        res = kol.replay(run_id, _ledger())
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc).strip("'\"")) from None
+    typer.echo(f"identical: {res['identical']}")
+    for d in res["diff"]:
+        typer.echo(f"  {d}")
+    if not res["identical"]:
+        raise typer.Exit(1)
+
+
 @app.command("replay")
 def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call the model again instead of using cached outputs"),
                llm: str = typer.Option(os.environ.get("NOTA_LLM", "anthropic"), help=LLM_HELP)):

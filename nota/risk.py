@@ -35,7 +35,7 @@ class PracticeTrade(BaseModel):
     size_usd: float
     risk_usd: float
     atr: float
-    edge: float
+    edge: float | None  # None on a rule-based signal (nota.kol): no probability was estimated, so none is shown
     source_paths: dict[str, str]
     vs_ryo_plan: dict[str, Any] | None = None
 
@@ -90,8 +90,7 @@ def compare_to_ryo_plan(pack: EvidencePack, entry: float, stop: float, target: f
     return out
 
 
-def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None = None) -> PracticeTrade | Blocked:
-    limits = limits or RiskLimits()
+def _ryo_gate(pack: EvidencePack) -> Blocked | None:
     if pack.source not in SCORED_SOURCES:
         return Blocked(reason=f"evidence source {pack.source!r} is not RYO's (live or recorded from it); no practice trade on it")
     if not pack.primary_ok:
@@ -99,21 +98,45 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
     primary = pack.sections[PRIMARY].envelope
     if primary is not None and primary.data_mode == "simulated":
         return Blocked(reason="primary evidence is simulated data (data_mode=simulated); no practice trade on simulated prices")
-    if verdict.action == "no_trade":
-        return Blocked(reason="judge decided no_trade")
+    return None
+
+
+def _veto(pack: EvidencePack) -> Blocked | None:
     deriv = pack.get(paths.RYO_DERIVATIVES)
     if isinstance(deriv, dict) and deriv.get("veto") is True and f"{paths.RYO_DERIVATIVES}.veto" not in pack.withheld():
         # RYO's own derivatives gate refused this setup; the council may disagree, but a practice trade does not
         return Blocked(reason=f"RYO derivatives veto: {deriv.get('veto_reason') or 'no reason given'}")
+    return None
+
+
+def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None = None) -> PracticeTrade | Blocked:
+    limits = limits or RiskLimits()
+    if blocked := _ryo_gate(pack):
+        return blocked
+    if verdict.action == "no_trade":
+        return Blocked(reason="judge decided no_trade")
+    if blocked := _veto(pack):
+        return blocked
     edge = verdict.p_up_7d if verdict.action == "long" else 1.0 - verdict.p_up_7d
     if edge < limits.min_edge:
         return Blocked(reason=f"edge {edge:.2f} below minimum {limits.min_edge:.2f}")
+    return _levels(verdict.action, pack, limits, round(edge, 4))
+
+
+def size_side(side: Literal["long", "short"], pack: EvidencePack, limits: RiskLimits | None = None) -> PracticeTrade | Blocked:
+    """A rule-based signal (nota.kol) through the same RYO gates, veto and ATR sizing. It carries no
+    probability, so there is no edge to check and the trade's `edge` is null."""
+    limits = limits or RiskLimits()
+    return _ryo_gate(pack) or _veto(pack) or _levels(side, pack, limits, None)
+
+
+def _levels(side: Literal["long", "short"], pack: EvidencePack, limits: RiskLimits, edge: float | None) -> PracticeTrade | Blocked:
     price_path, price = first_present(pack, paths.PRICE_USD)
     atr_path, atr = atr_usd(pack, price) if price is not None else (None, None)
     if price is None or atr is None or price <= 0 or atr <= 0:
         return Blocked(reason="price or ATR(14) unavailable in evidence; refusing to assume a value")
 
-    sign = 1.0 if verdict.action == "long" else -1.0
+    sign = 1.0 if side == "long" else -1.0
     stop_distance = atr * limits.atr_stop_mult
     stop_price = price - sign * stop_distance
     target_price = price + sign * atr * limits.atr_target_mult
@@ -133,7 +156,7 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
         risk_usd = size_units * stop_distance
     return PracticeTrade(
         symbol=pack.symbol,
-        side=verdict.action,
+        side=side,
         entry_price=price,
         stop_price=stop_price,
         target_price=target_price,
@@ -141,7 +164,7 @@ def size_trade(verdict: Verdict, pack: EvidencePack, limits: RiskLimits | None =
         size_usd=round(size_usd, 2),
         risk_usd=round(risk_usd, 2),
         atr=atr,
-        edge=round(edge, 4),
+        edge=edge,
         source_paths={"price": price_path or "", "atr": atr_path or ""},
         vs_ryo_plan=(lambda c: c and {**c, "nota_atr_multiplier": limits.atr_stop_mult})(
             compare_to_ryo_plan(pack, price, stop_price, target_price)),

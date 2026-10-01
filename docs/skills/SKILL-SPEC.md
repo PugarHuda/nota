@@ -206,7 +206,8 @@ Prediction-market implied probability that a token trades higher than now at a h
 `data`: `window_hours`, `since`, `method{sentiment, lexicon_sizes}`, `voices[]{id,status,messages,fetched,via,coverage|error}`
 (`messages`, `via` and `coverage` are `null` for an unavailable voice, never 0),
 `tokens[]{symbol, voices, voice_count, mentions, sentiment_mean, sentiment_samples,
-conviction_mean, urgency_max, direction, converging, coverage, first_seen, last_seen, samples[]}`.
+conviction_mean, urgency_max, direction, signed_voices, converging, coverage, first_seen, last_seen, samples[]}`
+(`signed_voices`: voices whose net sentiment on the token is not zero).
 
 Tokens are cashtags, bare uppercase tickers and names (`bitcoin`, `solana`, ...) of known majors:
 the scorecard's 25 plus the tokens `price_crosscheck` maps to CoinGecko. A cashtag outside that set
