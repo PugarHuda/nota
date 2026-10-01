@@ -265,11 +265,11 @@ uv run nota replay <id>        # identical: True
 uv run nota replay <id> --fresh
 uv run nota resolve --all      # after 7 days: Brier scores per agent
 uv run nota stamp              # OpenTimestamps: anchor new locks and receipts, upgrade proofs pending over 3 h
-uv run nota export data/snapshot.json   # receipts + scorecard as one JSON (what the ledger cycle attests)
+uv run nota export snapshot.json        # receipts + scorecard as one JSON (the ledger cycle writes data/snapshot.json)
 uv run nota merge-db other.db  # add another snapshot's rows this ledger lacks (the cycle's push-conflict path)
 uv run nota scores
 uv run nota record SOL         # capture all six live tools into fixtures/recorded (all or nothing)
-uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
+uv run nota decide SOL --source recorded   # replay those recordings without a RYO key (the council still needs an LLM key)
 uv run nota positions                      # open practice positions vs the latest independent price
 uv run nota serve                          # http://127.0.0.1:8000 overview, /app dashboard, /mcp
 uv run nota skill spec                     # Track 3 definitions

@@ -547,8 +547,8 @@ def test_no_page_breaks_its_own_content_security_policy(server, browser):
     for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
         page = browser.new_page(viewport={"width": 1200, "height": 900})
         violations: list[str] = []
-        page.on("console", lambda m: violations.append(m.text) if "Content Security Policy" in m.text else None)
-        page.on("pageerror", lambda e: violations.append(str(e)) if "Content Security Policy" in str(e) else None)
+        page.on("console", lambda m, v=violations: v.append(m.text) if "Content Security Policy" in m.text else None)
+        page.on("pageerror", lambda e, v=violations: v.append(str(e)) if "Content Security Policy" in str(e) else None)
         resp = page.goto(server + path, wait_until="networkidle")
         assert "default-src 'self'" in resp.headers["content-security-policy"], path
         assert violations == [], (path, violations)

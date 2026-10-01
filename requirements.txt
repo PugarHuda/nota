@@ -108,7 +108,7 @@ typing-inspection==0.4.4
     #   pydantic
 tzdata==2026.4 ; sys_platform == 'win32'
     # via psycopg
-urllib3==2.7.0
+urllib3==2.8.0
     # via requests
 uvicorn==0.53.0
     # via nota
