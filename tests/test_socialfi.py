@@ -100,10 +100,6 @@ def test_a_blocked_card_says_why_instead_of_repeating_the_headline(tmp_path, mon
     assert blocked.trade.kind == "blocked"
     png = render_card(blocked)
     assert png[:8] == b"\x89PNG\r\n\x1a\n" and len(png) > 5000
-    # the renderer must not be handed a line that only echoes the verdict
-    reason = blocked.trade.reason
-    if reason.startswith("judge decided"):
-        assert blocked.verdict.key_risks or True   # falls back to a stated sentence, never to the echo
 
 
 def test_a_claimed_handle_needs_its_token(tmp_path, monkeypatch):

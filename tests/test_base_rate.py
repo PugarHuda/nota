@@ -81,3 +81,12 @@ def test_the_holdout_fit_never_sees_the_newest_quarter():
     assert after["holdout"]["recent_from"] == before["holdout"]["recent_from"]
     assert after["tercile_cuts_atr_pct"] == before["tercile_cuts_atr_pct"]
     assert after["holdout"]["fit_p"] == before["holdout"]["fit_p"] and after["holdout"]["fit_days"] == before["holdout"]["fit_days"]
+
+
+@respx.mock
+def test_as_of_before_every_candle_is_partial_not_ok():
+    rows = [[str(c["ts"]), "0", str(c["high"]), str(c["low"]), str(c["close"]), "0", "0", "0", "1"] for c in reversed(candles(80))]
+    respx.get("https://www.okx.com/api/v5/market/history-candles").mock(side_effect=[
+        Response(200, json={"code": "0", "data": rows}), Response(200, json={"code": "0", "data": []})])
+    env = move_base_rate("SOL", as_of="2020-01-01", http=httpx.Client())
+    assert env.status == "partial" and env.data["p"] is None and "2020-01-01" in env.warnings[-1]

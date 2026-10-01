@@ -265,11 +265,11 @@ uv run nota replay <id>        # identical: True
 uv run nota replay <id> --fresh
 uv run nota resolve --all      # after 7 days: Brier scores per agent
 uv run nota stamp              # OpenTimestamps: anchor new locks and receipts, upgrade proofs pending over 3 h
-uv run nota export data/snapshot.json   # receipts + scorecard as one JSON (what the ledger cycle attests)
+uv run nota export snapshot.json        # receipts + scorecard as one JSON (the ledger cycle writes data/snapshot.json)
 uv run nota merge-db other.db  # add another snapshot's rows this ledger lacks (the cycle's push-conflict path)
 uv run nota scores
 uv run nota record SOL         # capture all six live tools into fixtures/recorded (all or nothing)
-uv run nota decide SOL --source recorded   # replay those recordings without a key (after `record`)
+uv run nota decide SOL --source recorded   # replay those recordings without a RYO key (the council still needs an LLM key)
 uv run nota positions                      # open practice positions vs the latest independent price
 uv run nota serve                          # http://127.0.0.1:8000 overview, /app dashboard, /mcp
 uv run nota skill spec                     # Track 3 definitions
@@ -287,6 +287,7 @@ returning `SkillCallResponse {name, status: success|error, result, latency_ms, x
 The dashboard's "Run a skill" panel builds its form from those definitions and shows the envelope.
 `contrib/positioning_check/` is the flagship skill packaged as a drop-in for RYO's own backend:
 no Nota imports, a FastAPI router to include, and its own offline tests (see its README).
+`contrib/move_base_rate/` packages `move_base_rate` the same way: one OKX source, same router and test layout.
 
 - `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky public
   API, `x:` through X's own public syndication endpoint, the one that serves embedded timelines,

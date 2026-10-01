@@ -179,7 +179,8 @@ def narrative_convergence(
                     except SourceUnavailable as exc2:
                         raise SourceUnavailable(f"{exc}; Tavily fallback failed: {exc2}") from exc2
                     via, coverage = "tavily_search", "partial"
-                    note = f"; dropped {undated} undated result(s)" if undated else ""
+                    note = (f"; dropped {undated} undated result(s)" if undated else "") + (
+                        f"; dropped {other} result(s) by other authors" if other else "")
                     warnings.append(f"{exc}; fell back to Tavily search: {voice} via Tavily search, {len(msgs)} dated post(s), "
                                     f"coverage partial (only what the search index holds){note}")
                 if msgs and all(m.at is None for m in msgs):
