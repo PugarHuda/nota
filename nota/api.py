@@ -472,6 +472,11 @@ def judges_page(request: Request) -> HTMLResponse:
     return _page("judges.html", request, "/judges")
 
 
+@app.get("/drill")
+def drill_page(request: Request) -> HTMLResponse:
+    return _page("drill.html", request, "/drill")
+
+
 _HEALTH_TTL = 60.0
 _health_cache: tuple[float, dict[str, Any]] | None = None   # (monotonic time, RYO probe); per process
 
@@ -779,6 +784,7 @@ LLMS_PAGES = {
     "/app": "Dashboard: every receipt, diffed against the one before it",
     "/scorecard": "RYO Verdict Scorecard",
     "/judges": "One screen per hackathon track: what to open and which rubric line it answers",
+    "/drill": "Failure drill: break RYO, the exchanges or the model on purpose and watch the real pipeline refuse to trade",
     "/demo": "Narrated three-and-a-half-minute walkthrough with a clickable transcript",
     "/demo.json": "Walkthrough chapters and transcript with the second each line was spoken",
     "/demo.vtt": "Walkthrough captions (WebVTT)",
@@ -978,6 +984,25 @@ def council_live(symbol: str, request: Request) -> dict[str, Any]:
             "seconds": round(time.time() - started, 1), "receipt": r.model_dump(mode="json"), "markdown": render_markdown(r)}
 
 
+class DrillIn(BaseModel):
+    scenario: str = Field(description="ryo_down | ryo_401 | deep_analysis_missing | rate_limited | exchange_down | llm_down | partial")
+
+
+DRILL_PER_IP = 60   # ponytail: no network and no model, only CPU (two offline pipeline runs per call)
+
+
+@app.post("/api/drill")
+def drill(body: DrillIn, request: Request) -> dict[str, Any]:
+    """Run the real pipeline offline on RYO's recorded answers with one fault injected, beside a healthy run of
+    the same recording. Nothing is stored: both receipts are labelled source "drill" and live in a throwaway ledger."""
+    from nota.drill import SCENARIOS, compare
+
+    if body.scenario not in SCENARIOS:
+        raise HTTPException(422, f"unknown scenario {body.scenario!r}; one of {', '.join(SCENARIOS)}")
+    _throttle(f"drill:{request.client.host if request.client else 'unknown'}", limit=DRILL_PER_IP)
+    return compare(body.scenario)
+
+
 @app.post("/api/decisions/{id}/back")
 def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
     """One stance per handle per receipt, latest wins. There are no accounts: the first post under a
@@ -1168,7 +1193,7 @@ def robots(request: Request) -> PlainTextResponse:
     return PlainTextResponse(f"User-agent: *\nAllow: /\n\nSitemap: {_base(request)}/sitemap.xml\n")
 
 
-SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/judges", "/demo")
+SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/judges", "/drill", "/demo")
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

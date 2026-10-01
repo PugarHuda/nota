@@ -19,7 +19,7 @@ ALWAYS = {"landmark-one-main", "region", "scrollable-region-focusable"}
 
 @pytest.mark.parametrize("width", [1366, 390])
 @pytest.mark.parametrize("theme", ["light", "dark"])
-@pytest.mark.parametrize("path", ["/", "/ja", "/app", "/scorecard", "/demo"])
+@pytest.mark.parametrize("path", ["/", "/ja", "/app", "/scorecard", "/demo", "/drill"])
 def test_axe_finds_nothing_serious(server, browser, path, theme, width):  # noqa: F811
     ctx = browser.new_context(viewport={"width": width, "height": 900})
     ctx.add_init_script(f"try{{localStorage.setItem('nota.theme','{theme}')}}catch(e){{}}")
@@ -28,6 +28,9 @@ def test_axe_finds_nothing_serious(server, browser, path, theme, width):  # noqa
     if path == "/app":   # axe must read the rendered receipt, not the page between two renders
         page.wait_for_selector("#detail .headline")
         page.wait_for_function("() => document.querySelector('#health').textContent.includes('receipts')")
+    if path == "/drill":   # the rendered side-by-side result, not just the buttons
+        page.click("button[data-s='partial']")
+        page.wait_for_selector("#result:not([hidden]) #drill .grid")
     page.wait_for_timeout(300)
     assert page.evaluate("() => document.documentElement.dataset.theme") == theme
     found = Axe().run(page).response["violations"]

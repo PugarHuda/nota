@@ -39,6 +39,7 @@
         <a href="#t2">Track 2</a>
         <a href="#t3">Track 3</a>
         <a href="#only">Only here</a>
+        <a href="/drill">Failure drill</a>
         <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
       </div></details>
       <a class="cta" href="/app"><span class="opt">Receipts </span>dashboard</a>
@@ -61,7 +62,9 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
   <tr><td class="pts">Coping with failure · 20</td><td><a href="/r/2ae531ec2c9b">2ae531ec2c9b</a> (RYO answered 401) and
       <a href="/r/c60acf3ba3b1">c60acf3ba3b1</a> (RYO <code>deep_analysis</code> down for three days)</td>
       <td>The run still completes, records which section failed and why, and refuses to trade. A missing value stays
-      <code>null</code>; nothing is filled in. The ledger kept locking and settling through both outages.</td></tr>
+      <code>null</code>; nothing is filled in. The ledger kept locking and settling through both outages.
+      Or break it yourself: the <a href="/drill">failure drill</a> injects seven failures (RYO down, 401, <code>deep_analysis</code> missing,
+      rate limits, exchanges down, model down, partial answers) into the real pipeline, offline, beside a healthy run.</td></tr>
   </tbody>
 </table>
 

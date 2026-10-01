@@ -592,6 +592,11 @@ total per hour. The full system, including live RYO evidence, the
 
 ## Failure handling
 
+See it happen: [`/drill`](https://nota-ryo.vercel.app/drill) (`POST /api/drill {"scenario": ...}`, `nota/drill.py`)
+injects one of seven failures (RYO down, RYO 401, `deep_analysis` missing, rate limited and slow,
+exchanges down, model provider down, RYO partial with nulls) and runs the real pipeline offline on
+the recorded fixtures beside a healthy run. The drill receipts are labelled `source: drill` and are never stored.
+
 - RYO client: exponential backoff with jitter on 429/503/network, honours `Retry-After` in
   seconds or as an HTTP date but never waits longer than 60 s, never retries 4xx argument errors,
   records `X-RateLimit-*` headers. RYO also runs a per-key fan-out bucket of six tool calls a
