@@ -34,7 +34,10 @@
   main > nav, main > section { background:var(--paper); border:1px solid var(--form); border-radius:2px; min-width:0 }
   main > nav { padding:14px; position:sticky; top:14px; max-height:calc(100vh - 28px); overflow:auto }
   main > aside { padding:4px 4px; min-width:0 }
-  @media (max-width:1100px) { main > nav { position:static; max-height:none } }
+  @media (max-width:1100px) { main > nav { position:static; max-height:none }
+    /* one column: the open receipt is what the page is for, so it comes first and the list follows;
+       "Skip to receipt" stays the first tab stop, and a tapped row scrolls back up to it */
+    #detail { order:-1 } }
 
   /* the open receipt: one full document, ruled, headed, and stampable */
   #detail { position:relative; padding:26px clamp(18px,3vw,40px) 34px; overflow-wrap:anywhere }
@@ -134,7 +137,7 @@
 <a class="skip" href="#detail">Skip to receipt</a>
 <header>
   <h1><a href="/">Nota</a></h1>
-  <span class="tagline">Council decisions on read-only RYO evidence. Practice trades only, never financial advice.
+  <span class="tagline">One receipt per AI-council trading call on RYO evidence, re-runnable on demand. Practice trades only, never advice.
     <a href="/demo">Narrated walkthrough</a> · <a href="/scorecard">RYO verdict scorecard</a> · <a href="/feed">Social feed</a></span>
   <span id="health" aria-live="polite"></span>
   <span class="keys"><span class="hint"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help</span>
@@ -225,7 +228,7 @@ function renderList() {
     <button type="button" class="row ${i === sel ? 'sel' : ''}" data-i="${i}" aria-current="${i === sel}" aria-label="${esc(d.symbol)} ${esc(d.action)}${d.degraded ? ', degraded evidence' : ''}, ${esc(d.created_at)}">
       <span>${d.degraded ? '<span class="dot" title="degraded evidence"></span>' : ''}<b>${esc(d.symbol)}</b> <span class="muted small">${esc(d.source)}</span></span>
       <span class="badge ${esc(d.action)}">${esc(d.action.replace('_', ' '))}${d.trade_kind === 'trade' ? ', sized' : ''}</span>
-      <span class="t">${esc(d.created_at)}   p_up ${esc(d.p_up_7d.toFixed(2))}${d.resolved ? '   resolved' : ''}</span>
+      <span class="t">${esc(d.created_at)}   ${esc(Math.round(d.p_up_7d * 100))}% up in 7d${d.resolved ? '   resolved' : ''}</span>
     </button>`).join('')
     : all.length ? `<div class="empty">No receipt matches "${esc(q)}". <button type="button" class="clear" id="clear-filter">Clear the filter</button></div>`
     : '<div class="empty">No receipts yet.<br>Run <code>uv run nota decide SOL</code>.</div>';
@@ -257,7 +260,7 @@ async function open(id, push = true, user = false) {
     <p class="headline">${esc(r.headline)}</p>
     <div class="card" id="summary" aria-label="thirty second summary">
       <div><b>Now:</b> ${t.kind === 'trade' ? `${t.side.toUpperCase()} practice trade, ${t.size_usd.toFixed(0)} USD at ${px(t.entry_price)}, stop ${px(t.stop_price)}, target ${px(t.target_price)}` : `no trade — ${esc(t.reason)}`}</div>
-      <div><b>Biggest change:</b> ${d.changes.length ? `<code>${esc(d.changes[0].path)}</code> ${fmt(d.changes[0].before)} → ${fmt(d.changes[0].after)} (${esc(d.changes[0].why)})` : (d.previous_id ? 'nothing changed since the previous receipt' : 'first receipt for this symbol')}</div>
+      <div><b>Biggest change:</b> ${d.changes.length ? `${esc(d.changes[0].why)}: ${fmt(d.changes[0].before)} → ${fmt(d.changes[0].after)} <span class="small muted">(<code>${esc(d.changes[0].path)}</code>)</span>` : (d.previous_id ? 'nothing changed since the previous receipt' : 'first receipt for this symbol')}</div>
       <div id="summary-position"><b>Position:</b> <span class="muted">checking…</span></div>
       ${ryoSaid(r)}
       <div><b>Next:</b> ${d.outcome ? `scored: ${d.outcome.return_pct >= 0 ? '+' : ''}${d.outcome.return_pct}% (${d.outcome.went_up ? 'went up' : 'went down'})` : nextStep(r)}</div>
@@ -316,7 +319,7 @@ async function open(id, push = true, user = false) {
     <h2>Council</h2>
     ${r.opinions.map(o => `<div class="opinion">
       <div class="who">${esc(o.role)} <span class="badge ${o.stance === 'bullish' ? 'long' : o.stance === 'bearish' ? 'short' : ''}">${esc(o.stance)}</span>
-        <span class="badge">p_up ${o.p_up_7d.toFixed(2)}, ${esc(o.confidence)} confidence</span></div>
+        <span class="badge">${Math.round(o.p_up_7d * 100)}% up in 7d, ${esc(o.confidence)} confidence</span></div>
       <p class="thesis">${esc(o.thesis)}</p>
       ${o.citations.map(c => `<div class="cite"><code>${esc(c.path)}</code> = ${esc(c.value)}${c.note ? ' — ' + esc(c.note) : ''}</div>`).join('')}
       ${o.dropped_citations ? `<div class="cite">${esc(o.dropped_citations)} citation${o.dropped_citations === 1 ? '' : 's'} dropped: the path was not in the evidence</div>` : ''}
@@ -332,7 +335,7 @@ async function open(id, push = true, user = false) {
       <a href="https://x.com/intent/post?text=${encodeURIComponent(`${r.headline} (p_up_7d ${r.verdict.p_up_7d.toFixed(2)}, evidence ${r.pack_hash.slice(0, 12)}) #RYOCHAN`)}&url=${encodeURIComponent(location.origin + '/r/' + r.id)}" target="_blank" rel="noopener">Share receipt on X</a></p>`;
   $('#detail').querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); open(a.dataset.open, true, true); });
   document.title = `${r.symbol} ${r.verdict.action.replace('_', ' ')} · receipt ${r.id} · Nota`;
-  $('#sr-status').textContent = `Opened receipt ${r.id}: ${r.symbol} ${r.verdict.action.replace('_', ' ')}, p_up ${r.verdict.p_up_7d.toFixed(2)}`;
+  $('#sr-status').textContent = `Opened receipt ${r.id}: ${r.symbol} ${r.verdict.action.replace('_', ' ')}, ${Math.round(r.verdict.p_up_7d * 100)}% chance higher in 7 days`;
   if (user) {
     // on one column the receipt sits under the list, so a tap that changed only something off-screen
     // looked like it did nothing; take the reader to it, and move focus with them
@@ -404,8 +407,8 @@ const POSITION_TEXT = { open: 'open', stopped: 'would be STOPPED OUT at the late
 
 function changesTable(ch) {
   const top = ch.slice(0, 8), rest = ch.slice(8), max = ch[0].impact || 1;
-  const row = c => `<tr><td><code>${esc(c.path)}</code><div class="small muted">${esc(c.why)}</div></td><td class="num">${fmt(c.before)}</td><td class="num">${fmt(c.after)}</td><td style="width:90px"><div class="bar" role="img" aria-label="impact ${Math.round(c.impact / max * 100)} of 100" title="impact ${esc(c.impact)}"><i style="width:${Math.max(4, Math.min(100, c.impact / max * 100))}%"></i></div></td></tr>`;
-  const table = rows => `<div class="tscroll" tabindex="0" role="region" aria-label="what changed"><table><tr><th>path</th><th class="num">before</th><th class="num">after</th><th>impact</th></tr>${rows.map(row).join('')}</table></div>`;
+  const row = c => `<tr><td>${esc(c.why)}<div class="small muted"><code>${esc(c.path)}</code></div></td><td class="num">${fmt(c.before)}</td><td class="num">${fmt(c.after)}</td><td style="width:90px"><div class="bar" role="img" aria-label="impact ${Math.round(c.impact / max * 100)} of 100" title="impact ${esc(c.impact)}"><i style="width:${Math.max(4, Math.min(100, c.impact / max * 100))}%"></i></div></td></tr>`;
+  const table = rows => `<div class="tscroll" tabindex="0" role="region" aria-label="what changed"><table><tr><th>change</th><th class="num">before</th><th class="num">after</th><th>impact</th></tr>${rows.map(row).join('')}</table></div>`;
   return `${table(top)}
     ${rest.length ? `<details><summary>${rest.length} smaller changes</summary>${table(rest)}</details>` : ''}`;
 }

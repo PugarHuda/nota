@@ -76,7 +76,7 @@ There is no network call, no key, and no cost, and nothing is stored. Each drill
   <li><button type="button" data-s="llm_down" aria-pressed="false">Model provider down</button></li>
   <li><button type="button" data-s="partial" aria-pressed="false">RYO partial, some nulls</button></li>
 </ul>
-<p id="status" class="note" role="status" aria-live="polite">No drill run yet. Each button runs one.</p>
+<p id="status" class="note" role="status" aria-live="polite">Press any failure above. Each runs offline in a few seconds and shows its receipt beside a healthy one.</p>
 
 <section id="result" aria-labelledby="pick" hidden>
   <p class="mirror" id="mirror"></p>
@@ -100,6 +100,16 @@ receipt rebuilds from its stored evidence with no network and no key. Try it on 
 </main>
 <script>
 (() => {
+  // the nav, as on every other page: wide, the menu is held open (its summary is hidden there, so a closed
+  // menu would leave the links and the theme switch unreachable); narrow, it folds and closes like a menu
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1401px)');
+  const fit = () => { menu.open = wide.matches; };
+  wide.addEventListener('change', fit); fit();
+  menu.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu.open && !wide.matches) { menu.open = false; menu.querySelector('summary').focus(); }
+  });
+  document.addEventListener('click', e => { if (menu.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
   const theme = document.getElementById('theme'), root = document.documentElement;
   const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
   theme.addEventListener('click', () => {
@@ -123,7 +133,7 @@ receipt rebuilds from its stored evidence with no network and no key. Try it on 
     box.append(out);
     if (r.receipt) {
       const v = r.receipt.verdict;
-      box.append(el('p', `Judge: ${v.action} at p_up_7d ${v.p_up_7d}. Model calls: ${r.receipt.spend ? r.receipt.spend.model_calls : 0}. Source: ${r.receipt.source}.`, 'note'));
+      box.append(el('p', `Judge: ${v.action.replace("_", " ")}, ${Math.round(v.p_up_7d * 100)}% chance higher in 7 days. Model calls: ${r.receipt.spend ? r.receipt.spend.model_calls : 0}. Source: ${r.receipt.source}.`, 'note'));
     }
     const g = el('div', null, 'grid');
     const avail = r.receipt ? r.receipt.availability : {};

@@ -656,6 +656,16 @@ def test_the_landing_keeps_the_language_switch_and_a_menu_on_a_phone(server, bro
     page.close()
 
 
+def test_wide_the_menu_is_held_open_on_every_page_so_its_links_stay_reachable(server, browser):
+    """Wide, the menu's summary is hidden; a page that forgot to open the menu hid its links and theme switch."""
+    page, problems = page_with_log(browser, viewport={"width": 1440, "height": 900})
+    for path in ("/", "/scorecard", "/demo", "/feed", "/u/nobody", "/judges", "/drill", "/kol"):
+        page.goto(server + path, wait_until="networkidle")
+        assert page.locator("body > nav .menu #theme").is_visible(), path
+    assert [p for p in problems if "demo.mp4" not in p] == [], problems
+    page.close()
+
+
 def test_the_dark_theme_chosen_anywhere_holds_everywhere(server, browser):
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})  # wide enough that the nav menu is held open
     page = ctx.new_page()
@@ -852,7 +862,7 @@ def test_feeds_csv_and_agent_card_answer_over_the_wire(server, browser):
 
 def test_the_folded_menu_closes_on_escape_and_on_a_click_elsewhere(server, browser):
     page, problems = page_with_log(browser, viewport={"width": 390, "height": 844})
-    for path in ("/", "/scorecard", "/demo", "/feed", "/u/nobody"):
+    for path in ("/", "/scorecard", "/demo", "/feed", "/u/nobody", "/judges", "/drill", "/kol"):
         page.goto(server + path, wait_until="networkidle")
         page.click("body > nav .menu summary")
         assert page.evaluate("document.querySelector('body > nav .menu').open")
