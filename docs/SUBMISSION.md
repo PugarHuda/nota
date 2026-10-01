@@ -28,8 +28,8 @@ Nota makes RYO's research auditable. An AI council argues over live RYO evidence
 call as a receipt: `nota replay <id>` rebuilds it offline and prints identical: true. Every cited
 number is read back from its RYO path; null never becomes 0. It audits RYO too. Its Verdict
 Scorecard locks deep_analysis verdicts and trade plans for 25 majors daily and settles them on
-OKX candles, asking whether a verdict changes how often RYO's own plan works (day 0: 7 of 25 plans
-were long under a "cautious" verdict). A gate stops agents citing RYO derivatives fields that are
+OKX candles, asking whether a verdict changes how often RYO's own plan works (after 10 days, 95 of
+112 plans that touched a level within 72 h reached RYO's target first; 88 touched neither). A gate stops agents citing RYO derivatives fields that are
 not about the token: one OI figure repeated across unrelated tokens. Each agent is scored against
 the token's own base rate, not a coin flip. Track 1: council, gate, receipts. Track 2: diff
 dashboard and /scorecard. Track 3: nine skills in RYO's envelope, also an MCP server. Read-only;
@@ -37,16 +37,17 @@ no orders.
 
 ## X post
 
-Figures read from https://nota-ryo.vercel.app/api/scorecard on 2026-09-20 (both horizons): 50 plans
-locked over 2 lock days, none settled yet, 7 plans long while RYO's own verdict was cautious. Re-read
+Figures read from https://nota-ryo.vercel.app/api/scorecard on 2026-10-01 (both horizons): 250 plans
+locked over 10 lock days; at 72 h 95 target first, 17 stop first, 88 neither; 10 plans long while
+RYO's own verdict was cautious. Re-read
 them before posting; the page moves every hour.
 
 > RYO's deep_analysis gives a verdict and a trade plan. It never tells you what became of either.
 >
 > For @ryodigital's #RYOCHAN hackathon I built Nota, which keeps that record: every day it locks
 > RYO's verdict and plan for 25 majors, anchors each lock in Bitcoin (OpenTimestamps) and settles
-> it on OKX candles at 24 h and 72 h. 50 plans locked so far; 7 of them long under RYO's own
-> "cautious" verdict.
+> it on OKX candles at 24 h and 72 h. 250 plans in 10 days: at 72 h, 95 hit RYO's target first,
+> 17 its stop, 88 neither. 10 were long under RYO's own "cautious" verdict.
 >
 > Its AI council reads the same evidence through a derivatives gate: a RYO field repeated across
 > unrelated tokens cannot be cited. Every call is a receipt that replays identically, offline.
