@@ -24,6 +24,7 @@ def _seed(tmp_path, monkeypatch):
     da = raw["sections"]["deep_analysis"]["envelope"]["data"]
     da["market"]["price_usd"] = round(da["market"]["price_usd"] * 1.10, 4)
     da["technical_analysis"]["rsi_14"] = None
+    da["performance"]["h1"] = 0.004  # a percentage near zero: its move must read in points, not as -9950%
     from nota.council import run_council
     from nota.evidence import EvidencePack
     from nota.receipt import build_receipt
@@ -52,6 +53,8 @@ def test_list_detail_diff_positions_scores(tmp_path, monkeypatch):
     assert paths.index("deep_analysis.data.market.price_usd") < paths.index("deep_analysis.data.technical_analysis.rsi_14")
     rsi = next(ch for ch in d["changes"] if ch["path"].endswith("rsi_14"))
     assert rsi["after"] is None and rsi["why"] == "value became unavailable"
+    h1 = next(ch for ch in d["changes"] if ch["path"] == "deep_analysis.data.performance.h1")
+    assert h1["why"].endswith(" pts") and paths.index("deep_analysis.data.market.price_usd") < paths.index(h1["path"])
     assert c.get(f"/api/decisions/{first.id}").json()["changes"] == []
     assert c.get("/api/decisions/nope").status_code == 404
 
@@ -407,7 +410,8 @@ def test_captions_come_from_the_chapters_and_the_demo_card_is_absolute():
     vtt = c.get("/demo.vtt")
     assert vtt.headers["content-type"].startswith("text/vtt") and vtt.text.startswith("WEBVTT")
     assert vtt.text.count(" --> ") == len(chapters)
-    assert "00:00:00.799 --> 00:00:09.444" in vtt.text                 # a cue runs to the next line's start
+    ts = lambda x: f"{int(x // 3600):02d}:{int(x % 3600 // 60):02d}:{x % 60:06.3f}"
+    assert f"{ts(chapters[0]['start'])} --> {ts(chapters[1]['start'])}" in vtt.text  # a cue runs to the next line's start
     page = c.get("/demo").text
     assert '<meta property="og:video" content="http://testserver/demo.mp4">' in page
     assert 'content="http://testserver/img/demo-poster.png"' in page and '<track kind="captions" src="/demo.vtt"' in page

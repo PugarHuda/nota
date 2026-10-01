@@ -17,6 +17,7 @@ Field values for the Project Submission Form / `HackathonSubmissionFields`.
 | tracks | track_1, track_2, track_3 |
 | repo_url | https://github.com/RYO-Digital/ryochan-hackathon_repository-235 |
 | demo_video_url | https://nota-ryo.vercel.app/demo (page with transcript) - bare file: /demo.mp4 |
+| judges page | https://nota-ryo.vercel.app/judges (one screen per track, mapped to the rubric) |
 | hosted demo | https://nota-ryo.vercel.app (ledger snapshot committed by the ledger cycle; backings live on Neon) |
 | x_post_url | _(TBD)_ |
 | submission form | `docs/project-submission-form.md` + `.pdf` (official link broken) |
@@ -52,7 +53,8 @@ them before posting; the page moves every hour.
 > Its AI council reads the same evidence through a derivatives gate: a RYO field repeated across
 > unrelated tokens cannot be cited. Every call is a receipt that replays identically, offline.
 >
-> 9 research skills in RYO's envelope, over REST, MCP and A2A. Read-only, no orders.
+> Run the council yourself on fresh RYO evidence, or replay any past call. 9 research skills in
+> RYO's envelope, over REST, MCP and A2A. Read-only, no orders.
 >
 > https://nota-ryo.vercel.app/scorecard
 

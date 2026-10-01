@@ -135,22 +135,21 @@ def main() -> None:
         beat("mark")
         beat("verify")
         page.click("#verify")
-        page.wait_for_function("document.querySelector('#verify-out').textContent.includes('identical')",
-                               timeout=30000)
+        # selectors, not wait_for_function: a string predicate is eval'd, and the page's CSP forbids eval
+        page.wait_for_selector("#verify-out:has-text('identical')", timeout=60000)
         beat("verified")          # the 照合済 seal has just been pressed on the perforation
         beat("audit")
         beat("broken")
         beat("scorecard")
 
         page.goto(base + "/scorecard", wait_until="networkidle")
-        page.wait_for_function("!document.querySelector('#answer').textContent.includes('Reading')", timeout=20000)
+        page.wait_for_selector("#answer:not(:has-text('Reading'))", timeout=20000)
         page.evaluate(OVERLAY_JS)
         beat("answer")
         beat("plans")
 
         page.goto(base + "/app", wait_until="networkidle")
-        page.wait_for_function("document.querySelector('#health').textContent.includes('receipts')",
-                               timeout=20000)
+        page.wait_for_selector("#health:has-text('receipts')", timeout=20000)
         page.evaluate(OVERLAY_JS)
         beat("dashboard")
         beat("summary")
@@ -158,7 +157,12 @@ def main() -> None:
         beat("gate")
         beat("council")
         beat("scores")
+        beat("live")
         beat("skills")
+
+        page.goto(base + "/judges", wait_until="networkidle")
+        page.evaluate(OVERLAY_JS)
+        beat("judges")
         beat("close")
 
         page.wait_for_timeout(600)

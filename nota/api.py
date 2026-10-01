@@ -182,6 +182,10 @@ def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:
 NOISE = re.compile(r"\.(since|fetched_at|as_of|window_hours|snippet|samples\.[^.]+\..*|sources\.[^.]+\.content)$")
 
 
+# leaves that are themselves a percentage, a change or a points gap: diffed in points, not in % of a %
+IN_POINTS = re.compile(r"(_pct|pct_|percent|performance|_points|\.changes?\.|change_|\.h\d+$)")
+
+
 def _leaves(pack: EvidencePack) -> dict[str, Any]:
     """Leaf values under `<section>.data`. A list of scalars is one leaf (sorted), so a re-ordered domain
     list is not a change; a list of records is keyed by symbol/token/id/name when each row has a unique
@@ -262,7 +266,10 @@ def what_changed(led: Ledger, cur: Receipt, prev: Receipt | None) -> list[dict[s
                 continue
             key = path in KEY_PATHS
             numeric = all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b))
-            if numeric and a != 0:
+            if numeric and IN_POINTS.search(path):
+                # already a percentage or a points gap: 0.004 -> -0.394 is a 0.4-point move, not -9950%
+                add(path, a, b, abs(b - a) * (10 if key else 1), f"{b - a:+.2f} pts" + (" (feeds risk sizing)" if key else ""))
+            elif numeric and a != 0:
                 pct = (b - a) / abs(a) * 100
                 add(path, a, b, abs(pct) * (10 if key else 1), f"{pct:+.1f}%" + (" (feeds risk sizing)" if key else ""))
             elif a is None or b is None:
@@ -772,7 +779,7 @@ LLMS_PAGES = {
     "/app": "Dashboard: every receipt, diffed against the one before it",
     "/scorecard": "RYO Verdict Scorecard",
     "/judges": "One screen per hackathon track: what to open and which rubric line it answers",
-    "/demo": "Narrated three-minute walkthrough with a clickable transcript",
+    "/demo": "Narrated three-and-a-half-minute walkthrough with a clickable transcript",
     "/demo.json": "Walkthrough chapters and transcript with the second each line was spoken",
     "/demo.vtt": "Walkthrough captions (WebVTT)",
     "/api/decisions": "Receipt summaries, newest first (JSON)",

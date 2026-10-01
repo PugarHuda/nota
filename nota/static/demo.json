@@ -1,111 +1,123 @@
 {
- "seconds": 184.743,
+ "seconds": 216.181,
  "chapters": [
   {
    "id": "open",
-   "start": 0.799,
+   "start": 0.772,
    "seconds": 8.28,
    "text": "This is Nota. It turns an AI trading opinion on RYO's market evidence into a receipt you can check, instead of something you have to trust."
   },
   {
    "id": "slip",
-   "start": 9.444,
+   "start": 9.414,
    "seconds": 9.6,
    "text": "Every decision is a receipt. This is the newest one in the ledger: the token, what the council decided, the probability the judge stated, and where the evidence came from."
   },
   {
    "id": "mark",
-   "start": 19.406,
+   "start": 19.37,
    "seconds": 9.168,
    "text": "The seal is drawn from the receipt itself. Its ticks are the evidence hash and its arc is that probability, so the same evidence always presses the same seal."
   },
   {
    "id": "verify",
-   "start": 28.941,
+   "start": 28.899,
    "seconds": 3.84,
    "text": "The headline says a decision can be re-run. Let's check that, live."
   },
   {
    "id": "verified",
-   "start": 33.242,
+   "start": 33.205,
    "seconds": 10.512,
    "text": "Identical, true. The decision was rebuilt from the stored evidence and the model output cached beside it, with no key and no call to any model, and the receipt is stamped as checked."
   },
   {
    "id": "audit",
-   "start": 44.12,
+   "start": 44.077,
    "seconds": 10.872,
    "text": "Nota also audits the data it is given. It recomputes RYO's own RSI and ATR from public candles, and checks RYO's price against three exchanges before anything is sized."
   },
   {
    "id": "broken",
-   "start": 55.373,
+   "start": 55.32,
    "seconds": 13.608,
    "text": "And this is what a failing source looks like. Each section keeps the status its source returned, a value that could not be fetched stays null instead of becoming zero, and the judge is told what it does not have. It is read from the ledger as the page loads."
   },
   {
    "id": "scorecard",
-   "start": 69.346,
+   "start": 69.291,
    "seconds": 10.968,
    "text": "It also keeps RYO's own score. Every day Nota locks RYO's verdict and trade plan for twenty five major tokens, and later settles each plan on OKX's hourly candles."
   },
   {
    "id": "answer",
-   "start": 81.257,
-   "seconds": 9.576,
-   "text": "RYO never reports what became of its plans. Here it is recorded. Seven of the fifty plans locked so far point one way while RYO's own verdict leans the other."
+   "start": 81.219,
+   "seconds": 14.904,
+   "text": "RYO never reports what became of its plans. Here it is recorded: two hundred and fifty plans in the first ten days. Of the plans that touched a level within a day, most reached RYO's target before its stop. Most touched neither, and the page counts those too."
   },
   {
    "id": "plans",
-   "start": 91.206,
+   "start": 96.48,
    "seconds": 12.816,
    "text": "Each row is RYO's own answer, pinned with its trace id. When a plan settles, the page records whether the stop or the target was touched first, and compares verdicts day by day, with an interval, not a headline number."
   },
   {
    "id": "dashboard",
-   "start": 107.826,
-   "seconds": 1.872,
+   "start": 111.39,
+   "seconds": 2.088,
    "text": "Now the dashboard."
   },
   {
    "id": "summary",
-   "start": 110.069,
+   "start": 113.843,
    "seconds": 9.672,
    "text": "Every receipt opens on a thirty second summary: what was decided, what changed most since the previous receipt, where the practice position stands, and what happens next."
   },
   {
    "id": "changed",
-   "start": 120.101,
+   "start": 123.875,
    "seconds": 7.176,
    "text": "Each receipt is diffed against the one before it for the same token, and ranked by impact, so the row that mattered is the row on top."
   },
   {
    "id": "gate",
-   "start": 127.65,
-   "seconds": 14.184,
-   "text": "The council is not allowed to cite a derivatives number that is not about this token. On this receipt, RYO reported the same open interest change for Ethereum as for six unrelated tokens that day. The gate withheld it, and the receipt says why."
+   "start": 131.409,
+   "seconds": 12.912,
+   "text": "The council is not allowed to cite a derivatives number that is not about this token. When RYO reports the same figure for many unrelated tokens on one day, the gate withholds it, and the receipt names the tokens it was repeated on."
   },
   {
    "id": "council",
-   "start": 142.207,
+   "start": 144.692,
    "seconds": 11.712,
    "text": "Three specialists argue, citing dotted paths into the evidence, and every value shown is read back out of that evidence rather than retyped by the model. Each one signs the receipt, or dissents on it."
   },
   {
    "id": "scores",
-   "start": 154.278,
-   "seconds": 13.488,
-   "text": "Every agent is scored against what actually happened, and against the token's own base rate: how often it rose anyway. So far only the macro agent beats that base rate. Five scored calls is far too few to trust, and the page says so."
+   "start": 156.764,
+   "seconds": 16.152,
+   "text": "Every agent is scored against what actually happened, and against the token's own base rate: how often it rose anyway. Over twenty scored calls in, the macro agent leads. Only a handful of those are independent weeks, too few to trust yet, and the page says so beside the table."
+  },
+  {
+   "id": "live",
+   "start": 173.278,
+   "seconds": 11.88,
+   "text": "And it does not only replay the past. On the hosted demo, anyone can convene the council live on fresh RYO evidence. A run takes a minute or two, costs under a cent, and is capped per visitor."
   },
   {
    "id": "skills",
-   "start": 168.133,
-   "seconds": 9.696,
-   "text": "Seven research skills run from this panel in RYO's own envelope, and the same seven are served over the Model Context Protocol, so Claude or Cursor can call them directly."
+   "start": 185.52,
+   "seconds": 14.28,
+   "text": "Nine research skills run from this panel in RYO's own envelope, and the same nine are served over the Model Context Protocol. The flagship, positioning check, also ships as a drop-in package RYO can include in its own backend as it is."
+  },
+  {
+   "id": "judges",
+   "start": 200.694,
+   "seconds": 8.592,
+   "text": "For judges, one page maps each track to its rubric, with links to the exact receipts and endpoints, and the limits are written down rather than hidden."
   },
   {
    "id": "close",
-   "start": 178.206,
+   "start": 209.646,
    "seconds": 5.568,
    "text": "Read-only research on RYO evidence. No order is ever placed. Not financial advice."
   }

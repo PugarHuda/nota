@@ -51,8 +51,9 @@ BEATS: list[tuple[str, str | None, str]] = [
      "It also keeps RYO's own score. Every day Nota locks RYO's verdict and trade plan for twenty five "
      "major tokens, and later settles each plan on OKX's hourly candles."),
     ("answer", "#answer",
-     "RYO never reports what became of its plans. Here it is recorded. Seven of the fifty plans locked "
-     "so far point one way while RYO's own verdict leans the other."),
+     "RYO never reports what became of its plans. Here it is recorded: two hundred and fifty plans in "
+     "the first ten days. Of the plans that touched a level within a day, most reached RYO's target "
+     "before its stop. Most touched neither, and the page counts those too."),
     ("plans", "#open-t",
      "Each row is RYO's own answer, pinned with its trace id. When a plan settles, the page records "
      "whether the stop or the target was touched first, and compares verdicts day by day, with an "
@@ -65,21 +66,28 @@ BEATS: list[tuple[str, str | None, str]] = [
     ("changed", "#detail h2",
      "Each receipt is diffed against the one before it for the same token, and ranked by impact, so "
      "the row that mattered is the row on top."),
-    ("gate", "#detail .withheld + .withheld",
-     "The council is not allowed to cite a derivatives number that is not about this token. On this "
-     "receipt, RYO reported the same open interest change for Ethereum as for six unrelated tokens "
-     "that day. The gate withheld it, and the receipt says why."),
+    ("gate", "#detail .withheld",
+     "The council is not allowed to cite a derivatives number that is not about this token. When RYO "
+     "reports the same figure for many unrelated tokens on one day, the gate withholds it, and the "
+     "receipt names the tokens it was repeated on."),
     ("council", ".mitome",
      "Three specialists argue, citing dotted paths into the evidence, and every value shown is read "
      "back out of that evidence rather than retyped by the model. Each one signs the receipt, or "
      "dissents on it."),
     ("scores", "#scores .vs-base",
      "Every agent is scored against what actually happened, and against the token's own base rate: "
-     "how often it rose anyway. So far only the macro agent beats that base rate. Five scored calls is "
-     "far too few to trust, and the page says so."),
+     "how often it rose anyway. Over twenty scored calls in, the macro agent leads. Only a handful of "
+     "those are independent weeks, too few to trust yet, and the page says so beside the table."),
+    ("live", "#council",
+     "And it does not only replay the past. On the hosted demo, anyone can convene the council live on "
+     "fresh RYO evidence. A run takes a minute or two, costs under a cent, and is capped per visitor."),
     ("skills", "#skills",
-     "Seven research skills run from this panel in RYO's own envelope, and the same seven are served "
-     "over the Model Context Protocol, so Claude or Cursor can call them directly."),
+     "Nine research skills run from this panel in RYO's own envelope, and the same nine are served "
+     "over the Model Context Protocol. The flagship, positioning check, also ships as a drop-in "
+     "package RYO can include in its own backend as it is."),
+    ("judges", "main h1",
+     "For judges, one page maps each track to its rubric, with links to the exact receipts and "
+     "endpoints, and the limits are written down rather than hidden."),
     ("close", None,
      "Read-only research on RYO evidence. No order is ever placed. Not financial advice."),
 ]
@@ -96,7 +104,14 @@ async def main() -> None:
     beats = []
     for index, (name, target, text) in enumerate(BEATS):
         path = OUT / f"{index:02d}-{name}.mp3"
-        await edge_tts.Communicate(text, VOICE, rate=RATE).save(str(path))
+        for attempt in range(4):   # the free endpoint drops a request now and then: retry, then fail loudly
+            try:
+                await edge_tts.Communicate(text, VOICE, rate=RATE).save(str(path))
+                break
+            except edge_tts.exceptions.NoAudioReceived:
+                if attempt == 3:
+                    raise
+                await asyncio.sleep(3 * (attempt + 1))
         secs = duration(path)
         beats.append({"id": name, "target": target, "text": text,
                       "audio": path.name, "seconds": round(secs, 3)})
