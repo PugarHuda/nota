@@ -34,15 +34,22 @@ def test_one_silent_provider_makes_the_total_unknown_not_smaller():
     led = Ledger(":memory:")
     llm = _reporting_llm()
 
-    calls = {"n": 0}
-    inner = llm.complete_json
+    import threading
 
-    def sometimes_silent(system, user, schema):
-        calls["n"] += 1
-        llm.last_usage = None if calls["n"] == 2 else {"prompt_tokens": 900, "completion_tokens": 120, "usd": 0.0004}
-        return inner(system=system, user=user, schema=schema)
+    calls, lock = {"n": 0}, threading.Lock()
+    base = type(llm)
 
-    llm.complete_json = sometimes_silent
+    class SometimesSilent(base):
+        # like the real clients: usage is written to the instance that made the call, which matters
+        # now that the three roles call side by side on their own copies
+        def complete_json(self, system, user, schema):
+            with lock:
+                calls["n"] += 1
+                n = calls["n"]
+            self.last_usage = None if n == 2 else {"prompt_tokens": 900, "completion_tokens": 120, "usd": 0.0004}
+            return base.complete_json(self, system=system, user=user, schema=schema)
+
+    llm.__class__ = SometimesSilent
     r = decide("SOL", RecordedRyoClient(FIXTURES), llm, led)
     assert r.spend["model_calls"] == 4
     assert r.spend["prompt_tokens"] is None and r.spend["usd"] is None
