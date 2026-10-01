@@ -135,7 +135,7 @@
 <header>
   <h1><a href="/">Nota</a></h1>
   <span class="tagline">Council decisions on read-only RYO evidence. Practice trades only, never financial advice.
-    <a href="/demo">Narrated walkthrough</a> · <a href="/scorecard">RYO verdict scorecard</a></span>
+    <a href="/demo">Narrated walkthrough</a> · <a href="/scorecard">RYO verdict scorecard</a> · <a href="/feed">Social feed</a></span>
   <span id="health" aria-live="polite"></span>
   <span class="keys"><span class="hint"><kbd>j</kbd>/<kbd>k</kbd> move <kbd>Enter</kbd> open <kbd>p</kbd> previous <kbd>/</kbd> filter <kbd>?</kbd> help</span>
     <button type="button" class="badge" id="theme" title="theme: light / dark" aria-pressed="false">theme: light</button></span>
@@ -177,6 +177,7 @@
     <div id="scores"></div>
     <h2>Backers (accuracy on resolved calls)</h2>
     <div id="backers"></div>
+    <p class="small"><a href="/feed#reputation">Humans and agents on one board</a> · <a href="/feed#watchlist">Watchlist</a></p>
   </aside>
 </main>
 <!-- one short sentence per receipt opened, instead of the whole receipt being read out as it renders -->
@@ -452,7 +453,7 @@ async function loadSide() {
   await healthReady;
   const [pos, sc, bk] = await Promise.all([api('/api/positions'), api('/api/scores'), api('/api/backers')]);
   $('#backers').innerHTML = bk.length ? `<table><tr><th>handle</th><th class="num">backed</th><th class="num">scored</th><th class="num">accuracy</th></tr>
-      ${bk.slice(0, 15).map(b => `<tr><td>${esc(b.handle)}</td><td class="num">${esc(b.backed)}</td><td class="num">${esc(b.scored)}</td><td class="num">${b.accuracy === null ? '—' : esc(b.accuracy)}</td></tr>`).join('')}</table>`
+      ${bk.slice(0, 15).map(b => `<tr><td><a href="/u/${encodeURIComponent(b.handle)}">${esc(b.handle)}</a></td><td class="num">${esc(b.backed)}</td><td class="num">${esc(b.scored)}</td><td class="num">${b.accuracy === null ? '—' : esc(b.accuracy)}</td></tr>`).join('')}</table>`
     : '<div class="muted small">Nobody has backed a call yet.</div>';
   const stopped = pos.filter(p => p.status === 'stopped'), hit = pos.filter(p => p.status === 'target');
   const degraded = all.filter(d => d.degraded).length, due = (window.__health && window.__health.ledger.due) || 0;

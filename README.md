@@ -498,6 +498,24 @@ The dashboard reads receipts only. It cannot show a number that has no receipt b
   went up is right, disagreeing with it is wrong, `no_trade` calls are never scored. It needs no
   account: the first backing under a handle claims it with an edit token that this browser keeps,
   so nobody else can post under that handle. The ledger keeps every stance with its timestamp.
+- **Public reasoning feed** (`/feed`, JSON at `/api/feed`): the newest receipts as cards, each
+  agent's stance and the first sentence of its thesis, the agents that dissented from the verdict
+  (a stance other than the one the action needs; on a `no_trade`, every agent that picked a side)
+  with the judge's own rationale, backing counts, an X share link to the permalink and the card.
+- **Reputation** (`/api/reputation`): backer handles and the four agents (macro, technician,
+  narrative, judge) on one scale, the share of their directional calls that matched the seven-day
+  move, over the same scored outcomes. Hit rate rather than Brier because a backer states no
+  probability; the agents' Brier rides along. Neutral and `no_trade` calls are not counted. A row
+  carries `n`, `n_independent` (the calibration rule: same symbol within seven days is one look)
+  and gets a rank only at 20 calls over 20 independent weeks; until then it reads "too few to read".
+- **Watchlist** (`POST /api/watchlist {handle, symbol, watch, token}`, `GET /api/watchlist`): a
+  public list per handle, aggregated by how many handles watch each symbol. Symbols go through
+  `clean_symbol`; the handle claim, edit token, hourly throttle and read-only rule are the backing's
+  own, and so is the store (Postgres with `DATABASE_URL`, the ledger otherwise). At most 50 per handle.
+- **Profiles** (`/u/<handle>`, JSON at `/api/users/<handle>`): one handle's backings and how each
+  scored, its reputation row and its watchlist. Served `noindex`, since a handle is a claim.
+
+Every list starts empty and says so; nothing on these pages is sample data.
 
 ## Evaluate with zero keys
 

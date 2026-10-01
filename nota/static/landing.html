@@ -24,7 +24,7 @@
         <a href="#how">How it works</a>
         <a href="/scorecard">RYO scorecard</a>
         <a href="/judges">For judges</a>
-        <a href="https://github.com/PugarHuda/nota">Source</a>
+        <a href="/feed">Feed</a>
         <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
       </div></details>
       <a href="/ja" hreflang="ja" lang="ja">日本語</a>
@@ -211,6 +211,10 @@
           with it. A no trade is never scored.</p>
         <p>The agents are on the same hook: each carries its own Brier score from past calls, and that score is what
           decides how much the judge listens next time.</p>
+        <p>The <a href="/feed">public reasoning feed</a> shows every call with each agent's stance, who dissented and why,
+          and a share link. Its <a href="/feed#reputation">reputation board</a> ranks backers and agents on the same
+          hit rate, and stays unranked until a record is long enough to read. Handles can also keep a public
+          <a href="/feed#watchlist">watchlist</a>.</p>
       </div>
       <figure>
         <pre class="proof" tabindex="0" role="region" aria-label="curl proof"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
@@ -256,6 +260,7 @@
     <div class="cols">
       <a href="/app">Dashboard</a>
       <a href="/demo">Walkthrough video</a>
+      <a href="/feed">Social feed</a>
       <a href="/api/skills/">Skill catalogue</a>
       <a href="/llms.txt">llms.txt</a>
       <span class="muted">MCP endpoint: <code>POST /mcp</code></span>

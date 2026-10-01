@@ -196,7 +196,7 @@ def test_demo_page_plays_the_shipped_video_and_lists_its_real_chapters(server, b
 @pytest.mark.parametrize("width,height", [(320, 640), (390, 844), (768, 1024), (1440, 900)])
 def test_no_horizontal_overflow_on_either_page_at_any_width(server, browser, width, height):
     page, problems = page_with_log(browser, viewport={"width": width, "height": height})
-    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", "/feed", "/u/nobody"):
         page.goto(server + path, wait_until="networkidle")
         page.wait_for_timeout(400)
         overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
@@ -544,7 +544,7 @@ def test_the_mcp_apps_view_completes_the_handshake_and_renders_data_as_text(brow
 def test_no_page_breaks_its_own_content_security_policy(server, browser):
     """The policy is 'self' only. Any inline handler, eval, third-party font or remote image a page
     still relied on would show here as a violation, and in production as a silently missing piece."""
-    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", "/feed", "/u/nobody"):
         page = browser.new_page(viewport={"width": 1200, "height": 900})
         violations: list[str] = []
         page.on("console", lambda m, v=violations: v.append(m.text) if "Content Security Policy" in m.text else None)
@@ -662,7 +662,7 @@ def test_the_dark_theme_chosen_anywhere_holds_everywhere(server, browser):
     page.goto(server + "/app", wait_until="networkidle")
     page.click("#theme")
     assert page.get_attribute("#theme", "aria-pressed") == "true"
-    for path in ("/", "/ja", "/scorecard", "/demo"):
+    for path in ("/", "/ja", "/scorecard", "/demo", "/feed", "/u/nobody"):
         page.goto(server + path, wait_until="networkidle")
         assert page.evaluate("() => document.documentElement.dataset.theme") == "dark", path
         assert page.get_attribute("#theme", "aria-pressed") == "true", path
@@ -777,7 +777,7 @@ def test_the_landing_verify_button_keeps_focus_while_it_runs(server, browser):
 
 def test_every_page_names_one_canonical_an_absolute_card_and_its_feed(server, browser):
     """What a crawler or a link preview reads from the rendered head, not the raw file."""
-    for path in ("/", "/ja", "/app", "/scorecard", "/demo", f"/r/{RECEIPT}"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", "/feed", "/u/nobody", f"/r/{RECEIPT}"):
         page, problems = page_with_log(browser, viewport={"width": 1200, "height": 900})
         page.goto(server + path, wait_until="domcontentloaded")
         canon = page.eval_on_selector_all('link[rel="canonical"]', "els => els.map(e => e.href)")
@@ -852,7 +852,7 @@ def test_feeds_csv_and_agent_card_answer_over_the_wire(server, browser):
 
 def test_the_folded_menu_closes_on_escape_and_on_a_click_elsewhere(server, browser):
     page, problems = page_with_log(browser, viewport={"width": 390, "height": 844})
-    for path in ("/", "/scorecard", "/demo"):
+    for path in ("/", "/scorecard", "/demo", "/feed", "/u/nobody"):
         page.goto(server + path, wait_until="networkidle")
         page.click("body > nav .menu summary")
         assert page.evaluate("document.querySelector('body > nav .menu').open")

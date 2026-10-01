@@ -451,6 +451,57 @@ def reliability(ledger: Ledger, bins: int = 5) -> dict[str, Any]:
             "enough_to_read": _enough(len(rows), n_ind), "meaningful_at": MEANINGFUL_N}
 
 
+def backer_correct(stance: str, action: str, went_up: bool) -> bool | None:
+    """A backer is right when their stance matched how the call turned out; no_trade calls are not scored."""
+    if action not in ("long", "short"):
+        return None
+    call_right = (action == "long") == went_up
+    return call_right if stance == "agree" else not call_right
+
+
+def reputation(ledger: Ledger, backings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Humans and agents on one scale: the share of their directional calls that went the way they said,
+    over the same scored outcomes. An agent calls a direction when its stance is bullish or bearish (the
+    judge when it says long or short); a backer calls one by agreeing or disagreeing with a long or a
+    short. Neutral, no_trade and unresolved calls are not counted. Only rows with `enough_to_read` (n and
+    independent weeks both at MEANINGFUL_N) get a rank; the rest are listed, unranked, as too few to read.
+
+    ponytail: hit rate, not Brier, because a backer states no probability; agents' Brier rides along."""
+    calls: dict[tuple[str, str], list[tuple[str, str, bool]]] = {}
+    briers: dict[str, list[float]] = {}
+    scored = {rec.id: (o, rec) for o, rec in _scored_outcomes(ledger)}
+    for o, rec in scored.values():
+        up = bool(o["went_up"])
+        for op in rec.opinions:
+            if op.stance != "neutral":
+                calls.setdefault(("agent", op.role), []).append((rec.symbol, rec.created_at, (op.stance == "bullish") == up))
+        if rec.verdict.action != "no_trade":
+            calls.setdefault(("agent", "judge"), []).append((rec.symbol, rec.created_at, (rec.verdict.action == "long") == up))
+        for role, b in o["brier"].items():
+            briers.setdefault(role, []).append(b)
+    for b in backings:
+        if b["decision_id"] not in scored:
+            continue
+        o, rec = scored[b["decision_id"]]
+        hit = backer_correct(b["stance"], rec.verdict.action, bool(o["went_up"]))
+        if hit is not None:
+            calls.setdefault(("human", b["handle"]), []).append((rec.symbol, rec.created_at, hit))
+    for role in (*ROLES, "judge"):          # an agent with no directional call yet is still on the board, at n=0
+        calls.setdefault(("agent", role), [])
+    rows = []
+    for (kind, name), cs in calls.items():
+        n, hits, n_ind = len(cs), sum(h for _, _, h in cs), n_independent([(s, t) for s, t, _ in cs])
+        b = briers.get(name) if kind == "agent" else None
+        rows.append({"kind": kind, "name": name, "n": n, "hits": hits, "hit_rate": round(hits / n, 4) if n else None,
+                     "n_independent": n_ind, "enough_to_read": _enough(n, n_ind),
+                     "brier_mean": round(sum(b) / len(b), 4) if b else None})
+    rows.sort(key=lambda r: (not r["enough_to_read"], -(r["hit_rate"] or 0) if r["enough_to_read"] else 0, -r["n"], r["name"]))
+    for i, r in enumerate(rows):
+        r["rank"] = i + 1 if r["enough_to_read"] else None
+    return {"rows": rows, "scored_outcomes": len(scored), "meaningful_at": MEANINGFUL_N,
+            "scale": "hit rate: share of directional calls that matched the 7-day move"}
+
+
 def role_weights(scores: dict[str, dict[str, float]]) -> dict[str, float]:
     """1/(brier+0.05), normalised so the best role has weight 1.0, floor 0.2; then shrunk towards 1.0 by
     n/(n+MEANINGFUL_N), so five scored calls move a weight a fifth of the way and one call barely at

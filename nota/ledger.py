@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS settlements (
   PRIMARY KEY (lock_id, horizon_h));
 CREATE TABLE IF NOT EXISTS handle_claims (
   handle TEXT PRIMARY KEY, token_sha256 TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS watchlist (
+  handle TEXT NOT NULL, symbol TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (handle, symbol));
 CREATE TABLE IF NOT EXISTS stamps (
   subject TEXT PRIMARY KEY, kind TEXT NOT NULL, digest TEXT NOT NULL, ots BLOB NOT NULL, status TEXT NOT NULL,
   stamped_at TEXT NOT NULL, upgraded_at TEXT, block INTEGER);
@@ -132,6 +134,20 @@ class Ledger:
     def token_sha(self, handle: str) -> str | None:
         row = self.conn.execute("SELECT token_sha256 FROM handle_claims WHERE handle=?", (handle,)).fetchone()
         return row["token_sha256"] if row else None
+
+    def watch(self, handle: str, symbol: str, on: bool) -> None:
+        if on:
+            self.conn.execute("INSERT OR IGNORE INTO watchlist VALUES (?,?,?)", (handle, symbol, now_iso()))
+        else:
+            self.conn.execute("DELETE FROM watchlist WHERE handle=? AND symbol=?", (handle, symbol))
+
+    def watches(self, handle: str | None = None) -> list[dict[str, Any]]:
+        try:
+            rows = self.conn.execute("SELECT handle, symbol, created_at FROM watchlist WHERE ? IS NULL OR handle=? "
+                                     "ORDER BY created_at", (handle, handle)).fetchall()
+        except sqlite3.OperationalError:   # a snapshot from before the watchlist existed holds none
+            return []
+        return [dict(r) for r in rows]
 
     def unresolved(self) -> list[str]:
         rows = self.conn.execute(

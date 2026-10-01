@@ -20,6 +20,15 @@ What Nota does not do, or does only partly. Each item says where it shows.
   so every block it shows comes from code. The exchange prices echo RYO's recorded price, and waits are
   counted, not slept. Its receipts say `source: drill` and are never stored or scored.
 
+## SocialFi
+- Handles are unverified claims. The first write under a handle holds it with an edit token kept in
+  that browser; nothing ties it to the X, Discord or Telegram account of the same name, and a lost
+  token cannot be recovered.
+- Reputation is a hit rate on directional calls, not a Brier score, because a backer states no
+  probability. No row is ranked until 20 calls over 20 independent weeks, so the board is mostly
+  "too few to read" for now.
+- Writes are limited per address per hour, not per person.
+
 ## Sources
 - `x:` voices are best effort. X's public syndication endpoint has answered `HTTP 429` to ordinary
   connections since 2026-09-10. The fallbacks and how much each one covers are listed in

@@ -140,3 +140,39 @@ def test_theme_is_light_by_default_and_dark_only_by_choice(server, browser):
     page.click("#theme")
     assert page.evaluate("document.documentElement.dataset.theme") == "light"
     page.close()
+
+
+def test_the_feed_renders_hostile_text_as_text_and_the_watchlist_form_round_trips(server, browser, tmp_path):
+    """A thesis is model output and a handle is anyone's typing: both reach innerHTML only escaped."""
+    import json
+
+    from nota.ledger import Ledger
+
+    base, first, second = server
+    led = Ledger(str(tmp_path / "t.db"))
+    r = json.loads(led.get_decision(second.id))
+    r["opinions"][0]["thesis"] = '<img src=x onerror="window.__pwned=1">Dissent.'
+    led.conn.execute("UPDATE decisions SET receipt_json=? WHERE id=?", (json.dumps(r), second.id))
+    api._BACKING_HITS.clear()
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(base + "/feed", wait_until="networkidle")
+    assert page.locator(f"#c-{first.id}").count() == 1
+    assert '<img src=x onerror="window.__pwned=1">' in page.locator("#cards").inner_text()
+    assert page.evaluate("() => window.__pwned") is None and page.locator("#cards img").count() == 0
+    share = page.get_attribute(f"#c-{second.id} ~ .share a", "href")
+    assert share.startswith("https://x.com/intent/tweet?") and f"%2Fr%2F{second.id}" in share
+    page.fill("#w-handle", "@Alice")
+    page.fill("#w-symbol", "sol")
+    page.click("form.watch button[value=add]")
+    page.wait_for_function("() => document.querySelector('#watch-out').textContent.includes('watches SOL')")
+    assert "edit token" in page.locator("#watch-out").inner_text()
+    page.wait_for_selector("ol.watched li")
+    assert page.locator("ol.watched li").inner_text().startswith("SOL")
+    page.click("ol.watched a")
+    page.wait_for_url("**/u/alice")
+    page.wait_for_function("() => document.querySelector('#watch').textContent.includes('SOL')")
+    assert page.locator("#who").inner_text() == "alice"
+    assert errors == []
+    page.close()
