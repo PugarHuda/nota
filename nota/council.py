@@ -11,11 +11,13 @@ citation is downgraded to low confidence in code, not by asking the model nicely
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
 import time
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -300,8 +302,36 @@ def run_council(
     hits = 0
     spend = _Spend()
     opinions: list[Opinion] = []
+    # The three roles are independent, so their model calls run side by side: a live council took up to
+    # 220 s against a 300 s function limit when they ran one after another. The cache stays on this thread
+    # (sqlite connections do not cross threads) and each call gets its own copy of the client, so
+    # `last_usage` cannot be overwritten by a sibling call.
+    found: dict[str, tuple[Any, bool, float, Any]] = {}
+    todo = []
     for role in ROLES:
-        raw, hit, ms, usage = _cached_call(ledger, llm, pack_hash, role, ROLE_SYSTEM[role], _role_prompt(pack, role), Opinion, use_cache, prompt_version)
+        key = cache_key(pack_hash, role, llm.model, prompt_version)
+        t0 = time.perf_counter()
+        hit = ledger.get_cached(key) if use_cache else None
+        if hit is not None:
+            found[role] = (Opinion.model_validate_json(hit), True, (time.perf_counter() - t0) * 1000, None)
+        else:
+            todo.append(role)
+
+    def ask(role: str) -> tuple[Any, bool, float, Any]:
+        own = copy.copy(llm)
+        t0 = time.perf_counter()
+        out = own.complete_json(system=ROLE_SYSTEM[role], user=_role_prompt(pack, role), schema=Opinion)
+        return out, False, (time.perf_counter() - t0) * 1000, getattr(own, "last_usage", None)
+
+    if todo:
+        with ThreadPoolExecutor(max_workers=len(todo)) as pool:
+            for role, res in zip(todo, pool.map(ask, todo)):
+                found[role] = res
+                if use_cache:  # a fresh (cache-bypassing) run must not overwrite the original decision's outputs
+                    ledger.put_cached(cache_key(pack_hash, role, llm.model, prompt_version), pack_hash, role,
+                                      prompt_version, llm.model, res[0].model_dump_json())
+    for role in ROLES:
+        raw, hit, ms, usage = found[role]
         hits += hit
         spend.add(hit, ms, usage)
         opinions.append(validate_citations(raw.model_copy(update={"role": role}), allowed))

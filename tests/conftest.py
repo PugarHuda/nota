@@ -27,3 +27,10 @@ def _clear_rate_limiter():
     sources._CACHE.clear()
     price_check._CG_IDS.clear()
     api._health_cache = None
+
+
+@pytest.fixture(autouse=True)
+def _no_paid_search_key(monkeypatch):
+    # nota loads .env on import, so a developer's real TAVILY_API_KEY would send unmocked searches and
+    # make the suite depend on whose machine runs it; a test that needs the key sets its own
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
