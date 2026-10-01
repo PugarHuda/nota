@@ -15,9 +15,9 @@ from tests.test_api import _seed
 @pytest.fixture(autouse=True)
 def _fresh_budget(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
     yield
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
 
 
 def _resolve(tmp_path, id, up=True):
@@ -94,8 +94,8 @@ def test_the_watchlist_claims_handles_like_backing_and_aggregates(tmp_path, monk
 
 def test_a_watchlist_is_capped(tmp_path, monkeypatch):
     _seed(tmp_path, monkeypatch)
-    monkeypatch.setattr(api, "WATCH_MAX", 2)
-    monkeypatch.setattr(api, "BACKING_LIMIT", 100)
+    monkeypatch.setattr(api.social, "WATCH_MAX", 2)
+    monkeypatch.setattr(api.common, "BACKING_LIMIT", 100)
     c = TestClient(api.app)
     token = c.post("/api/watchlist", json={"handle": "alice", "symbol": "SOL"}).json()["edit_token"]
     c.post("/api/watchlist", json={"handle": "alice", "symbol": "ETH", "token": token})
@@ -110,10 +110,10 @@ def test_watchlist_writes_share_the_backing_throttle_and_the_read_only_rule(tmp_
 
     _seed(tmp_path, monkeypatch)
     c = TestClient(api.app)
-    api._BACKING_HITS["testclient"] = [time.time()] * api.BACKING_LIMIT
+    api.common._BACKING_HITS["testclient"] = [time.time()] * api.common.BACKING_LIMIT
     r = c.post("/api/watchlist", json={"handle": "alice", "symbol": "SOL"})
     assert r.status_code == 429 and int(r.headers["retry-after"]) > 0
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
 
     sqlite3.connect(str(tmp_path / "t.db")).execute(f"VACUUM INTO '{(tmp_path / 'snap.db').as_posix()}'")
     monkeypatch.setenv("NOTA_DB", str(tmp_path / "snap.db"))
@@ -144,12 +144,12 @@ def test_the_feed_names_who_dissented_and_carries_share_links(tmp_path, monkeypa
     assert top["backing"] == {"agree": 1, "disagree": 0} and top["url"] == f"http://testserver/r/{second.id}"
     assert top["card"] == f"http://testserver/r/{second.id}.png" and top["outcome"] is None
     assert {a["role"] for a in top["agents"]} == {o.role for o in second.opinions}
-    aligned = api.ALIGNED[top["action"]]
+    aligned = api.social.ALIGNED[top["action"]]
     assert [d["role"] for d in top["dissent"]] == [o.role for o in second.opinions if o.stance != aligned]
     assert top["split"] == (len({o.stance for o in second.opinions}) > 1)
     assert all(len(a["thesis"]) <= 180 for a in top["agents"])
     assert [d["role"] for d in feed[1]["dissent"]] == [o.role for o in first.opinions]   # bullish agents, no_trade verdict
-    assert api._line("First claim. Second claim.") == "First claim." and api._line("a" * 300).endswith("…")
+    assert api.social._line("First claim. Second claim.") == "First claim." and api.social._line("a" * 300).endswith("…")
 
 
 def test_a_profile_shows_backings_record_and_watchlist(tmp_path, monkeypatch):
@@ -181,10 +181,10 @@ def test_the_pages_are_served_linked_and_escape_what_people_type(tmp_path, monke
     for hostile in ("%3Cscript%3E", "a%22b%3Ec", "ab"):
         assert c.get(f"/u/{hostile}").status_code == 422, hostile                    # never echoed into the page
     for page in ("feed.html", "profile.html"):
-        src = (api.STATIC / page).read_text(encoding="utf-8")
+        src = (api.common.STATIC / page).read_text(encoding="utf-8")
         assert "const esc = s =>" in src and "<!--OG-->" in src
     assert "/feed" in c.get("/sitemap.xml").text
     llms = c.get("/llms.txt").text
     assert "/feed)" in llms and "/api/reputation)" in llms and "/api/watchlist)" in llms
     for page in ("landing.html", "landing.ja.html", "judges.html", "scorecard.html", "index.html"):
-        assert 'href="/feed"' in (api.STATIC / page).read_text(encoding="utf-8"), page
+        assert 'href="/feed"' in (api.common.STATIC / page).read_text(encoding="utf-8"), page

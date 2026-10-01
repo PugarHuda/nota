@@ -88,8 +88,8 @@ def test_api_runs_a_drill_and_writes_nothing_to_the_configured_ledger(tmp_path, 
 
 def test_api_drill_is_throttled_per_address():
     c = TestClient(api.app)
-    for _ in range(api.DRILL_PER_IP):
-        api._throttle_n("drill:testclient", 1, api.DRILL_PER_IP)
+    for _ in range(api.live.DRILL_PER_IP):
+        api.common._throttle_n("drill:testclient", 1, api.live.DRILL_PER_IP)
     assert c.post("/api/drill", json={"scenario": "partial"}).status_code == 429
 
 

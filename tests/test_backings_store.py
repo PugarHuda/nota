@@ -66,8 +66,8 @@ def test_a_read_only_ledger_with_a_database_can_still_be_backed(tmp_path, monkey
         def token_sha(self, handle):
             return claims.get(handle)
 
-    monkeypatch.setattr(api, "store_for", lambda led: Fake())
-    api._BACKING_HITS.clear()
+    monkeypatch.setattr(api.social, "store_for", lambda led: Fake())
+    api.common._BACKING_HITS.clear()
     c = TestClient(api.app)
     r = c.post(f"/api/decisions/{id}/back", json={"handle": "someone", "stance": "agree"})
     assert r.status_code == 200 and r.json()["agree"] == 1
@@ -78,7 +78,7 @@ def test_without_anywhere_to_write_it_says_so_instead_of_pretending(tmp_path, mo
     id = _seed(tmp_path, monkeypatch)
     monkeypatch.setenv("NOTA_READONLY", "1")
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    api._BACKING_HITS.clear()
+    api.common._BACKING_HITS.clear()
     r = TestClient(api.app).post(f"/api/decisions/{id}/back", json={"handle": "someone", "stance": "agree"})
     assert r.status_code == 503 and "DATABASE_URL" in r.json()["detail"]
 
@@ -179,10 +179,10 @@ def test_with_a_database_the_rate_limit_is_shared_and_falls_back_when_it_is_down
 
     monkeypatch.setattr(psycopg, "connect", lambda *a, **kw: Conn())
     monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
-    assert api._throttle_n("skill:ip", 20, limit=60) is None and state["n"] == 20
+    assert api.common._throttle_n("skill:ip", 20, limit=60) is None and state["n"] == 20
     assert sql == ["SELECT", "DELETE", "SELECT", "INSERT"]          # lock, expire, count, charge: one transaction
-    assert api._throttle_n("skill:ip", 41, limit=60) == 1800 and state["n"] == 20   # refused, nothing charged
-    assert not api._BACKING_HITS                                     # nothing counted locally while the table answers
+    assert api.common._throttle_n("skill:ip", 41, limit=60) == 1800 and state["n"] == 20   # refused, nothing charged
+    assert not api.common._BACKING_HITS                                     # nothing counted locally while the table answers
 
     monkeypatch.setattr(psycopg, "connect", lambda *a, **kw: (_ for _ in ()).throw(psycopg.OperationalError("down")))
-    assert api._throttle_n("skill:ip", 1, limit=60) is None and len(api._BACKING_HITS["skill:ip"]) == 1
+    assert api.common._throttle_n("skill:ip", 1, limit=60) is None and len(api.common._BACKING_HITS["skill:ip"]) == 1
