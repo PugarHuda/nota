@@ -101,6 +101,17 @@ jobs:
             uv run nota decide "$s" --once-a-day || { echo "::warning::decide $s failed; the rest are skipped"; break; }
           done
 
+      - name: Run the multi-KOL agent on public voices
+        # No LLM: lexicon sentiment and rules only. RYO is read only for a token whose signal fires, to size it on ATR.
+        # Public Telegram and Bluesky voices that answered from a runner-like address on 2026-10-02.
+        if: ${{ !cancelled() && env.FULL == 'true' && env.HAS_RYO == 'true' }}
+        timeout-minutes: 10
+        env:
+          RYO_MCP_KEY: ${{ secrets.RYO_MCP_KEY }}
+        run: |
+          uv run nota kol --voices tg:WatcherGuru,tg:cointelegraph,tg:whale_alert_io,tg:CoinDeskGlobal,tg:the_block_crypto,bs:decrypt.co,bs:unusualwhales.bsky.social \
+            || echo "::warning::kol run failed; the cycle continues"
+
       - name: Anchor new locks and receipts in Bitcoin
         # Keyless: OpenTimestamps calendars and mempool.space. A calendar outage leaves the subject for the next run.
         if: ${{ !cancelled() && env.FULL == 'true' }}
