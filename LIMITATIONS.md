@@ -34,6 +34,11 @@ What Nota does not do, or does only partly. Each item says where it shows.
   connections since 2026-09-10. The fallbacks and how much each one covers are listed in
   `docs/skills/SKILL-SPEC.md`, and every fallback a run takes is named in that run's warnings.
   `tg:` and `bs:` voices answer directly.
+- When X refuses, an `x:` voice is read through Tavily search, which sees only the posts its index
+  holds and drops any without a date. Such a voice is marked `coverage partial`, so a multi-KOL
+  signal built on it may have missed posts that would have broken the convergence.
+- The multi-KOL agent's practice trades are not settled yet. A KOL trade counts as an open position
+  for seven days and then ages out, rather than closing at its stop or target.
 - RYO's optional token-profile lane is often `partial` or `unavailable`. Nota keeps it as RYO
   reports it and never fills it in.
 - Some RYO derivatives fields carry the same value across unrelated tokens on the same day. The

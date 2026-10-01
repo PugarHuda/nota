@@ -25,6 +25,9 @@
   th { font-weight:700; color:var(--ink-2); font-size:13px }
   .pts { font:700 14px/1.45 var(--fig); white-space:nowrap }
   code { font-size:.92em; overflow-wrap:anywhere }
+  /* a phone stacks each row: points, what to open, what it shows */
+  @media (max-width:700px) { table, tbody, tr, td { display:block } thead { display:none } td { border:0; padding:4px 0 }
+                             tr { border-bottom:1px solid var(--form); padding:8px 0 } }
 </style>
 </head>
 <body>
@@ -87,6 +90,11 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
       <code>identical: true</code>. Offline: <code>uv run nota replay &lt;id&gt;</code>. Each receipt is also anchored in Bitcoin (OpenTimestamps).</li>
   <li><b>Advanced (5).</b> Practice trades sized from ATR with stops and targets, a twice-daily ledger cycle in CI, and
       every agent scored by Brier against the token's own base rate.</li>
+  <li><b>The spotlight idea, built.</b> The <a href="/kol">multi-KOL agent</a> reads up to 20 voices (X, Telegram, Bluesky),
+      finds the tokens they name with sentiment, conviction and urgency, and opens a practice position only when the voices
+      converge and every user rule passes. Each rule is shown with the value it read and its threshold; the stop comes from
+      RYO's ATR, and with no RYO evidence there is no trade. Stored runs replay offline: <code>uv run nota kol-replay &lt;id&gt;</code>.
+      X voices fall back to Tavily search when X refuses, marked "coverage partial".</li>
 </ol>
 
 <h2 id="t2">Track 2 · Dashboards &amp; Interfaces</h2>
@@ -122,6 +130,11 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
 </main>
 <script>
 (() => {
+  // wide, the section menu is held open with its summary hidden, so the theme switch stays reachable
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const fit = () => { menu.open = wide.matches; };
+  fit();
+  wide.addEventListener('change', fit);
   const theme = document.getElementById('theme'), root = document.documentElement;
   const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
   theme.addEventListener('click', () => {

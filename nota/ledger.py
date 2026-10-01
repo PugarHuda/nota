@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS watchlist (
 CREATE TABLE IF NOT EXISTS stamps (
   subject TEXT PRIMARY KEY, kind TEXT NOT NULL, digest TEXT NOT NULL, ots BLOB NOT NULL, status TEXT NOT NULL,
   stamped_at TEXT NOT NULL, upgraded_at TEXT, block INTEGER);
+CREATE TABLE IF NOT EXISTS kol_runs (
+  id TEXT PRIMARY KEY, created_at TEXT NOT NULL, run_json TEXT NOT NULL);
 """
 
 
@@ -215,6 +217,26 @@ class Ledger:
     def pending_stamps(self, older_than: str) -> list[dict[str, Any]]:
         rows = self.conn.execute("SELECT * FROM stamps WHERE status='pending' AND stamped_at < ? ORDER BY stamped_at", (older_than,))
         return [dict(r) for r in rows.fetchall()]
+
+    # multi-KOL agent runs (nota.kol): the narrative envelope, the rules and every decision --------
+    def save_kol(self, id: str, run_json: str) -> None:
+        self.conn.execute("INSERT OR IGNORE INTO kol_runs VALUES (?,?,?)", (id, now_iso(), run_json))
+
+    def get_kol(self, id: str) -> str | None:
+        try:
+            row = self.conn.execute("SELECT run_json FROM kol_runs WHERE id=?", (id,)).fetchone()
+        except sqlite3.OperationalError:  # a read-only snapshot from before KOL runs existed
+            return None
+        return row["run_json"] if row else None
+
+    def list_kol(self, limit: int = 50, since: str | None = None) -> list[tuple[str, str, str]]:
+        """(id, created_at, run_json), newest first; `since` an ISO time."""
+        try:
+            rows = self.conn.execute("SELECT id, created_at, run_json FROM kol_runs WHERE created_at >= ? "
+                                     "ORDER BY created_at DESC, rowid DESC LIMIT ?", (since or "", max(1, min(int(limit), 200))))
+        except sqlite3.OperationalError:
+            return []
+        return [(r["id"], r["created_at"], r["run_json"]) for r in rows.fetchall()]
 
     # snapshot merge (the ledger cycle's push-conflict path) ------------------------------------
     def merge_from(self, other_path: str) -> dict[str, int]:

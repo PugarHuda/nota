@@ -277,6 +277,43 @@ uv run nota skill run price_crosscheck '{"symbol":"SOL","reference_price":150}'
 uv run pytest -q
 ```
 
+## Multi-KOL agent (Track 1 spotlight)
+
+The hackathon's spotlight idea, end to end: pick up to 20 crypto voices, let Nota find the tokens
+they name with sentiment, conviction and urgency, and open a practice position only when trusted
+voices converge and every rule you set passes.
+
+```bash
+uv run nota kol --voices x:handle,tg:WatcherGuru,bs:decrypt.co --min-voices 2 --min-sentiment 0.3 \
+  --min-conviction 0.2 --tokens SOL,ETH --account 10000 --risk-pct 1 --max-positions 3
+uv run nota kol --voices ... --watch --every 3600   # run every hour; each run is stored
+uv run nota kol-replay <id>                         # identical: True, from the ledger alone
+```
+
+Or open `/kol` in the browser (form, per-voice coverage, rule trail, position), or call
+`POST /api/kol/run` with `{"voices": [...], "rules": {...}, "limits": {...}}`; `GET /api/kol` lists
+stored runs and `GET /api/kol/<id>` replays one.
+
+- **Reading.** The voices go through the `narrative_convergence` skill. `x:` voices try X's own
+  syndication endpoint, then Tavily search; a voice read through Tavily is marked
+  `via tavily_search, coverage partial`, and an unreadable voice is `unavailable` with its reason.
+- **Rules (`nota/kol.py`).** Code, not a model. Per token: the voices converge (two or more with a
+  stance, all the same sign); voices with a stance >= `min_voices`; |sentiment_mean| >=
+  `min_sentiment`; conviction_mean >= `min_conviction`; optionally urgency_max >= `min_urgency` and
+  the token in your allowed list. Every rule is stored as `{rule, value, threshold, passed}`, the
+  value read straight from the envelope. A missing value fails its rule and stays `null`.
+- **Position.** A fired signal goes through the same `nota.risk` code as the council: RYO's
+  `deep_analysis` gives price and ATR(14), the stop is 2 ATR and the target 3 ATR away, and size
+  follows your account and risk %. No RYO evidence, no ATR, a RYO veto, a token already held, or
+  `max_positions` reached: the signal stays, the trade is refused, and the reason says which.
+  RYO is asked only about tokens that could fill a free slot.
+- **Replay.** A run is stored in the ledger's `kol_runs` table with its narrative envelope, its
+  rules and limits, the holdings it started from and its RYO evidence packs, so `kol-replay`
+  re-derives every decision with no network and no key.
+- **Hosted demo.** The snapshot is read-only, so `/api/kol/run` there returns the run unstored and
+  says so. It is throttled per address by what it fetches (one unit per voice, two per `x:` voice,
+  one per possible RYO read).
+
 ## Skills (Track 3)
 
 All nine return RYO's public envelope field for field (`docs/skills/SKILL-SPEC.md`) and are

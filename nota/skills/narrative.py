@@ -233,6 +233,7 @@ def narrative_convergence(
             "conviction_mean": round(sum(it.conviction for it in items) / len(items), 3),
             "urgency_max": max(it.urgency for it in items),
             "direction": direction,
+            "signed_voices": len(signed),  # voices whose net sentiment on the token is not zero
             "converging": converging,
             "coverage": round(len({it.voice for it in items}) / len(ok_voices), 3) if ok_voices else None,
             "first_seen": times[0] if times else None,
