@@ -18,6 +18,17 @@ rubric line it answers. The dashboard can run the council live on fresh RYO evid
 does not do is in [LIMITATIONS.md](LIMITATIONS.md), and why it is built this way is in
 [DECISIONS.md](DECISIONS.md).
 
+**What Nota does that a receipt-and-replay agent alone does not:**
+- **It audits RYO itself.** The [Verdict Scorecard](https://nota-ryo.vercel.app/scorecard) locks
+  RYO's own `deep_analysis` verdict and trade plan for 25 majors every day, before the outcome is
+  known, and settles each plan on OKX candles. RYO never grades itself, and every miss is counted.
+- **It found a defect in RYO's data and gates it.** Some derivatives fields carry one value across
+  unrelated tokens on the same day. Code withholds them from the council and names the tokens.
+- **It proves the record was not rewritten.** Every receipt and lock is anchored in Bitcoin through
+  OpenTimestamps, and every ledger snapshot CI pushes is attested with Sigstore.
+- **You can break it on purpose.** [/drill](https://nota-ryo.vercel.app/drill) injects seven real
+  failure modes into the real pipeline, offline, and shows each refusal next to a healthy run.
+
 ## RYO Verdict Scorecard
 
 Every `deep_analysis` answer carries a verdict and a trade plan (a stop 1.5 ATR away, a target at
