@@ -35,8 +35,8 @@ from nota import paths
 from nota.a2a import (PROTOCOL_VERSION as A2A_VERSION, VERSION_NOT_SUPPORTED as A2A_UNSUPPORTED, A2AError,
                       agent_card, call_from as a2a_call_from, handle as a2a_handle)
 from nota.backings import PostgresBackings, store_for
-from nota.calibration import (MEANINGFUL_N, due, reliability, role_scores, role_weights, scored_independent, skill_vs_base,
-                              skill_vs_ryo, source_scores)
+from nota.calibration import (MEANINGFUL_N, backer_correct, due, reliability, reputation, role_scores, role_weights,
+                              scored_independent, skill_vs_base, skill_vs_ryo, source_scores)
 from nota.card import render_card
 from nota.evidence import SECTIONS, EvidencePack, first_present
 from nota.ledger import Ledger, now_iso
@@ -777,6 +777,7 @@ LLMS_PAGES = {
     "/": "Overview: what Nota claims and how to check it",
     "/ja": "The overview in Japanese",
     "/app": "Dashboard: every receipt, diffed against the one before it",
+    "/feed": "Public reasoning feed: each agent's stance and thesis, who dissented, backing counts, share links",
     "/scorecard": "RYO Verdict Scorecard",
     "/judges": "One screen per hackathon track: what to open and which rubric line it answers",
     "/demo": "Narrated three-and-a-half-minute walkthrough with a clickable transcript",
@@ -786,6 +787,9 @@ LLMS_PAGES = {
     "/api/positions": "Open practice positions against the latest evidence price",
     "/api/scores": "Brier score per council role, against the base rate and against RYO's own call",
     "/api/backers": "Handles that backed or faded receipts, and how often they were right",
+    "/api/reputation": "Backers and council agents ranked on one scale (hit rate), unranked until 20 calls from 20 independent weeks",
+    "/api/feed": "The reasoning feed as JSON: stances, one-line theses, dissent and backing per receipt",
+    "/api/watchlist": "The public watchlist: symbols ranked by how many handles watch them",
     "/api/outcomes.csv": "Every resolved decision: each role's p_up_7d, the base rate, what happened, Brier",
     "/api/scorecard.csv": "Every scorecard lock at both horizons",
     "/feed.xml": "Atom feed of receipts, their outcomes and settled RYO plans",
@@ -978,21 +982,28 @@ def council_live(symbol: str, request: Request) -> dict[str, Any]:
             "seconds": round(time.time() - started, 1), "receipt": r.model_dump(mode="json"), "markdown": render_markdown(r)}
 
 
-@app.post("/api/decisions/{id}/back")
-def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
-    """One stance per handle per receipt, latest wins. There are no accounts: the first post under a
-    handle claims it and gets an edit token back once, and every later post under that handle has to
-    carry the token. Only its SHA-256 is stored, so a leaked database does not leak the tokens."""
-    handle = body.handle.strip(" ").lstrip("@").lower()  # "@Abc" and "abc" are one backer; a newline is refused, not trimmed
+def _handle(raw: str) -> str:
+    handle = raw.strip(" ").lstrip("@").lower()  # "@Abc" and "abc" are one backer; a newline is refused, not trimmed
     if not HANDLE.fullmatch(handle):
         raise HTTPException(422, "handle must be 3-32 characters: letters, digits, _ . - (a leading @ is dropped)")
+    return handle
+
+
+def _writable(request: Request) -> tuple[Ledger, Any]:
+    """The ledger and the store a public write goes to, after the address's hourly budget is charged."""
     _throttle(request.client.host if request.client else "unknown")
     led = _ledger()
     store = store_for(led)
     if store is led and led.readonly:
         raise HTTPException(503, "this is a read-only demo deployment over a ledger snapshot and no DATABASE_URL is set; "
                                  "backing works on a writable `nota serve`")
-    _receipt(led, id)
+    return led, store
+
+
+def _authorise(store: Any, handle: str, token: str | None) -> str | None:
+    """There are no accounts: the first write under a handle claims it and gets an edit token back once,
+    and every later write under that handle has to carry the token. Only its SHA-256 is stored, so a
+    leaked database does not leak the tokens. Returns the new token when this call claimed the handle."""
     new_token = None
     stored = store.token_sha(handle)
     if stored is None:
@@ -1001,9 +1012,19 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
             stored = store.token_sha(handle)   # someone claimed it between the read and the write
             new_token = None
     if new_token is None:
-        sent = hashlib.sha256((body.token or "").encode()).hexdigest()
+        sent = hashlib.sha256((token or "").encode()).hexdigest()
         if not stored or not hmac.compare_digest(sent, stored):
             raise HTTPException(409, "handle already claimed; send its edit token")
+    return new_token
+
+
+@app.post("/api/decisions/{id}/back")
+def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
+    """One stance per handle per receipt, latest wins, under a claimed handle (`_authorise`)."""
+    handle = _handle(body.handle)
+    led, store = _writable(request)
+    _receipt(led, id)
+    new_token = _authorise(store, handle, body.token)
     store.add_backing(id, handle, body.stance)
     out = _backing_counts(led, id)
     if new_token:
@@ -1011,12 +1032,129 @@ def back_decision(id: str, body: BackingIn, request: Request) -> dict[str, Any]:
     return out
 
 
-def backer_correct(stance: str, action: str, went_up: bool) -> bool | None:
-    """A backer is right when their stance matched how the call turned out; no_trade calls are not scored."""
-    if action not in ("long", "short"):
-        return None
-    call_right = (action == "long") == went_up
-    return call_right if stance == "agree" else not call_right
+# --- SocialFi: a public watchlist, one reputation board for humans and agents, a reasoning feed ------
+WATCH_MAX = 50   # symbols per handle: a watchlist, not a mirror of every listing
+
+
+class WatchIn(BaseModel):
+    handle: str = Field(description="X / Discord / Telegram handle, 3-32 chars")
+    symbol: str = Field(max_length=32)
+    watch: bool = Field(True, description="false removes the symbol")
+    token: str | None = Field(None, max_length=128, description="the edit token returned by this handle's first write")
+
+
+@app.post("/api/watchlist")
+def watch_symbol(body: WatchIn, request: Request) -> dict[str, Any]:
+    """Add a symbol to (or, with watch=false, remove it from) a handle's public watchlist. Same handle
+    claim, edit token, throttle and read-only rule as backing."""
+    from nota.skills.contract import clean_symbol
+
+    handle = _handle(body.handle)
+    try:
+        sym = clean_symbol(body.symbol)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    _, store = _writable(request)
+    new_token = _authorise(store, handle, body.token)
+    mine = [w["symbol"] for w in store.watches(handle)]
+    if body.watch and sym not in mine and len(mine) >= WATCH_MAX:
+        raise HTTPException(422, f"a watchlist holds at most {WATCH_MAX} symbols")
+    store.watch(handle, sym, body.watch)
+    out: dict[str, Any] = {"handle": handle, "symbols": [w["symbol"] for w in store.watches(handle)]}
+    if new_token:
+        out["edit_token"] = new_token
+    return out
+
+
+@app.get("/api/watchlist")
+def watchlist(limit: int = Query(50, ge=1, le=200)) -> dict[str, Any]:
+    """Which symbols the most handles watch, each with up to 20 of those handles."""
+    # ponytail: counted in Python over every row; a GROUP BY when the table outgrows one response
+    rows = store_for(_ledger()).watches()
+    by: dict[str, list[str]] = {}
+    for w in rows:
+        by.setdefault(w["symbol"], []).append(w["handle"])
+    symbols = sorted(({"symbol": k, "watchers": len(v), "handles": v[:20]} for k, v in by.items()),
+                     key=lambda r: (-r["watchers"], r["symbol"]))
+    return {"symbols": symbols[:limit], "handles": len({w["handle"] for w in rows})}
+
+
+@app.get("/api/reputation")
+def reputation_board() -> dict[str, Any]:
+    """Backer handles and the council's agents ranked on one scale (calibration.reputation)."""
+    led = _ledger()
+    return reputation(led, store_for(led).all_backings())
+
+
+def _line(text: str, cap: int = 180) -> str:
+    """The first sentence, so a card shows the claim and the receipt holds the argument."""
+    first = re.split(r"(?<=[.!?])\s", text.strip(), maxsplit=1)[0]
+    return first if len(first) <= cap else first[:cap - 1].rstrip() + "…"
+
+
+ALIGNED = {"long": "bullish", "short": "bearish", "no_trade": "neutral"}
+
+
+@app.get("/api/feed")
+def reasoning_feed(request: Request, limit: int = Query(20, ge=1, le=50)) -> list[dict[str, Any]]:
+    """The newest receipts as public reasoning: each agent's stance and one-line thesis, who dissented
+    from the verdict and why, and the backing counts. The /feed page is drawn from this."""
+    base, led = _base(request), _ledger()
+    backs: dict[str, list[str]] = {}
+    for b in store_for(led).all_backings():   # once, not once per card: on Postgres each read is a connection
+        backs.setdefault(b["decision_id"], []).append(b["stance"])
+    out = []
+    for d in led.list_decisions(limit=limit):
+        r = _receipt(led, d["id"])
+        raw = led.get_outcome(r.id)
+        o = json.loads(raw) if raw else None
+        agents = [{"role": op.role, "stance": op.stance, "p_up_7d": op.p_up_7d, "confidence": op.confidence,
+                   "thesis": _line(op.thesis)} for op in r.opinions]
+        st = backs.get(r.id, [])
+        out.append({"id": r.id, "symbol": r.symbol, "created_at": r.created_at, "headline": r.headline,
+                    "action": r.verdict.action, "p_up_7d": r.verdict.p_up_7d, "rationale": _line(r.verdict.rationale, 240),
+                    "agents": agents, "split": len({a["stance"] for a in agents}) > 1,
+                    # an agent dissents when its stance is not the one the verdict acts on
+                    "dissent": [a for a in agents if a["stance"] != ALIGNED[r.verdict.action]],
+                    "judge_disagreed_with": r.verdict.disagreed_with,
+                    "backing": {"agree": st.count("agree"), "disagree": st.count("disagree")},
+                    "outcome": {"went_up": o["went_up"], "return_pct": o.get("return_pct")} if o else None,
+                    "url": f"{base}/r/{r.id}", "card": f"{base}/r/{r.id}.png"})
+    return out
+
+
+@app.get("/api/users/{handle}")
+def user_profile(handle: str) -> dict[str, Any]:
+    """One handle's public record: its backings (each with how it scored), its row on the reputation
+    board, and its watchlist. A handle nobody has used answers with empty lists, not 404."""
+    handle = _handle(handle)
+    led = _ledger()
+    store = store_for(led)
+    every = store.all_backings()   # ponytail: every backing, since the reputation row needs them all anyway
+    mine = []
+    for b in sorted((b for b in every if b["handle"] == handle), key=lambda b: b["created_at"], reverse=True):
+        raw, out = led.get_decision(b["decision_id"]), led.get_outcome(b["decision_id"])
+        r = Receipt.model_validate_json(raw) if raw else None
+        o = json.loads(out) if out else None
+        mine.append({"decision_id": b["decision_id"], "stance": b["stance"], "created_at": b["created_at"],
+                     "symbol": r.symbol if r else None, "action": r.verdict.action if r else None,
+                     "headline": r.headline if r else None, "resolved": o is not None,
+                     "correct": backer_correct(b["stance"], r.verdict.action, bool(o["went_up"])) if r and o else None})
+    row = next((x for x in reputation(led, every)["rows"] if x["kind"] == "human" and x["name"] == handle), None)
+    return {"handle": handle, "claimed": store.token_sha(handle) is not None, "backings": mine, "reputation": row,
+            "meaningful_at": MEANINGFUL_N, "watchlist": [w["symbol"] for w in store.watches(handle)]}
+
+
+@app.get("/feed")
+def feed_page(request: Request) -> HTMLResponse:
+    return _page("feed.html", request, "/feed")
+
+
+@app.get("/u/{handle}")
+def profile_page(handle: str, request: Request) -> HTMLResponse:
+    """A handle's page. Handles are unverified claims, so these pages ask not to be indexed."""
+    h = _handle(handle)
+    return _page("profile.html", request, f"/u/{h}", ['<meta name="robots" content="noindex">'])
 
 
 @app.get("/api/backers")
@@ -1168,7 +1306,7 @@ def robots(request: Request) -> PlainTextResponse:
     return PlainTextResponse(f"User-agent: *\nAllow: /\n\nSitemap: {_base(request)}/sitemap.xml\n")
 
 
-SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/judges", "/demo")
+SITEMAP_PAGES = ("/", "/ja", "/app", "/feed", "/scorecard", "/judges", "/demo")
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

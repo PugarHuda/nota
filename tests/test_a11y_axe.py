@@ -19,7 +19,7 @@ ALWAYS = {"landmark-one-main", "region", "scrollable-region-focusable"}
 
 @pytest.mark.parametrize("width", [1366, 390])
 @pytest.mark.parametrize("theme", ["light", "dark"])
-@pytest.mark.parametrize("path", ["/", "/ja", "/app", "/scorecard", "/demo"])
+@pytest.mark.parametrize("path", ["/", "/ja", "/app", "/scorecard", "/demo", "/feed", "/u/nobody"])
 def test_axe_finds_nothing_serious(server, browser, path, theme, width):  # noqa: F811
     ctx = browser.new_context(viewport={"width": width, "height": 900})
     ctx.add_init_script(f"try{{localStorage.setItem('nota.theme','{theme}')}}catch(e){{}}")
@@ -28,6 +28,8 @@ def test_axe_finds_nothing_serious(server, browser, path, theme, width):  # noqa
     if path == "/app":   # axe must read the rendered receipt, not the page between two renders
         page.wait_for_selector("#detail .headline")
         page.wait_for_function("() => document.querySelector('#health').textContent.includes('receipts')")
+    if path == "/feed":
+        page.wait_for_selector("#cards .call")
     page.wait_for_timeout(300)
     assert page.evaluate("() => document.documentElement.dataset.theme") == theme
     found = Axe().run(page).response["violations"]

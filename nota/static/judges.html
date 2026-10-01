@@ -39,6 +39,7 @@
         <a href="#t2">Track 2</a>
         <a href="#t3">Track 3</a>
         <a href="#only">Only here</a>
+        <a href="/feed">Social feed</a>
         <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
       </div></details>
       <a class="cta" href="/app"><span class="opt">Receipts </span>dashboard</a>
@@ -62,6 +63,10 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
       <a href="/r/c60acf3ba3b1">c60acf3ba3b1</a> (RYO <code>deep_analysis</code> down for three days)</td>
       <td>The run still completes, records which section failed and why, and refuses to trade. A missing value stays
       <code>null</code>; nothing is filled in. The ledger kept locking and settling through both outages.</td></tr>
+  <tr><td class="pts">SocialFi (sponsor theme)</td><td><a href="/feed">/feed</a>, <a href="/api/reputation">/api/reputation</a></td>
+      <td>Public reasoning feed with each agent's stance and the dissent, X share links and receipt cards; backers and the
+      council's agents ranked on one hit-rate scale (unranked until 20 calls over 20 independent weeks); a public
+      watchlist and a profile per handle (<code>/u/&lt;handle&gt;</code>). Handles are unverified claims.</td></tr>
   </tbody>
 </table>
 
@@ -69,6 +74,8 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
 <ol class="steps">
   <li><b>Run it yourself.</b> In the <a href="/app">dashboard</a>, "Run the council live" gathers fresh RYO evidence and
       convenes the council on any symbol (one to two minutes, capped per visitor).</li>
+  <li><b>Agent vs agent.</b> The <a href="/feed">feed</a> marks every call where the agents split, names who dissented
+      and quotes why; the <a href="/feed#reputation">reputation board</a> scores those agents beside the humans who backed them.</li>
   <li><b>Real thinking (25).</b> Open any receipt: each agent cites dotted paths into RYO's answer, and the value shown
       is read back out of the evidence, not retyped by the model. Citations to paths that do not exist are dropped in code.</li>
   <li><b>Cause and effect (20).</b> "What changed" ranks every evidence move since the previous receipt by impact; the

@@ -35,7 +35,13 @@ CREATE TABLE IF NOT EXISTS hits (
   key text NOT NULL,
   at  timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS hits_key_at ON hits (key, at)
+CREATE INDEX IF NOT EXISTS hits_key_at ON hits (key, at);
+CREATE TABLE IF NOT EXISTS watchlist (
+  handle     text NOT NULL,
+  symbol     text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (handle, symbol)
+)
 """
 
 
@@ -47,6 +53,8 @@ class BackingStore(Protocol):
     def all_backings(self) -> list[dict[str, Any]]: ...
     def claim(self, handle: str, token_sha256: str) -> bool: ...
     def token_sha(self, handle: str) -> str | None: ...
+    def watch(self, handle: str, symbol: str, on: bool) -> None: ...
+    def watches(self, handle: str | None = None) -> list[dict[str, Any]]: ...
 
 
 # Which DSNs this process has already created the table on. It belongs to the process, not to an
@@ -113,6 +121,20 @@ class PostgresBackings:
             cur.execute("SELECT token_sha256 FROM handle_claims WHERE handle = %s", (handle,))
             row = cur.fetchone()
             return row["token_sha256"] if row else None
+
+    # the public watchlist: a row per (handle, symbol), so adding twice is one row and removing is a delete
+    def watch(self, handle: str, symbol: str, on: bool) -> None:
+        with self._connect() as conn, conn.cursor() as cur:
+            if on:
+                cur.execute("INSERT INTO watchlist (handle, symbol) VALUES (%s, %s) ON CONFLICT DO NOTHING", (handle, symbol))
+            else:
+                cur.execute("DELETE FROM watchlist WHERE handle = %s AND symbol = %s", (handle, symbol))
+
+    def watches(self, handle: str | None = None) -> list[dict[str, Any]]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT handle, symbol, created_at FROM watchlist WHERE %s::text IS NULL OR handle = %s "
+                        "ORDER BY created_at", (handle, handle))
+            return self._rows(cur.fetchall())
 
     # the rate limit, shared by every serverless instance instead of counted once per instance
     def hit(self, key: str, cost: int, limit: int, window_s: float) -> tuple[bool, int]:

@@ -14,6 +14,15 @@ What Nota does not do, or does only partly. Each item says where it shows.
 - Backings go to Postgres (Neon, free tier) on the hosted demo. In a plain clone with no
   `DATABASE_URL`, they go to the ledger's own table.
 
+## SocialFi
+- Handles are unverified claims. The first write under a handle holds it with an edit token kept in
+  that browser; nothing ties it to the X, Discord or Telegram account of the same name, and a lost
+  token cannot be recovered.
+- Reputation is a hit rate on directional calls, not a Brier score, because a backer states no
+  probability. No row is ranked until 20 calls over 20 independent weeks, so the board is mostly
+  "too few to read" for now.
+- Writes are limited per address per hour, not per person.
+
 ## Sources
 - `x:` voices are best effort. X's public syndication endpoint has answered `HTTP 429` to ordinary
   connections since 2026-09-10. The fallbacks and how much each one covers are listed in

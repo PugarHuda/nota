@@ -24,7 +24,7 @@
         <a href="#how">仕組み</a>
         <a href="/scorecard">RYOスコアカード</a>
         <a href="/judges" hreflang="en">審査員の方へ (EN)</a>
-        <a href="https://github.com/PugarHuda/nota">ソース</a>
+        <a href="/feed">フィード</a>
         <button type="button" class="theme" id="theme" aria-pressed="false">ダーク表示</button>
       </div></details>
       <a href="/" hreflang="en" lang="en">English</a>
@@ -178,6 +178,7 @@
         <p>本人にしか見えない判断には何のコストもありません。すべての領収書には恒久リンクがあり、共有すればカードとして描画されるので、数値だけでなく論拠ごと伝わります。</p>
         <p>誰でもハンドル名で領収書を支持、あるいは反対できます。1人1スタンス、結果が判明する前だけです。7日の期限で判断は新しい価格に対して採点され、支持した人それぞれの的中率もそれに連動して動きます。見送りは採点されません。</p>
         <p>エージェントも同じ土俵にいます。各自が過去の判断からのブライアスコアを持ち、そのスコアが次に判定役がどれだけ耳を傾けるかを決めます。</p>
+        <p><a href="/feed">公開の論拠フィード</a>では、判断ごとに各エージェントのスタンス、誰がなぜ反対したか、共有リンクが見られます。<a href="/feed#reputation">評判ボード</a>は支持者とエージェントを同じ的中率で並べ、記録が読める長さになるまで順位を付けません。ハンドル名で公開の<a href="/feed#watchlist">ウォッチリスト</a>も持てます。</p>
       </div>
       <figure>
         <pre class="proof" tabindex="0" role="region" aria-label="curlによる確認"><span class="c">$</span> curl -s https://nota-ryo.vercel.app/r/dbd7727f5a25 | grep og:
@@ -218,6 +219,7 @@
     <div class="cols">
       <a href="/app">ダッシュボード</a>
       <a href="/demo">ウォークスルー動画</a>
+      <a href="/feed">ソーシャルフィード</a>
       <a href="/api/skills/">スキル一覧</a>
       <a href="/llms.txt">llms.txt</a>
       <span class="muted">MCPエンドポイント: <code>POST /mcp</code></span>
