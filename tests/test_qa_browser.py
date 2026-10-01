@@ -863,3 +863,25 @@ def test_the_folded_menu_closes_on_escape_and_on_a_click_elsewhere(server, brows
         assert not page.evaluate("document.querySelector('body > nav .menu').open"), path
     assert [p for p in problems if "demo.mp4" not in p] == [], problems
     page.close()
+
+
+@pytest.mark.parametrize("width", [320, 1366])
+def test_the_failure_drill_runs_from_the_keyboard_and_shows_what_changed(server, browser, width):
+    page, problems = page_with_log(browser, viewport={"width": width, "height": 900})
+    page.goto(server + "/drill", wait_until="networkidle")
+    page.focus("button[data-s='ryo_401']")
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#result:not([hidden]) #drill .grid")
+    assert page.evaluate("() => document.activeElement.dataset.s") == "ryo_401"
+    assert page.get_attribute("button[data-s='ryo_401']", "aria-pressed") == "true"
+    assert "2ae531ec2c9b" in page.locator("#mirror").inner_text()
+    assert page.locator("#drill .chg").count() >= 6          # five RYO sections and the outcome changed
+    assert "No trade" in page.locator("#drill .out").inner_text()
+    assert "Practice trade" in page.locator("#base .out").inner_text()
+    overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    assert overflow <= 1, f"/drill at {width}px scrolls sideways by {overflow}px"
+    page.click("#replay")
+    page.wait_for_function("() => document.querySelector('#replay-out').textContent.includes('identical')")
+    assert "identical: true" in page.locator("#replay-out").inner_text()
+    assert problems == [], problems
+    page.close()

@@ -14,6 +14,12 @@ What Nota does not do, or does only partly. Each item says where it shows.
 - Backings go to Postgres (Neon, free tier) on the hosted demo. In a plain clone with no
   `DATABASE_URL`, they go to the ledger's own table.
 
+## Failure drill
+- `/drill` runs on RYO's recorded SOL answers (`fixtures/recorded`), not on live RYO. The failures are injected
+  at the HTTP layer under the real client. The model is a fixed drill stand-in that always answers long at 0.62,
+  so every block it shows comes from code. The exchange prices echo RYO's recorded price, and waits are
+  counted, not slept. Its receipts say `source: drill` and are never stored or scored.
+
 ## Sources
 - `x:` voices are best effort. X's public syndication endpoint has answered `HTTP 429` to ordinary
   connections since 2026-09-10. The fallbacks and how much each one covers are listed in
