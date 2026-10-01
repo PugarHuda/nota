@@ -101,6 +101,22 @@ def test_leaves_treat_scalar_lists_as_sets_and_skip_noise():
     assert api._leaves(pack(["a.com"], "t1"))["news_check.data.domains"] == ["a.com"]
 
 
+def test_leaves_key_ranked_records_by_identity_not_position():
+    from nota.envelope import Envelope
+    from nota.evidence import EvidencePack, Section
+
+    def pack(gainers):
+        env = Envelope(schema_version="1", tool="market_overview", status="ok", data_mode="live", as_of="2026-09-01T00:00:00Z", request={},
+                       data={"gainers": gainers, "dupes": [{"name": "x", "v": 1}, {"name": "x", "v": 2}]},
+                       summary={"headline": "h", "key_points": []}, availability={}, warnings=[])
+        return EvidencePack(symbol="SOL", created_at="x", source="fixture", sections={"market_overview": Section(tool="market_overview", status="ok", envelope=env)})
+
+    a = api._leaves(pack([{"symbol": "AAA", "price_usd": 0.78}, {"symbol": "BBB", "price_usd": 285.0}]))
+    b = api._leaves(pack([{"symbol": "BBB", "price_usd": 285.0}, {"symbol": "AAA", "price_usd": 0.78}]))
+    assert a == b and a["market_overview.data.gainers.AAA.price_usd"] == 0.78  # a reshuffle is not a +36000% move
+    assert a["market_overview.data.dupes.1.v"] == 2  # duplicate identities fall back to the index
+
+
 def test_demo_video_is_served_when_bundled(tmp_path, monkeypatch):
     from nota.api import STATIC
     _seed(tmp_path, monkeypatch)

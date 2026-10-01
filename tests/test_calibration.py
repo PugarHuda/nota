@@ -265,6 +265,7 @@ def test_the_judge_is_scored_against_the_crowds_price_on_the_same_calls():
     out = resolve(r.id, led, PriceSource(165.0))  # went up
     m = btc.data["market_p"]
     assert out.market_p == m
+    _week_later(led, r.id, days=1)  # pin the clock: resolving on the wall clock passes the horizon once the fixture is a week old
     assert skill_vs_base(led)["vs_market"]["n"] == 0  # resolved but not yet at its seven-day horizon
     _week_later(led, r.id)
     v = skill_vs_base(led)["vs_market"]

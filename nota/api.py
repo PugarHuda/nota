@@ -179,12 +179,13 @@ def _summary(led: Ledger, r: Receipt) -> dict[str, Any]:
     }
 
 
-NOISE = re.compile(r"\.(since|fetched_at|as_of|window_hours|snippet|samples\.\d+\..*|sources\.\d+\.content)$")
+NOISE = re.compile(r"\.(since|fetched_at|as_of|window_hours|snippet|samples\.[^.]+\..*|sources\.[^.]+\.content)$")
 
 
 def _leaves(pack: EvidencePack) -> dict[str, Any]:
     """Leaf values under `<section>.data`. A list of scalars is one leaf (sorted), so a re-ordered domain
-    list is not a change; timestamps and free text that differ on every run are skipped."""
+    list is not a change; a list of records is keyed by symbol/token/id/name when each row has a unique
+    one; timestamps and free text that differ on every run are skipped."""
     out: dict[str, Any] = {}
 
     def walk(prefix: str, node: Any) -> None:
@@ -197,8 +198,15 @@ def _leaves(pack: EvidencePack) -> dict[str, Any]:
             if all(not isinstance(v, (dict, list)) for v in node):
                 out[prefix] = sorted(node, key=lambda v: (v is None, str(v)))
             else:
-                for i, v in enumerate(node):
-                    walk(f"{prefix}.{i}", v)
+                # ranked lists (top movers, compared tokens) reshuffle between runs: key rows by their
+                # identity so gainers.4 today is diffed against the same token, not whoever was 5th yesterday
+                ident = next((f for f in ("symbol", "token", "id", "name")
+                              if all(isinstance(v, dict) and isinstance(v.get(f), str) for v in node)), None)
+                keys = [v[ident] for v in node] if ident else []
+                if not ident or len(set(keys)) != len(keys):
+                    keys = [str(i) for i in range(len(node))]
+                for k, v in zip(keys, node):
+                    walk(f"{prefix}.{k}", v)
         else:
             out[prefix] = node
 

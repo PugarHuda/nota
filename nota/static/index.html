@@ -439,7 +439,9 @@ async function loadSide() {
   $('#attention').innerHTML = items.length ? `<b>Needs attention:</b> ${items.join(' ')}` : '';
   const mine = current && pos.find(p => p.symbol === current.receipt.symbol);
   const sp = $('#summary-position');
-  if (sp) sp.innerHTML = `<b>Position:</b> ${mine ? `${esc(mine.side)} from ${px(mine.entry)}, latest ${px(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) — <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
+  // a no-trade receipt can sit on a position an earlier receipt opened: say which one
+  const from = mine && mine.decision_id !== current.receipt.id ? ` (opened ${esc(mine.opened_at.slice(0, 10))}, receipt ${esc(mine.decision_id)})` : '';
+  if (sp) sp.innerHTML = `<b>Position${from}:</b> ${mine ? `${esc(mine.side)} from ${px(mine.entry)}, latest ${px(mine.latest_price)} (${mine.move_pct === null ? 'n/a' : (mine.move_pct >= 0 ? '+' : '') + mine.move_pct + '%'}, ${mine.pnl_usd === null ? '' : (mine.pnl_usd >= 0 ? '+' : '') + mine.pnl_usd + ' USD'}) — <b>${POSITION_TEXT[mine.status]}</b>` : 'no open practice position for this symbol'}`;
   $('#positions').innerHTML = pos.length ? pos.map(p => `<div class="card">
       <b>${esc(p.symbol)}</b> <span class="badge ${esc(p.side)}">${esc(p.side)}</span> <span class="badge ${p.status === 'open' ? 'ok' : p.status === 'target' ? 'long' : p.status === 'stopped' ? 'short' : 'partial'}">${esc(POSITION_TEXT[p.status])}</span> <a class="small" href="/r/${esc(p.decision_id)}" data-open="${esc(p.decision_id)}">receipt</a>
       <div class="meta"><span>entry ${px(p.entry)}</span><span>stop ${px(p.stop)}</span><span>target ${px(p.target)}</span><span>${p.size_usd.toFixed(0)} USD</span></div>
