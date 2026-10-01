@@ -107,7 +107,7 @@ token, the same one backing a receipt uses, so nobody else can change your list.
   function card(c) {
     const intent = 'https://x.com/intent/tweet?' + new URLSearchParams({text: `${c.headline} (Nota receipt, replayable)`, url: c.url});
     const agents = c.agents.map(a => `<li${c.dissent.some(d => d.role === a.role) ? ' class="dissent"' : ''}><b>${esc(a.role)}</b>
-      <span class="st ${esc(a.stance)}">${esc(a.stance)}</span> <span class="muted">p_up ${esc(a.p_up_7d.toFixed(2))}</span>: ${esc(a.thesis)}</li>`).join('');
+      <span class="st ${esc(a.stance)}">${esc(a.stance)}</span> <span class="muted">${esc(Math.round(a.p_up_7d * 100))}% up</span>: ${esc(a.thesis)}</li>`).join('');
     const split = !c.agents.length ? ''
       : c.dissent.length ? `<p class="split"><b>Agents disagreed.</b> ${c.dissent.map(d => `${esc(d.role)} was ${esc(d.stance)}`).join(', ')}
           against a ${esc(c.action.replace('_', ' '))} verdict.${c.judge_disagreed_with.length ? ` The judge says it overrode ${esc(c.judge_disagreed_with.join(', '))}.` : ''}
@@ -115,8 +115,8 @@ token, the same one backing a receipt uses, so nobody else can change your list.
       : `<p class="split">No dissent: every agent's stance matches the verdict. Judge: ${esc(c.rationale)}</p>`;
     const out = c.outcome ? ` · resolved ${c.outcome.went_up ? 'up' : 'down'}${c.outcome.return_pct != null ? ` ${esc(c.outcome.return_pct.toFixed(2))}%` : ''}` : ' · not resolved yet';
     return `<article class="call" aria-labelledby="c-${esc(c.id)}">
-      <h3 id="c-${esc(c.id)}"><a href="/r/${esc(c.id)}">${esc(c.symbol)}: <span class="act-${esc(c.action)}">${esc(c.action.replace('_', ' '))}</span>, p_up ${esc(c.p_up_7d.toFixed(2))}</a></h3>
-      <p class="meta">${esc(c.created_at)} · ${esc(c.backing.agree)} backed, ${esc(c.backing.disagree)} disagreed${out}</p>
+      <h3 id="c-${esc(c.id)}"><a href="/r/${esc(c.id)}">${esc(c.symbol)}: <span class="act-${esc(c.action)}">${esc(c.action.replace('_', ' '))}</span>, ${esc(Math.round(c.p_up_7d * 100))}% chance higher in 7 days</a></h3>
+      <p class="meta">${esc(new Date(c.created_at).toLocaleString('en', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC'}))} UTC · ${esc(c.backing.agree)} backed, ${esc(c.backing.disagree)} disagreed${out}</p>
       <p>${esc(c.headline)}</p>
       <ul class="agents">${agents}</ul>${split}
       <p class="share"><a href="${esc(intent)}" rel="noopener" target="_blank">Share on X<span class="sr"> (opens a new tab)</span></a>

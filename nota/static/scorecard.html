@@ -75,6 +75,7 @@
 
 <main class="wrap" id="main">
   <h1>Does RYO's verdict change how often RYO's own plan works?</h1>
+  <p class="hint">RYO attaches a trade plan (stop and target) to every verdict and never reports what became of it. Nota locks those plans daily for 25 tokens and settles them on OKX candles. The answer so far:</p>
   <p id="answer" aria-live="polite">Reading the ledger…</p>
   <div class="horizon" role="group" aria-label="Settlement horizon">
     <span>Horizon</span>
@@ -144,8 +145,9 @@ function untilText(r) {
   return r.overdue || h <= 0 ? CLOSED : h < 1 ? "under an hour" : Math.round(h) + " h";
 }
 
+// The answer to the h1 comes first, in plain words; the counts that back it follow.
 function answer(s) {
-  return verdictVsPlan(s) + settledAnswer(s);
+  return settledAnswer(s) + " " + verdictVsPlan(s);
 }
 
 function verdictVsPlan(s) {
@@ -169,15 +171,12 @@ function settledAnswer(s) {
       (next ? ` The next window closes ${when(next.settles_at)}.` : "") +
       (!closed && next ? " Until then this page can only show what was locked." : "");
   }
-  let out = `Of <strong>${num(n)}</strong> plans that touched a level within ${num(s.horizon_h)} h, <strong>${num(t)}</strong> reached RYO's +1R target before its stop (${pct(t, n)}).`;
+  const base = `Of <strong>${num(n)}</strong> plans that touched a level within ${num(s.horizon_h)} h, <strong>${num(t)}</strong> reached RYO's target (one stop-distance in profit, +1R) before its stop (${pct(t, n)}).`;
   const c = s.contrasts.find(x => x.distinguishable) || s.contrasts.find(x => x.diff_pct !== null);
-  if (c) {
-    out += ` ${esc(label(c, c.a))} against ${esc(label(c, c.b))}: ${signed(c.diff_pct)} points, day-matched, p = ${num(c.p_value)} on ${daysText(c, c.min_days)}: ` +
-      `<strong>${c.distinguishable ? "distinguishable" : "not yet distinguishable from no difference"}</strong>.`;
-  } else {
-    out += " No day yet has decided plans on both sides of any comparison, so the verdict cannot be compared.";
-  }
-  return out;
+  if (!c) return "<strong>Not known yet:</strong> no day has decided plans on both sides of any comparison, so the verdict cannot be compared. " + base;
+  const more = Number.isFinite(c.diff_pct) ? `${num(Math.abs(c.diff_pct))} points ${c.diff_pct >= 0 ? "more" : "less"} often` : "at a rate that cannot be read";
+  return `<strong>${c.distinguishable ? "Yes, so far" : "Not yet"}:</strong> plans marked ${esc(label(c, c.a))} reached their target ${more} than plans marked ${esc(label(c, c.b))}, ` +
+    `${c.distinguishable ? "and the difference holds up" : "which is <strong>not yet distinguishable from no difference</strong>"} (day-matched, p = ${num(c.p_value)}, ${daysText(c, c.min_days)}). ` + base;
 }
 
 // The lock's OpenTimestamps proof, stated only as the ledger stored it: a block once `nota stamp` checked
@@ -278,32 +277,12 @@ load(asked === "72" ? 72 : 24);
   const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1401px)');
   const fit = () => { if (menu) menu.open = wide.matches; };
   wide.addEventListener('change', fit); fit();
-  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
   // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
   });
-  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
-  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
-  });
-  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  document.addEventListener('keydown', e => {  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
-  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
-  });
-  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
-  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
-  });
-  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  });  menu?.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
-  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && menu?.open && !wide.matches) { menu.open = false; menu.querySelector('summary')?.focus(); }
-  });
-  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
+  document.addEventListener('click', e => { if (menu?.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
   const theme = document.getElementById('theme'), root = document.documentElement;
   const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
   theme.addEventListener('click', () => {

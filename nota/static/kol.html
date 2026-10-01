@@ -69,9 +69,10 @@ and opens a practice position only when the voices converge and every rule below
 the value it read and the threshold it was held to.</p>
 <p>The stop and target come from RYO's own ATR for the token. Without RYO evidence there is no trade, and the
 reason is shown. No order is ever placed. Not financial advice.</p>
+<p><b>Try it:</b> three news channels are already filled in; press <i>Run the agent</i> at the bottom of the form to see each token, its rule trail and any practice trade.</p>
 
 <form id="form" novalidate>
-  <label for="voices">Voices, one per line or comma separated (<code>x:handle</code>, <code>tg:channel</code>, <code>bs:handle.bsky.social</code>)
+  <label for="voices"><span>Voices, one per line or comma separated (<code>x:handle</code>, <code>tg:channel</code>, <code>bs:handle.bsky.social</code>)</span>
     <textarea id="voices" name="voices" required spellcheck="false" aria-describedby="voices-hint">tg:WatcherGuru
 tg:CoinDeskGlobal
 tg:cointelegraph</textarea></label>
@@ -80,7 +81,7 @@ tg:cointelegraph</textarea></label>
   <fieldset>
     <legend>Signal rules</legend>
     <label for="min_voices">Voices that must agree <input id="min_voices" type="number" min="2" max="20" step="1" value="2"></label>
-    <label for="min_sentiment">Minimum |sentiment| (0 to 1) <input id="min_sentiment" type="number" min="0" max="1" step="0.05" value="0.3"></label>
+    <label for="min_sentiment">Minimum sentiment strength, either way (0 to 1) <input id="min_sentiment" type="number" min="0" max="1" step="0.05" value="0.3"></label>
     <label for="min_conviction">Minimum conviction (0 to 1) <input id="min_conviction" type="number" min="0" max="1" step="0.05" value="0"></label>
     <label for="min_urgency">Minimum urgency (blank = no rule) <input id="min_urgency" type="number" min="0" max="1" step="0.05" placeholder="none"></label>
     <label for="tokens">Allowed tokens (blank = any) <input id="tokens" type="text" placeholder="SOL, ETH" spellcheck="false"></label>

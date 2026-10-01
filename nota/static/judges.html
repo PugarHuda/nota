@@ -19,7 +19,10 @@
   h2 { font-size:clamp(20px,2vw,24px); margin:40px 0 8px }
   p, li { max-width:var(--measure); font-size:16px; line-height:1.65 }
   .lede { font-size:clamp(17px,1.8vw,20px); color:var(--ink-2) }
-  ol.steps { padding-left:1.3em } ol.steps li { margin-bottom:10px }
+  /* landing.css lays a step out as a two-column grid of [number, one <p>]; these steps are running text
+     with links inside, which a grid splits one inline piece per cell, so here the number hangs in the margin */
+  ol.steps li { display:block; position:relative; padding:12px 0 12px 48px }
+  ol.steps li::before { position:absolute; left:0; top:12px }
   table { border-collapse:collapse; width:100%; max-width:860px; font-size:15px; border-top:2px solid var(--ink) }
   th, td { text-align:left; padding:9px 14px 9px 0; border-bottom:1px solid var(--form); vertical-align:top }
   th { font-weight:700; color:var(--ink-2); font-size:13px }
@@ -55,6 +58,13 @@
 <h1>Nota, for judges</h1>
 <p class="lede">Nota enters all three tracks. Each section below stands on its own: what to open, what it proves,
 and the rubric line it answers. Every link goes to live data, never to a mock-up.</p>
+<p><b>One minute, three clicks:</b></p>
+<ol class="steps">
+  <li>Open the <a href="/app">dashboard</a>. The newest receipt is already open: read its five-line summary, then press
+      <i>Verify replay</i> to re-run the call from its stored evidence.</li>
+  <li>Open the <a href="/scorecard">scorecard</a>: its first paragraph says whether RYO's own verdict predicts how its trade plans end.</li>
+  <li>Open the <a href="/drill">failure drill</a> and press <i>RYO down</i>: the pipeline keeps missing values empty and refuses to trade.</li>
+</ol>
 
 <h2 id="common">Every track (common 40)</h2>
 <table>
@@ -135,6 +145,12 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
   const fit = () => { menu.open = wide.matches; };
   fit();
   wide.addEventListener('change', fit);
+  menu.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
+  // a folded menu closes the way a menu does: Escape (focus back on its button) or a click anywhere else
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu.open && !wide.matches) { menu.open = false; menu.querySelector('summary').focus(); }
+  });
+  document.addEventListener('click', e => { if (menu.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
   const theme = document.getElementById('theme'), root = document.documentElement;
   const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
   theme.addEventListener('click', () => {
