@@ -648,7 +648,7 @@ def test_the_landing_keeps_the_language_switch_and_a_menu_on_a_phone(server, bro
     page.click("nav .menu summary")
     assert page.locator("nav .menu a[href='#proof']").is_visible()
     # wide, the same links read as a row with no menu button, on one line
-    page.set_viewport_size({"width": 1366, "height": 900})
+    page.set_viewport_size({"width": 1440, "height": 900})   # the menu folds up to 1400px: seven links need the room
     page.wait_for_timeout(100)
     assert page.locator("nav .menu a[href='#proof']").is_visible() and not page.locator("nav .menu summary").is_visible()
     assert page.locator("body > nav").bounding_box()["height"] <= 80
@@ -657,7 +657,7 @@ def test_the_landing_keeps_the_language_switch_and_a_menu_on_a_phone(server, bro
 
 
 def test_the_dark_theme_chosen_anywhere_holds_everywhere(server, browser):
-    ctx = browser.new_context(viewport={"width": 1366, "height": 900})
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})  # wide enough that the nav menu is held open
     page = ctx.new_page()
     page.goto(server + "/app", wait_until="networkidle")
     page.click("#theme")

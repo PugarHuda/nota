@@ -176,7 +176,7 @@ token, the same one backing a receipt uses, so nobody else can change your list.
   loadFeed(); loadRep(); loadWatch();
 
   // The nav, as on the other pages: the menu held open when wide, folded it closes on Escape or a click elsewhere.
-  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1401px)');
   const fit = () => { menu.open = wide.matches; };
   wide.addEventListener('change', fit); fit();
   menu.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });

@@ -131,7 +131,7 @@ and the rubric line it answers. Every link goes to live data, never to a mock-up
 <script>
 (() => {
   // wide, the section menu is held open with its summary hidden, so the theme switch stays reachable
-  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1401px)');
   const fit = () => { menu.open = wide.matches; };
   fit();
   wide.addEventListener('change', fit);

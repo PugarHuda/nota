@@ -101,7 +101,7 @@ tg:cointelegraph</textarea></label>
 <script>
 (() => {
   // the nav, as on the landing: the section menu held open when wide, folded under "Menu" when narrow
-  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1401px)');
   const fit = () => { menu.open = wide.matches; };
   fit();
   wide.addEventListener('change', fit);

@@ -74,14 +74,14 @@ body > nav a:hover { color:var(--ink) }
 body > nav .right { margin-left:auto; display:flex; align-items:center; gap:18px }
 body > nav .cta { color:var(--ink); font-weight:700 }
 /* The section links sit in a native <details> menu. Wide, it is held open (by the page's script) and
-   its summary hidden, so the links read as a row; up to 1100px they fold under "Menu" and drop down,
+   its summary hidden, so the links read as a row; up to 1400px they fold under "Menu" and drop down,
    while the language link, the theme switch and the call to action stay in the bar. */
 body > nav .menu > div { display:flex; align-items:center; gap:16px }
 body > nav .menu summary { cursor:pointer; white-space:nowrap; font-size:14px; color:var(--ink); list-style:none; padding:6px 2px }
 body > nav .menu summary::-webkit-details-marker { display:none }
 body > nav .menu summary::after { content:" ▾" / "" }
-@media (min-width:1101px) { body > nav .menu summary { display:none } }
-@media (max-width:1100px) {
+@media (min-width:1401px) { body > nav .menu summary { display:none } }
+@media (max-width:1400px) {
   body > nav .right { gap:14px }
   body > nav .menu { position:relative }
   body > nav .menu > div { position:absolute; right:0; top:calc(100% + 12px); z-index:11; flex-direction:column; align-items:stretch;

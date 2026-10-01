@@ -12,7 +12,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from nota.envelope import DataMode, Envelope, Status, Summary
 

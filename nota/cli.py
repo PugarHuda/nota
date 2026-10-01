@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 import time
 from datetime import datetime, timedelta, timezone
 
-from nota.calibration import CannotResolve, close_position, due, fill_base_rates, repair_outcomes, resolve, role_scores, role_weights
+from nota.calibration import CannotResolve, close_position, due, fill_base_rates, repair_outcomes, resolve
 from nota.decide import decide
 from nota import paths
 from nota.evidence import SECTIONS, candidate_symbols, first_present, ryo_args
@@ -62,7 +62,7 @@ def _ledger() -> Ledger:
 def _source(kind: str):
     if kind == "live":
         if not os.environ.get("RYO_MCP_KEY"):
-            raise typer.BadParameter("RYO_MCP_KEY is not set; use --source recorded or set the key in .env")
+            raise typer.BadParameter("RYO_MCP_KEY is not set; set it in .env (commands that take --source can also use --source recorded)")
         return RyoClient()
     if kind == "recorded":
         return RecordedRyoClient(RECORDED_ROOT, name="recorded")
@@ -489,7 +489,7 @@ def replay_cmd(decision_id: str, fresh: bool = typer.Option(False, help="Call th
         raise typer.BadParameter(str(exc).strip("'\"")) from None
     except RuntimeError as exc:  # a cache miss: the receipt exists but cannot be verified from the ledger
         typer.echo(str(exc))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     typer.echo(f"identical: {res.identical}  (fresh={res.fresh})")
     for d in res.diff:
         typer.echo(f"  {d}")

@@ -567,7 +567,7 @@ def health() -> dict[str, Any]:
 @app.get("/api/decisions/{id}/replay")
 def replay_check(id: str) -> dict[str, Any]:
     led = _ledger()
-    r = _receipt(led, id)
+    _receipt(led, id)  # 404 for an unknown id before replay is asked
     try:
         res = replay(id, led, None)
     except RuntimeError as exc:

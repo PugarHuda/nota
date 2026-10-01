@@ -89,7 +89,7 @@ nothing here proves who is behind it.</p>
     }
   })();
 
-  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1401px)');
   const fit = () => { menu.open = wide.matches; };
   wide.addEventListener('change', fit); fit();
   menu.addEventListener('click', e => { if (!wide.matches && e.target.closest('a')) menu.open = false; });
