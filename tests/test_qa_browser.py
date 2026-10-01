@@ -196,7 +196,7 @@ def test_demo_page_plays_the_shipped_video_and_lists_its_real_chapters(server, b
 @pytest.mark.parametrize("width,height", [(320, 640), (390, 844), (768, 1024), (1440, 900)])
 def test_no_horizontal_overflow_on_either_page_at_any_width(server, browser, width, height):
     page, problems = page_with_log(browser, viewport={"width": width, "height": height})
-    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", "/kol", "/judges"):
         page.goto(server + path, wait_until="networkidle")
         page.wait_for_timeout(400)
         overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
@@ -393,7 +393,7 @@ def _contrast(hex_fg: str, hex_bg: str) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
-@pytest.mark.parametrize("path", ["/", "/scorecard", "/demo"])
+@pytest.mark.parametrize("path", ["/", "/scorecard", "/demo", "/kol"])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_every_visible_text_on_the_reading_pages_meets_wcag_aa(server, browser, path, theme):
     """Each text node's colour against the nearest opaque background behind it, in both themes.
@@ -544,7 +544,7 @@ def test_the_mcp_apps_view_completes_the_handshake_and_renders_data_as_text(brow
 def test_no_page_breaks_its_own_content_security_policy(server, browser):
     """The policy is 'self' only. Any inline handler, eval, third-party font or remote image a page
     still relied on would show here as a violation, and in production as a silently missing piece."""
-    for path in ("/", "/ja", "/app", "/scorecard", "/demo"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", "/kol", "/judges"):
         page = browser.new_page(viewport={"width": 1200, "height": 900})
         violations: list[str] = []
         page.on("console", lambda m: violations.append(m.text) if "Content Security Policy" in m.text else None)
@@ -777,7 +777,7 @@ def test_the_landing_verify_button_keeps_focus_while_it_runs(server, browser):
 
 def test_every_page_names_one_canonical_an_absolute_card_and_its_feed(server, browser):
     """What a crawler or a link preview reads from the rendered head, not the raw file."""
-    for path in ("/", "/ja", "/app", "/scorecard", "/demo", f"/r/{RECEIPT}"):
+    for path in ("/", "/ja", "/app", "/scorecard", "/demo", "/kol", f"/r/{RECEIPT}"):
         page, problems = page_with_log(browser, viewport={"width": 1200, "height": 900})
         page.goto(server + path, wait_until="domcontentloaded")
         canon = page.eval_on_selector_all('link[rel="canonical"]', "els => els.map(e => e.href)")
@@ -862,4 +862,62 @@ def test_the_folded_menu_closes_on_escape_and_on_a_click_elsewhere(server, brows
         page.mouse.click(200, 700)
         assert not page.evaluate("document.querySelector('body > nav .menu').open"), path
     assert [p for p in problems if "demo.mp4" not in p] == [], problems
+    page.close()
+
+
+def _kol_answer():
+    """What /api/kol/run returns on the read-only demo, built offline by the real rule engine: one token
+    sized on RYO's recorded SOL ATR, one that fails convergence, an x: voice read through Tavily."""
+    from nota import kol
+    from nota.envelope import Envelope
+    from nota.ryo_client import RecordedRyoClient
+
+    voices = [{"id": "tg:alpha", "status": "available", "messages": 5, "fetched": 5, "via": "telegram_preview", "coverage": "full"},
+              {"id": "x:beta", "status": "partial", "messages": 2, "fetched": 2, "via": "tavily_search", "coverage": "partial"},
+              {"id": "x:gone", "status": "unavailable", "messages": None, "via": None, "coverage": None, "error": "x:gone: syndication HTTP 429"}]
+    rows = [{"symbol": "SOL", "sentiment_mean": 0.61, "conviction_mean": 0.4, "urgency_max": 0.4, "direction": "bullish",
+             "signed_voices": 2, "converging": True},
+            {"symbol": "<img src=x onerror=window.__x=1>", "sentiment_mean": None, "conviction_mean": 0.0, "urgency_max": 0.0,
+             "direction": None, "signed_voices": 0, "converging": False}]
+    env = Envelope(tool="narrative_convergence", status="partial", data={"voices": voices, "tokens": rows},
+                   warnings=["x:beta via Tavily search, 2 dated post(s), coverage partial"])
+    rules, limits = kol.KolRules(), kol.KolLimits()
+    packs = {"SOL": kol.gather_primary(RecordedRyoClient(ROOT / "tests" / "fixtures"), "SOL")}
+    decisions = kol.evaluate(env, rules, limits, packs, [])
+    run = kol.KolRun(id="abc123def456", created_at="2026-10-02T00:00:00+00:00", voices=[v["id"] for v in voices], rules=rules,
+                     limits=limits, held=[], envelope=env, pack_hashes={}, decisions=decisions, headline=kol.headline(env, decisions))
+    return {"stored": False, "note": "read-only demo: this run is not added to the ledger", "ryo_note": None,
+            "run": run.model_dump(mode="json")}
+
+
+@pytest.mark.parametrize("width", [320, 1366])
+def test_the_kol_page_runs_from_the_keyboard_and_shows_every_rule_and_the_position(server, browser, width):
+    page, problems = page_with_log(browser, viewport={"width": width, "height": 900})
+    sent = {}
+
+    def run(route):
+        sent.update(json.loads(route.request.post_data))
+        route.fulfill(json=_kol_answer())
+
+    page.route("**/api/kol/run", run)
+    page.goto(server + "/kol", wait_until="networkidle")
+    page.fill("#voices", "tg:alpha, x:beta\nx:gone")
+    page.focus("#run")
+    page.keyboard.press("Enter")
+    page.wait_for_function("() => document.querySelector('#status').textContent.startsWith('Done')")
+    assert sent["voices"] == ["tg:alpha", "x:beta", "x:gone"] and sent["rules"]["min_urgency"] is None
+    out = page.locator("#out").inner_text()
+    assert "via tavily, coverage partial" in out and "unavailable: x:gone: syndication HTTP 429" in out
+    assert "Not stored: read-only demo" in out and "LONG" in out and "deep_analysis.data.trade_plan.atr_14_usd" in out
+    assert page.locator("#out td.pass").count() >= 4 and page.locator("#out td.fail").count() >= 1
+    assert page.evaluate("() => window.__x") is None and "<img" in out  # a voice's text arrives as text
+    assert page.evaluate("() => document.activeElement.id") == "out"
+    overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    assert overflow <= 1, f"/kol at {width}px scrolls sideways by {overflow}px"
+    if page.locator("body > nav .menu summary").is_visible():  # folded only on narrow screens
+        page.click("body > nav .menu summary")
+    page.focus("#theme")
+    page.keyboard.press("Enter")
+    assert page.evaluate("() => document.documentElement.dataset.theme") == "dark"
+    assert problems == [], problems
     page.close()

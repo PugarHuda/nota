@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-KOL agent · Nota</title>
+<script>try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}</script>
+<meta name="description" content="Monitor up to 20 crypto voices, apply transparent signal rules, and size a practice trade on RYO's ATR, or say why there is none.">
+<meta property="og:title" content="Nota multi-KOL narrative agent">
+<meta property="og:description" content="Up to 20 voices, a rule trail per token, and a practice trade sized on RYO's own ATR.">
+<meta property="og:type" content="website">
+<!--OG-->
+<link rel="stylesheet" href="/landing.css">
+<style>
+  main.wrap { background:var(--paper); border:1px solid var(--form); border-radius:2px; margin:22px auto 40px;
+              padding-top:clamp(28px,4vw,48px); padding-bottom:clamp(30px,4vw,52px) }
+  @media (max-width:1240px) { main.wrap { margin:14px var(--pad) 32px; padding-left:clamp(16px,4vw,40px); padding-right:clamp(16px,4vw,40px) } }
+  h1 { font-size:clamp(28px,3.6vw,42px); line-height:1.2; padding-bottom:16px; margin:0 0 20px; border-bottom:3px double var(--ink) }
+  h2 { font-size:clamp(20px,2vw,24px); margin:36px 0 8px }
+  h3 { font-size:18px; margin:26px 0 6px; overflow-wrap:anywhere }
+  p, li { max-width:var(--measure); font-size:16px; line-height:1.65 }
+  .lede { font-size:clamp(17px,1.8vw,20px); color:var(--ink-2) }
+  form { display:grid; gap:14px; max-width:860px }
+  fieldset { border:1px solid var(--form); border-radius:2px; padding:12px 14px 14px; margin:0; min-width:0;
+             display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px }
+  legend { font-weight:700; padding:0 6px }
+  label { display:grid; gap:4px; font-size:14px; color:var(--ink-2) }
+  input, textarea { font:15px/1.4 var(--fig); color:var(--ink); background:var(--paper); border:1px solid var(--form-2);
+                    border-radius:2px; padding:8px; width:100%; min-width:0; box-sizing:border-box }
+  textarea { min-height:7.5em; resize:vertical }
+  input:focus-visible, textarea:focus-visible, button:focus-visible { outline:2px solid var(--ink); outline-offset:2px }
+  .run { justify-self:start; font:700 15px/1 var(--text); padding:12px 18px; border:1.5px solid var(--ink); border-radius:3px;
+         background:var(--ink); color:var(--paper); cursor:pointer }
+  .run[aria-disabled="true"] { opacity:.7; cursor:progress }
+  .hint { font-size:13px; color:var(--ink-2); margin:0 }
+  .scroll { overflow-x:auto; max-width:100% }
+  table { border-collapse:collapse; width:100%; max-width:860px; font-size:14px; border-top:2px solid var(--ink) }
+  th, td { text-align:left; padding:7px 12px 7px 0; border-bottom:1px solid var(--form); vertical-align:top; overflow-wrap:anywhere }
+  th { font-weight:700; color:var(--ink-2); font-size:13px }
+  .pass { color:var(--long); font-weight:700 } .fail { color:var(--short); font-weight:700 }
+  .sig { font:700 13px/1 var(--fig); padding:3px 7px; border:1.5px solid currentColor; border-radius:2px; margin-left:8px }
+  .sig.long { color:var(--long) } .sig.short { color:var(--short) } .sig.none { color:var(--ink-2) }
+  .trade { border-left:3px solid var(--ink); padding:6px 0 6px 12px; margin:10px 0 0; max-width:860px; overflow-wrap:anywhere }
+  #status { min-height:1.6em; color:var(--ink-2) }
+  code { font-size:.92em; overflow-wrap:anywhere }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav aria-label="Site">
+  <div class="wrap">
+    <b><a href="/" style="color:inherit;text-decoration:none">Nota</a></b>
+    <div class="right">
+      <details class="menu"><summary>Menu</summary><div>
+        <a href="#form">Voices and rules</a>
+        <a href="#out">Result</a>
+        <a href="/judges#t1">For judges</a>
+        <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
+      </div></details>
+      <a class="cta" href="/app"><span class="opt">Receipts </span>dashboard</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap" id="main">
+<h1>Multi-KOL narrative agent</h1>
+<p class="lede">Pick up to 20 crypto voices. Nota reads what they posted, finds the tokens they name and how they lean,
+and opens a practice position only when the voices converge and every rule below passes. Each rule is shown with
+the value it read and the threshold it was held to.</p>
+<p>The stop and target come from RYO's own ATR for the token. Without RYO evidence there is no trade, and the
+reason is shown. No order is ever placed. Not financial advice.</p>
+
+<form id="form" novalidate>
+  <label for="voices">Voices, one per line or comma separated (<code>x:handle</code>, <code>tg:channel</code>, <code>bs:handle.bsky.social</code>)
+    <textarea id="voices" name="voices" required spellcheck="false" aria-describedby="voices-hint">tg:WatcherGuru
+tg:CoinDeskGlobal
+tg:cointelegraph</textarea></label>
+  <p class="hint" id="voices-hint">Up to 20. <code>x:</code> voices are best effort: when X refuses, Nota searches Tavily for that
+    handle's posts, and the voice is marked "via tavily, coverage partial".</p>
+  <fieldset>
+    <legend>Signal rules</legend>
+    <label for="min_voices">Voices that must agree <input id="min_voices" type="number" min="2" max="20" step="1" value="2"></label>
+    <label for="min_sentiment">Minimum |sentiment| (0 to 1) <input id="min_sentiment" type="number" min="0" max="1" step="0.05" value="0.3"></label>
+    <label for="min_conviction">Minimum conviction (0 to 1) <input id="min_conviction" type="number" min="0" max="1" step="0.05" value="0"></label>
+    <label for="min_urgency">Minimum urgency (blank = no rule) <input id="min_urgency" type="number" min="0" max="1" step="0.05" placeholder="none"></label>
+    <label for="tokens">Allowed tokens (blank = any) <input id="tokens" type="text" placeholder="SOL, ETH" spellcheck="false"></label>
+    <label for="hours">Look back, hours <input id="hours" type="number" min="1" max="336" step="1" value="24"></label>
+  </fieldset>
+  <fieldset>
+    <legend>Risk limits</legend>
+    <label for="account">Practice account, USD <input id="account" type="number" min="1" step="100" value="10000"></label>
+    <label for="risk">Risk per trade, % <input id="risk" type="number" min="0.1" max="10" step="0.1" value="1"></label>
+    <label for="maxpos">Maximum open positions <input id="maxpos" type="number" min="0" max="10" step="1" value="3"></label>
+  </fieldset>
+  <button type="submit" class="run" id="run">Run the agent</button>
+</form>
+
+<p id="status" role="status" aria-live="polite"></p>
+<section id="out" aria-label="Result" tabindex="-1"></section>
+</main>
+<script>
+(() => {
+  // the nav, as on the landing: the section menu held open when wide, folded under "Menu" when narrow
+  const menu = document.querySelector('body > nav .menu'), wide = matchMedia('(min-width:1101px)');
+  const fit = () => { menu.open = wide.matches; };
+  fit();
+  wide.addEventListener('change', fit);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu.open && !wide.matches) { menu.open = false; menu.querySelector('summary').focus(); }
+  });
+  document.addEventListener('click', e => { if (menu.open && !wide.matches && !menu.contains(e.target)) menu.open = false; });
+  const theme = document.getElementById('theme'), root = document.documentElement;
+  const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  theme.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('nota.theme', root.dataset.theme); } catch {}
+    paint();
+  });
+  paint();
+
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const show = v => v === null || v === undefined ? 'null' : Array.isArray(v) ? v.join(', ') : typeof v === 'number' ? String(+v.toFixed(4)) : String(v);
+  const num = id => $(id).value.trim() === '' ? null : Number($(id).value);
+  const btn = $('run'), status = $('status'), out = $('out');
+  let busy = false;
+
+  function coverage(v) {
+    if (v.status === 'unavailable') return `unavailable: ${esc(v.error)}`;
+    const via = v.via === 'tavily_search' ? 'tavily' : v.via;
+    return `${esc(v.status)}, via ${esc(via)}, coverage ${esc(v.coverage)}, ${esc(v.messages)} message(s) in the window`;
+  }
+
+  function trade(d) {
+    const t = d.trade;
+    if (!t) return `<p class="trade">No signal: ${esc(d.reason)}</p>`;
+    if (t.kind !== 'trade') return `<p class="trade">Signal ${esc(d.signal)}, no practice position: ${esc(t.reason)}</p>`;
+    return `<p class="trade"><b>${esc(t.side.toUpperCase())} ${esc(show(t.size_units))} ${esc(t.symbol)}</b> ≈ ${esc(t.size_usd.toFixed(2))} USD
+      at ${esc(show(t.entry_price))}. Stop ${esc(show(t.stop_price))}, target ${esc(show(t.target_price))}, risk ${esc(t.risk_usd.toFixed(2))} USD,
+      ATR(14) ${esc(show(t.atr))} from <code>${esc(t.source_paths.atr)}</code>.</p>`;
+  }
+
+  function render(res) {
+    const r = res.run, env = r.envelope;
+    let h = `<h2>${esc(r.headline)}</h2><p>${res.stored ? `Stored as run <code>${esc(r.id)}</code>; replay it offline with
+      <code>nota kol-replay ${esc(r.id)}</code>.` : `Not stored: ${esc(res.note)}.`}${res.ryo_note ? ` ${esc(res.ryo_note)}.` : ''}</p>`;
+    h += `<h3>Voices</h3><div class="scroll"><table><thead><tr><th scope="col">Voice</th><th scope="col">Coverage</th></tr></thead><tbody>`;
+    for (const v of env.data.voices || []) h += `<tr><td><code>${esc(v.id)}</code></td><td>${coverage(v)}</td></tr>`;
+    h += `</tbody></table></div>`;
+    if ((env.warnings || []).length) h += `<h3>Warnings</h3><ul>${env.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>`;
+    h += `<h3>Tokens</h3>`;
+    if (!r.decisions.length) h += `<p>No readable voice named a token in the window.</p>`;
+    for (const d of r.decisions) {
+      h += `<h3>${esc(d.token)}<span class="sig ${esc(d.signal)}">${esc(d.signal)}</span></h3>
+        <div class="scroll"><table><caption class="sr">Rule trail for ${esc(d.token)}</caption><thead><tr><th scope="col">Rule</th>
+        <th scope="col">Value</th><th scope="col">Threshold</th><th scope="col">Result</th></tr></thead><tbody>`;
+      for (const x of d.rules) h += `<tr><td>${esc(x.rule)}</td><td>${esc(show(x.value))}</td><td>${esc(show(x.threshold))}</td>
+        <td class="${x.passed ? 'pass' : 'fail'}">${x.passed ? 'passed' : 'failed'}</td></tr>`;
+      h += `</tbody></table></div>${trade(d)}`;
+    }
+    out.innerHTML = h;
+  }
+
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (busy) return;
+    const voices = $('voices').value.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+    if (!voices.length || voices.length > 20) { status.textContent = 'Give between 1 and 20 voices.'; $('voices').focus(); return; }
+    const tokens = $('tokens').value.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+    const body = {voices, rules: {min_voices: num('min_voices'), min_sentiment: num('min_sentiment'), min_conviction: num('min_conviction'),
+                  min_urgency: num('min_urgency'), tokens: tokens.length ? tokens : null, hours: num('hours')},
+                  limits: {account_usd: num('account'), risk_per_trade_pct: num('risk'), max_open_positions: num('maxpos')}};
+    busy = true; btn.setAttribute('aria-disabled', 'true'); out.setAttribute('aria-busy', 'true');
+    status.textContent = `Reading ${voices.length} voice(s)…`;
+    try {
+      const resp = await fetch('/api/kol/run', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const d = data.detail;
+        status.textContent = `Not run (HTTP ${resp.status}): ` + (Array.isArray(d) ? d.map(x => `${(x.loc || []).slice(1).join('.')}: ${x.msg}`).join('; ') : (d || 'no detail'));
+        return;
+      }
+      render(data);
+      status.textContent = `Done: ${data.run.headline}`;
+      out.focus();
+    } catch (err) {
+      status.textContent = `Network error: ${err.message}`;
+    } finally {
+      busy = false; btn.removeAttribute('aria-disabled'); out.removeAttribute('aria-busy');
+    }
+  });
+})();
+</script>
+</body>
+</html>

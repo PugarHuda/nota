@@ -71,12 +71,12 @@ body > nav b, body > nav b a { font:400 21px/1 var(--display); letter-spacing:.0
 body > nav b::after { content:""; width:9px; height:9px; border-radius:50%; background:var(--seal); order:-1 }
 body > nav a { font-size:14px; color:var(--ink-2); text-decoration:none; white-space:nowrap }
 body > nav a:hover { color:var(--ink) }
-body > nav .right { margin-left:auto; display:flex; align-items:center; gap:22px }
+body > nav .right { margin-left:auto; display:flex; align-items:center; gap:18px }
 body > nav .cta { color:var(--ink); font-weight:700 }
 /* The section links sit in a native <details> menu. Wide, it is held open (by the page's script) and
    its summary hidden, so the links read as a row; up to 1100px they fold under "Menu" and drop down,
    while the language link, the theme switch and the call to action stay in the bar. */
-body > nav .menu > div { display:flex; align-items:center; gap:22px }
+body > nav .menu > div { display:flex; align-items:center; gap:16px }
 body > nav .menu summary { cursor:pointer; white-space:nowrap; font-size:14px; color:var(--ink); list-style:none; padding:6px 2px }
 body > nav .menu summary::-webkit-details-marker { display:none }
 body > nav .menu summary::after { content:" ▾" / "" }
