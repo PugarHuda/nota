@@ -203,7 +203,8 @@ Prediction-market implied probability that a token trades higher than now at a h
 
 ### `narrative_convergence`
 
-`data`: `window_hours`, `since`, `method{sentiment, lexicon_sizes}`, `voices[]{id,status,messages,fetched|error}`,
+`data`: `window_hours`, `since`, `method{sentiment, lexicon_sizes}`, `voices[]{id,status,messages,fetched,via,coverage|error}`
+(`messages`, `via` and `coverage` are `null` for an unavailable voice, never 0),
 `tokens[]{symbol, voices, voice_count, mentions, sentiment_mean, sentiment_samples,
 conviction_mean, urgency_max, direction, converging, coverage, first_seen, last_seen, samples[]}`.
 
@@ -222,10 +223,23 @@ Sentiment method is `vader_3.3.2+crypto_lexicon_v3`: VADER (MIT) with a crypto l
 with no lexicon word at all stays `null`. Conviction and urgency phrases match whole words only
 ("now" does not fire inside "know").
 
-`x:` voices are read through X's own public syndication endpoint, the one that serves embedded
-timelines (unofficial and rate limited, and throttled hardest on data-centre addresses, so a hosted
-deployment usually reports these voices `unavailable`; flagged in `warnings`) and fall back to
-Tavily when configured. `bs:` voices use Bluesky's public AppView (`app.bsky.feed.getAuthorFeed`).
+`x:` voices try two readers in order, and the one used is named in the voice row (`via`):
+
+1. `x_syndication`: X's own public syndication endpoint, the one that serves embedded timelines.
+   Unofficial and rate limited (on 2026-10-01 it answered `429 Rate limit exceeded` to every
+   request from a residential address too), so it is best effort; `coverage: full`, voice
+   `available`, with a warning.
+2. `tavily_search` when (1) fails and `TAVILY_API_KEY` is set: Tavily `/search` with
+   `include_domains: [x.com, twitter.com]`, `start_date` = the day the look-back window opens and
+   `include_published_date: true`. Only results whose URL is `x.com/<handle>/status/<id>` count as
+   that voice's posts (someone else quoting the handle does not); a result without a parseable
+   `published_date` is dropped, never guessed into the window, and the count dropped is in the
+   warning. The voice is `partial` (`coverage: partial`: only what the search index holds), which
+   makes the envelope `partial`, and the warning reads
+   `x:<handle> via Tavily search, N dated post(s), coverage partial`.
+
+With neither, the voice is `unavailable` and the warning says why (syndication error plus "no
+TAVILY_API_KEY to fall back on"). Each voice still costs one rate-limit unit whichever reader ran. `bs:` voices use Bluesky's public AppView (`app.bsky.feed.getAuthorFeed`).
 
 ### `news_verify`
 

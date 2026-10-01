@@ -563,3 +563,29 @@ def test_an_unknown_skill_is_a_readable_404_and_a_crashing_skill_is_a_502(monkey
     monkeypatch.setitem(skills.SKILLS, "price_crosscheck", (definition, lambda **_: {}["boom"]))
     r = c.post("/api/skills/price_crosscheck/invoke", json={"args": {"symbol": "SOL"}})
     assert r.status_code == 502 and "boom" not in r.text
+
+
+def test_live_council_says_what_is_missing_then_runs_unstored_and_is_capped(tmp_path, monkeypatch):
+    import nota.cli
+    import nota.llm
+
+    monkeypatch.setenv("NOTA_DB", str(tmp_path / "l.db"))
+    for k in ("RYO_MCP_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DATABASE_URL"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("NOTA_LLM", "openai")
+    c = TestClient(api.app)
+    assert c.post("/api/council/SOL").status_code == 503  # no RYO key: said, not faked
+    monkeypatch.setenv("RYO_MCP_KEY", "test")
+    r = c.post("/api/council/SOL")
+    assert r.status_code == 503 and "LLM" in r.json()["detail"]
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(api, "RyoClient", lambda: RecordedRyoClient(Path(__file__).parent / "fixtures"))
+    monkeypatch.setattr(nota.llm, "OpenAICompatLLM", make_llm)
+    monkeypatch.setattr(nota.cli, "_extras", lambda *a, **k: None)  # no live cross-check fetches in a unit test
+    monkeypatch.setattr(api, "_BACKING_HITS", {})
+    assert c.post("/api/council/not a symbol!").status_code == 422
+    ok = c.post("/api/council/SOL").json()
+    assert ok["stored"] is False and ok["receipt"]["symbol"] == "SOL" and ok["markdown"].startswith("# Decision receipt")
+    assert Ledger(str(tmp_path / "l.db")).conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0] == 0
+    codes = [c.post("/api/council/SOL").status_code for _ in range(api.COUNCIL_PER_IP)]
+    assert codes[-1] == 429  # the per-address budget, so one visitor cannot spend the model budget

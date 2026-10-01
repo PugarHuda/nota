@@ -158,6 +158,12 @@
   <section id="detail" aria-label="decision receipt" tabindex="-1"><div class="empty">Loading…</div></section>
   <aside aria-label="positions and leaderboard">
     <div id="attention" class="card" aria-live="polite" hidden></div>
+    <h2>Run the council live (Track 1)</h2>
+    <div class="card small" id="council">
+      <div style="display:flex; gap:8px; align-items:center"><input id="council-sym" value="SOL" size="7" aria-label="symbol for a live council run">
+        <button type="button" class="badge ok" id="council-run">Run</button> <span id="council-status" aria-live="polite"></span></div>
+      <div id="council-out" style="margin-top:8px"></div>
+    </div>
     <h2>Run a skill (Track 3)</h2>
     <div class="card" id="skills">
       <select id="skill-name" aria-label="skill"></select>
@@ -419,6 +425,26 @@ async function loadHealth() {
     $('#health').innerHTML = `${h.readonly ? `<span class="badge partial" title="${esc(BACKING_TEXT[h.backing] || '')}">read-only demo</span> ` : ''}${ryo} <span class="badge ${h.ryo_key_set ? 'ok' : 'partial'}">${h.ryo_key_set ? 'builder key set' : 'no builder key'}</span> <span class="badge ${h.llm.key_set ? '' : 'partial'}">${h.llm.key_set ? `${esc(h.llm.kind)} ${esc(h.llm.model || 'default')}` : 'no LLM key: council cannot run here'}</span> <span class="badge">${esc(h.ledger.decisions)} receipts, ${esc(h.ledger.due)} due for scoring</span>`;
   } catch (e) { $('#health').innerHTML = `<span class="badge unavailable">${esc(e.message)}</span>`; }
 }
+// A live council run on fresh RYO evidence. Not stored: the hosted ledger is the committed snapshot.
+$('#council-run').onclick = async () => {
+  const sym = $('#council-sym').value.trim().toUpperCase();
+  $('#council-status').textContent = 'gathering RYO evidence, then four model calls (one to two minutes)…';
+  $('#council-out').innerHTML = ''; $('#council-run').disabled = true;
+  try {
+    const res = await fetch(`/api/council/${encodeURIComponent(sym)}`, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || `${res.status}`);
+    const r = body.receipt, v = r.verdict, sp = r.spend || {};
+    $('#council-status').textContent = `done in ${body.seconds} s · ${body.note}`;
+    $('#council-out').innerHTML = `<b>${esc(r.symbol)}: ${esc(v.action.replace('_', ' '))}</b>, p_up ${esc(v.p_up_7d)} · ${esc(r.trade.kind === 'trade' ? 'practice trade sized' : r.trade.reason || 'no trade')}
+      <p style="margin:6px 0">${esc(v.rationale)}</p>
+      <ul style="margin:0; padding-left:18px">${r.opinions.map(o => `<li><b>${esc(o.role)}</b> ${esc(o.stance)} p_up ${esc(o.p_up_7d)}, ${o.citations.length} citation${o.citations.length === 1 ? '' : 's'}${o.dropped_citations && o.dropped_citations.length ? `, ${o.dropped_citations.length} dropped` : ''}</li>`).join('')}</ul>
+      <p class="muted" style="margin:6px 0 0">${esc(sp.model_calls)} model calls · ${esc(sp.usd)} USD · evidence ${esc(r.pack_hash.slice(0, 16))}
+      · <a href="data:text/markdown;charset=utf-8,${encodeURIComponent(body.markdown)}" download="receipt-${esc(r.id)}.md">receipt (markdown)</a></p>`;
+  } catch (e) { $('#council-status').textContent = `not run: ${e.message}`; }
+  finally { $('#council-run').disabled = false; }
+};
+$('#council-sym').onkeydown = e => { if (e.key === 'Enter') { e.stopPropagation(); $('#council-run').click(); } };
 const healthReady = loadHealth();
 setInterval(loadHealth, 60000);
 

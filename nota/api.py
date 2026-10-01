@@ -460,6 +460,11 @@ def scorecard_page(request: Request) -> HTMLResponse:
     return _page("scorecard.html", request, "/scorecard", [f'<script type="application/ld+json">{ld}</script>'])
 
 
+@app.get("/judges")
+def judges_page(request: Request) -> HTMLResponse:
+    return _page("judges.html", request, "/judges")
+
+
 _HEALTH_TTL = 60.0
 _health_cache: tuple[float, dict[str, Any]] | None = None   # (monotonic time, RYO probe); per process
 
@@ -766,6 +771,7 @@ LLMS_PAGES = {
     "/ja": "The overview in Japanese",
     "/app": "Dashboard: every receipt, diffed against the one before it",
     "/scorecard": "RYO Verdict Scorecard",
+    "/judges": "One screen per hackathon track: what to open and which rubric line it answers",
     "/demo": "Narrated three-minute walkthrough with a clickable transcript",
     "/demo.json": "Walkthrough chapters and transcript with the second each line was spoken",
     "/demo.vtt": "Walkthrough captions (WebVTT)",
@@ -919,8 +925,50 @@ def _skill_cost(name: Any, args: Any) -> int:
         return 0
     if name == "narrative_convergence":
         voices = args.get("voices") if isinstance(args, dict) else None
-        return len(voices) if isinstance(voices, list) and voices else 1
+        if not (isinstance(voices, list) and voices):
+            return 1
+        # an x: voice may fall back to a paid Tavily search after syndication refuses: two fetches
+        return sum(2 if isinstance(v, str) and v.strip().startswith("x:") else 1 for v in voices)
     return 2 if name == "news_verify" else 1
+
+
+# ponytail: a whole council run is ~4 model calls (~0.004 USD on the hosted model); these two hourly
+# budgets cap what a visitor, and all visitors together, can spend. Raise them if judges queue up.
+COUNCIL_PER_IP, COUNCIL_ALL = 3, 20
+
+
+@app.post("/api/council/{symbol}")
+def council_live(symbol: str, request: Request) -> dict[str, Any]:
+    """Convene the council on live RYO evidence now and return the receipt. It is not stored: the hosted
+    ledger is the read-only snapshot the daily cycle commits, so this run lives in a throwaway ledger
+    (roles are weighted 1.0, not by their record) and the response says so."""
+    from nota.cli import _extras  # ponytail: the CLI already wires every cross-check; reuse it
+    from nota.decide import decide
+    from nota.skills.contract import clean_symbol
+
+    try:
+        sym = clean_symbol(symbol)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    kind = os.environ.get("NOTA_LLM") or ("openai" if os.environ.get("OPENAI_API_KEY") else "anthropic")
+    if not os.environ.get("RYO_MCP_KEY"):
+        raise HTTPException(503, "this deployment has no RYO builder key, so it cannot gather live evidence")
+    if not (os.environ.get("OPENAI_API_KEY") if kind == "openai" else os.environ.get("ANTHROPIC_API_KEY")):
+        raise HTTPException(503, "this deployment has no LLM key, so the council cannot run; every stored receipt still replays")
+    _throttle(f"council:{request.client.host if request.client else 'unknown'}", limit=COUNCIL_PER_IP)
+    _throttle("council:all", limit=COUNCIL_ALL)
+    if kind == "openai":
+        from nota.llm import OpenAICompatLLM as Model
+    else:
+        from nota.llm import AnthropicLLM as Model
+    src = RyoClient()
+    started = time.time()
+    try:
+        r = decide(sym, src, Model(), Ledger(":memory:"), extras=_extras(src, "", False, ledger=_ledger()))
+    except RyoError as exc:
+        raise HTTPException(502, f"RYO answered with an error ({exc}); nothing was fabricated in its place") from exc
+    return {"stored": False, "note": "live run, not added to the ledger; roles weighted 1.0",
+            "seconds": round(time.time() - started, 1), "receipt": r.model_dump(mode="json"), "markdown": render_markdown(r)}
 
 
 @app.post("/api/decisions/{id}/back")
@@ -1113,7 +1161,7 @@ def robots(request: Request) -> PlainTextResponse:
     return PlainTextResponse(f"User-agent: *\nAllow: /\n\nSitemap: {_base(request)}/sitemap.xml\n")
 
 
-SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/demo")
+SITEMAP_PAGES = ("/", "/ja", "/app", "/scorecard", "/judges", "/demo")
 
 
 @app.get("/sitemap.xml", include_in_schema=False)

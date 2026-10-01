@@ -102,13 +102,13 @@ def test_narrative_all_voices_down_is_unavailable():
 
 
 @respx.mock
-def test_x_voice_via_tavily_marks_missing_times():
+def test_x_voice_via_tavily_drops_undated_results():
     respx.get(url__regex=r"https://syndication\.twitter\.com/.*").mock(return_value=httpx.Response(502))
     respx.post("https://api.tavily.com/search").mock(return_value=httpx.Response(200, json={"results": [
         {"title": "Trader on X", "url": "https://x.com/trader/status/1", "content": "$AVAX breakout, long here", "score": 0.8}]}))
     env = narrative_convergence(["x:trader"], telegram=TelegramPublic(httpx.Client()), tavily=Tavily(api_key="tvly-test", http=httpx.Client()))
-    assert env.status == "ok" and env.data["tokens"][0]["symbol"] == "AVAX" and env.data["tokens"][0]["first_seen"] is None
-    assert any("publication times unavailable" in w for w in env.warnings)
+    assert env.status == "partial" and env.data["tokens"] == []  # an undated post is not guessed into the window
+    assert any("dropped 1 undated result(s)" in w for w in env.warnings)
 
 
 # --- news_verify ------------------------------------------------------------------------

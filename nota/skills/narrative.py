@@ -1,8 +1,9 @@
 """Skill `narrative_convergence`: do trusted voices converge on the same token narrative?
 
 Voices are `tg:<channel>` (Telegram public channel preview, free, timestamps included),
-`bs:<handle>` (Bluesky's public AppView, dated) or `x:<handle>` (X's public syndication endpoint,
-Tavily restricted to x.com as fallback; best effort, missing timestamps reported as such). Sentiment, conviction and urgency come from a transparent lexicon,
+`bs:<handle>` (Bluesky's public AppView, dated) or `x:<handle>` (X's public syndication endpoint;
+when that fails, Tavily search restricted to x.com/<handle>/status URLs, dated results only, voice
+reported `partial`). Every fallback is named in warnings and in the voice row's `via`/`coverage`. Sentiment, conviction and urgency come from a transparent lexicon,
 not a model, so the same messages always score the same. The method is named in the output.
 """
 
@@ -16,10 +17,10 @@ from typing import Any
 from pydantic import BaseModel
 
 from nota.envelope import Envelope
-from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
+from nota.skills.contract import OK, SkillArg, SkillDefinition, SourceUnavailable, make_envelope
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-from nota.skills.sources import BlueskyPublic, Message, Tavily, TelegramPublic, XPublic
+from nota.skills.sources import BlueskyPublic, Message, Tavily, TelegramPublic, XPublic, x_via_tavily
 
 DEFINITION = SkillDefinition(
     name="narrative_convergence",
@@ -160,6 +161,7 @@ def narrative_convergence(
 
     for voice in voices:
         kind, _, ident = voice.partition(":")
+        via, coverage = {"tg": "telegram_preview", "bs": "bluesky_appview"}.get(kind), "full"
         try:
             if kind == "tg":
                 msgs = telegram.fetch(ident)
@@ -167,15 +169,19 @@ def narrative_convergence(
                 msgs = bluesky.fetch(ident)
             elif kind == "x":
                 try:
-                    msgs = x.fetch(ident)
+                    msgs, via = x.fetch(ident), "x_syndication"
                     warnings.append(f"{voice}: read through an unofficial X syndication endpoint; treat as best effort")
                 except SourceUnavailable as exc:
                     if not tavily.configured:
                         raise SourceUnavailable(f"{exc}; no TAVILY_API_KEY to fall back on") from exc
-                    warnings.append(f"{exc}; fell back to Tavily search")
-                    res = tavily.search(f"from:{ident} OR \"@{ident}\"", max_results=10,
-                                        time_range="day" if hours <= 24 else "week", include_domains=["x.com", "twitter.com"])
-                    msgs = [Message(voice=voice, id=r.url, url=r.url, at=r.published_date, text=f"{r.title} {r.content}".strip()) for r in res]
+                    try:
+                        msgs, undated, other = x_via_tavily(tavily, ident, since)
+                    except SourceUnavailable as exc2:
+                        raise SourceUnavailable(f"{exc}; Tavily fallback failed: {exc2}") from exc2
+                    via, coverage = "tavily_search", "partial"
+                    note = f"; dropped {undated} undated result(s)" if undated else ""
+                    warnings.append(f"{exc}; fell back to Tavily search: {voice} via Tavily search, {len(msgs)} dated post(s), "
+                                    f"coverage partial (only what the search index holds){note}")
                 if msgs and all(m.at is None for m in msgs):
                     warnings.append(f"{voice}: publication times unavailable; window filter not applied")
             else:
@@ -183,18 +189,20 @@ def narrative_convergence(
         except SourceUnavailable as exc:
             availability[voice] = "unavailable"
             warnings.append(str(exc))
-            voice_rows.append({"id": voice, "status": "unavailable", "messages": 0, "error": str(exc)})
+            voice_rows.append({"id": voice, "status": "unavailable", "messages": None, "via": None, "coverage": None,
+                               "error": str(exc)})
             continue
         kept = [m for m in msgs if _within(m, since)]
-        availability[voice] = "available"
-        voice_rows.append({"id": voice, "status": "available", "messages": len(kept), "fetched": len(msgs)})
+        availability[voice] = "available" if coverage == "full" else "partial"
+        voice_rows.append({"id": voice, "status": availability[voice], "messages": len(kept), "fetched": len(msgs),
+                           "via": via, "coverage": coverage})
         for m in kept:
             toks, sent, conv, urg = score_text(m.text, tracked)
             if toks:
                 scored.append(Scored(voice=m.voice, id=m.id, url=m.url, at=m.at, text=m.text[:280], tokens=toks,
                                      sentiment=sent, conviction=conv, urgency=urg))
 
-    ok_voices = [v for v, s in availability.items() if s == "available"]
+    ok_voices = [v for v, s in availability.items() if s in OK | {"partial"}]
     by_token: dict[str, list[Scored]] = defaultdict(list)
     for s in scored:
         for t in s.tokens:

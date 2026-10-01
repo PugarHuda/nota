@@ -13,6 +13,11 @@ council cannot argue past), **2 Dashboards** (diff-first receipt dashboard, and 
 `positioning_check`, `move_base_rate`, `verdict_track_record`, `liquidity_check`, `crowd_odds`, all
 in RYO's envelope).
 
+**Judging?** https://nota-ryo.vercel.app/judges gives one screen per track: what to open, and which
+rubric line it answers. The dashboard can run the council live on fresh RYO evidence. What Nota
+does not do is in [LIMITATIONS.md](LIMITATIONS.md), and why it is built this way is in
+[DECISIONS.md](DECISIONS.md).
+
 ## RYO Verdict Scorecard
 
 Every `deep_analysis` answer carries a verdict and a trade plan (a stop 1.5 ATR away, a target at
@@ -280,6 +285,8 @@ served on RYO's own skill paths, so plugging them into RYO is a route registrati
 `POST /api/skills/{name}/invoke` taking `SkillCallRequest {name, args, conversation_id}` and
 returning `SkillCallResponse {name, status: success|error, result, latency_ms, xp, guard_decision}`.
 The dashboard's "Run a skill" panel builds its form from those definitions and shows the envelope.
+`contrib/positioning_check/` is the flagship skill packaged as a drop-in for RYO's own backend:
+no Nota imports, a FastAPI router to include, and its own offline tests (see its README).
 
 - `narrative_convergence`: up to 20 voices (`tg:` public Telegram previews, `bs:` Bluesky public
   API, `x:` through X's own public syndication endpoint, the one that serves embedded timelines,
@@ -577,7 +584,10 @@ Vercel's CDN). It serves the committed ledger snapshot `data/demo.db` (receipts 
 evidence, each carrying its trace ids) with `NOTA_READONLY=1`: reads, replay verification, cards,
 feeds and exports work, and so does backing, which is written to Neon Postgres (`DATABASE_URL`)
 with handle claims and edit tokens, since a serverless filesystem cannot be written. New decisions
-and locks arrive with the ledger cycle's commits. The full system, including live RYO evidence, the
+and locks arrive with the ledger cycle's commits. With `RYO_MCP_KEY` and an LLM key set, the
+dashboard's "Run the council live" (`POST /api/council/{symbol}`) convenes the council on fresh
+evidence and returns the receipt without storing it. It is capped at 3 runs per address and 20 in
+total per hour. The full system, including live RYO evidence, the
 `watch` loop and notifications, runs with `uv run nota serve` on any machine with a writable disk.
 
 ## Failure handling

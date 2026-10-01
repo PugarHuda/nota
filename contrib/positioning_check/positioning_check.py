@@ -1,74 +1,74 @@
-"""Skill `positioning_check`: is RYO's derivatives block about *this* token, and what do venues say?
+"""`positioning_check` for RYO's skill registry. Standalone: stdlib + httpx, nothing else.
 
-`deep_analysis` returns `derivatives.{funding_rate_bps, open_interest_change_24h_pct, long_short_ratio}`
-with `availability.derivatives = "available"`. On 2026-09-18 funding was 0.0 and the ratio null for
-every token probed, and the 24 h OI change repeated exactly across unrelated tokens in one run
-(-10.44 for ETH, SOL, WIF and ONDO). RYO's guide documents no unit, venue or window for these fields,
-so this skill never calls a RYO number "wrong" against a guessed definition. It only uses tests that
-need no definition:
+Two jobs:
+1. Gate RYO's own `deep_analysis.data.derivatives` block field by field, using only tests that need no
+   definition of RYO's units (RYO documents no unit, venue or window for these fields):
+   `not_token_specific` (same value on 2+ other symbols the same day), `conflicts_with_venue` (RYO's and
+   OKX's coin-terms 24 h OI change have opposite signs, both >= 3%), `conflicts_with_ryo` (BTC funding
+   exactly 0 while RYO's sentiment tool reports a value), `citable`, `unverified`, `absent` (null),
+   `not_provided` (no block passed).
+2. Report venue positioning: OKX premium over spot, 24 h OI change in coins, long/short account ratio
+   and its 100-hour percentile; Hyperliquid premium as a second venue; Deribit DVOL implied 7-day move
+   for BTC/ETH as a check on stop distance.
 
-- `not_token_specific`: the same value on two or more *other* symbols from the same day.
-- `conflicts_with_venue`: RYO's OI change and OKX's coin-terms OI change over 24 h have opposite
-  signs, both at least SIGN_MIN_PCT in size.
-- `conflicts_with_ryo`: RYO's own market-wide tool reports BTC funding while `deep_analysis` BTC says
-  exactly 0.0.
-- `citable`: a venue agrees in sign. `unverified`: nothing to check it against. `absent`: null.
-  `not_provided`: no RYO block was passed and none could be fetched.
-
-Called without `reference_derivatives`, the skill asks RYO's `deep_analysis` itself when a RYO source
-is configured, and takes the same-day cross-section of peers from the scorecard's locks in the ledger.
-
-It also reports OKX's own positioning. The per-8 h funding rate is not read as a signal: OKX sets it
-to the interest component (1 bp) unless the perp's premium moves it, so the premium is what says
-whether futures trade above spot. Open interest is in coin terms, because a USD series moves with
-price alone. A long/short account ratio is only meaningful against its own history, so it is given
-as a percentile of the last 100 hours.
-
-For BTC and ETH it reads Deribit's DVOL, the options market's 30-day implied volatility (annualised),
-and turns it into the move a normal week spans, DVOL / sqrt(365) x sqrt(7). A stop closer than half
-of that sits inside ordinary noise. Deribit publishes the index for BTC and ETH only, so for every
-other token the section is `unavailable` and nothing is estimated in its place.
+A source that fails is `unavailable` plus a warning naming the cause. A value that was not measured is
+None (JSON null), never 0. `status` is derived from the four venue sections, never set by hand.
+Same logic as Nota's nota/skills/positioning.py, minus Nota's ledger and RYO client: RYO's own derivatives
+block, its peers and BTC funding come in as optional arguments (or the `fetch_reference` hook).
 """
 
 from __future__ import annotations
 
 import math
+import re
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
-from nota.envelope import Envelope
-from nota.ledger import Ledger
-from nota.ryo_client import RyoError, RyoSource
-from nota.skills.contract import SkillArg, SkillDefinition, SourceUnavailable, make_envelope
-from nota.skills.sources import UA
+NAME = "positioning_check"
+SCHEMA_VERSION = "nota-skill-1"
+UA = "positioning_check/1.0 (+https://ryobuild.com)"
 
-DEFINITION = SkillDefinition(
-    name="positioning_check",
-    description="Decide, field by field, whether RYO's deep_analysis derivatives block can be cited as evidence about this token "
+# RYO's SkillDefinition / SkillArgSchema (docs/ryo-openapi-subset.json): name, description, args[], requires_guard, xp
+SKILL_DEFINITION: dict[str, Any] = {
+    "name": NAME,
+    "description": "Decide, field by field, whether RYO's deep_analysis derivatives block can be cited as evidence about this token "
     "(identical values across other tokens, sign conflicts with OKX coin-terms open interest), and report OKX perp positioning: "
     "premium over spot on OKX and Hyperliquid, 24 h open-interest change in coins, long/short account ratio and its 100-hour "
     "percentile, and for BTC/ETH Deribit's DVOL implied 7-day move as a check on stop distance.",
-    args=[
-        SkillArg(name="symbol", type="string", description="Token symbol, e.g. SOL"),
-        SkillArg(name="reference_derivatives", type="object", required=False,
-                 description="RYO deep_analysis data.derivatives for this symbol; fetched from RYO when omitted and a RYO key is set"),
-        SkillArg(name="peer_derivatives", type="array", required=False, items={"type": "object"},
-                 description="Same-day RYO derivatives blocks for other symbols: [{symbol, funding_rate_bps, open_interest_change_24h_pct}]; "
-                 "taken from the day's scorecard locks when omitted"),
-        SkillArg(name="ryo_btc_funding_bps", type="number", required=False,
-                 description="Latest BTC funding from RYO monitor_market_sentiment_shift (evidence.funding.latest_bps)"),
-        SkillArg(name="atr_stop_pct", type="number", required=False,
-                 description="Stop distance in % of price (e.g. RYO's 1.5 x atr_14_pct), checked against the DVOL implied 7-day move"),
+    "args": [
+        {"name": "symbol", "type": "string", "required": True, "description": "Token symbol, e.g. SOL", "enum": None, "items": None},
+        {"name": "reference_derivatives", "type": "object", "required": False, "enum": None, "items": None,
+         "description": "RYO deep_analysis data.derivatives for this symbol: {funding_rate_bps, open_interest_change_24h_pct, long_short_ratio}"},
+        {"name": "peer_derivatives", "type": "array", "required": False, "enum": None, "items": {"type": "object"},
+         "description": "Same-day RYO derivatives blocks for other symbols: [{symbol, funding_rate_bps, open_interest_change_24h_pct}], at most 25"},
+        {"name": "ryo_btc_funding_bps", "type": "number", "required": False, "enum": None, "items": None,
+         "description": "Latest BTC funding from RYO monitor_market_sentiment_shift (evidence.funding.latest_bps)"},
+        {"name": "atr_stop_pct", "type": "number", "required": False, "enum": None, "items": None,
+         "description": "Stop distance in % of price (e.g. RYO's 1.5 x atr_14_pct), checked against the DVOL implied 7-day move"},
     ],
-)
+    "requires_guard": False,  # read-only research: never touches a wallet or an order
+    "xp": 0,
+}
 
 OKX = "https://www.okx.com/api/v5"
+HL = "https://api.hyperliquid.xyz/info"
+HL_NAMES = {"PEPE": "kPEPE", "SHIB": "kSHIB", "BONK": "kBONK", "FLOKI": "kFLOKI"}  # Hyperliquid lists these per 1000 tokens
+DERIBIT = "https://www.deribit.com/api/v2/public/get_volatility_index_data"
+DVOL_CURRENCIES = ("BTC", "ETH")  # the only DVOL indices Deribit publishes
 SIGN_MIN_PCT = 3.0
 AT_DEFAULT_BPS = 1.0  # |premium| under 1 bp: perp and spot agree, neither side is pressing
+NOISE_SHARE = 0.5
 FIELDS = ("funding_rate_bps", "open_interest_change_24h_pct", "long_short_ratio")
+PRIMARY = ("okx_premium", "okx_open_interest", "okx_long_short", "hyperliquid_premium")
+SYMBOL_RE = re.compile(r"[A-Z0-9]{1,15}")  # the symbol ends up in exchange URLs, so it is checked here
+MAX_PEERS = 25
+
+
+class SourceUnavailable(Exception):
+    """A network source failed. Reported, never papered over."""
 
 
 def _okx(http: httpx.Client, path: str, params: dict[str, Any]) -> list[Any]:
@@ -86,6 +86,10 @@ def _okx(http: httpx.Client, path: str, params: dict[str, Any]) -> list[Any]:
     return body["data"]
 
 
+def _state(bps: float | None) -> str | None:
+    return None if bps is None else "at_default" if abs(bps) < AT_DEFAULT_BPS else ("above_spot" if bps > 0 else "below_spot")
+
+
 def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], dict[str, str], list[str]]:
     inst = f"{symbol}-USDT-SWAP"
     out: dict[str, Any] = {"venue": "okx", "inst": inst, "premium_bps": None, "funding_rate_bps_8h": None, "interest_bps_8h": None,
@@ -97,10 +101,9 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
         f = _okx(http, "/public/funding-rate", {"instId": inst})[0]
         out.update(premium_bps=round(float(f["premium"]) * 1e4, 3), funding_rate_bps_8h=round(float(f["fundingRate"]) * 1e4, 3),
                    interest_bps_8h=round(float(f["interestRate"]) * 1e4, 3))
-        p = out["premium_bps"]
-        out["premium_state"] = "at_default" if abs(p) < AT_DEFAULT_BPS else ("above_spot" if p > 0 else "below_spot")
+        out["premium_state"] = _state(out["premium_bps"])
         availability["okx_premium"] = "available"
-    except (SourceUnavailable, KeyError, ValueError) as exc:
+    except (SourceUnavailable, KeyError, ValueError, TypeError) as exc:
         availability["okx_premium"] = "unavailable"
         warnings.append(f"okx premium: {exc}")
     try:
@@ -112,7 +115,7 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
         else:
             availability["okx_open_interest"] = "partial"
             warnings.append(f"okx open interest: {len(coins)} hourly points, need 25 for a 24 h change")
-    except (SourceUnavailable, IndexError, ValueError) as exc:
+    except (SourceUnavailable, IndexError, ValueError, TypeError) as exc:
         availability["okx_open_interest"] = "unavailable"
         warnings.append(f"okx open interest: {exc}")
     try:
@@ -122,19 +125,14 @@ def okx_positioning(symbol: str, http: httpx.Client) -> tuple[dict[str, Any], di
         out.update(long_short_ratio=round(now, 4), long_short_hours=len(ratios),
                    long_short_percentile_100h=round(sum(r <= now for r in ratios) / len(ratios) * 100, 1))
         availability["okx_long_short"] = "available"
-    except (SourceUnavailable, IndexError, ValueError) as exc:
+    except (SourceUnavailable, IndexError, ValueError, TypeError) as exc:
         availability["okx_long_short"] = "unavailable"
         warnings.append(f"okx long/short: {exc}")
     return out, availability, warnings
 
 
-HL = "https://api.hyperliquid.xyz/info"
-HL_NAMES = {"PEPE": "kPEPE", "SHIB": "kSHIB", "BONK": "kBONK", "FLOKI": "kFLOKI"}  # Hyperliquid lists these per 1000 tokens
-
-
 def hl_premium(symbol: str, http: httpx.Client) -> float:
-    """Hyperliquid's perp premium over its oracle, in bps. A second venue for the one field two venues
-    can be compared on: which side of spot the perp trades."""
+    """Hyperliquid's perp premium over its oracle, in bps: a second venue for which side of spot the perp trades."""
     try:
         resp = http.post(HL, json={"type": "metaAndAssetCtxs"})
     except httpx.HTTPError as exc:
@@ -152,17 +150,47 @@ def hl_premium(symbol: str, http: httpx.Client) -> float:
     return round(float(p) * 1e4, 3)
 
 
-def _state(bps: float | None) -> str | None:
-    return None if bps is None else "at_default" if abs(bps) < AT_DEFAULT_BPS else ("above_spot" if bps > 0 else "below_spot")
+def deribit_dvol(symbol: str, http: httpx.Client) -> dict[str, Any]:
+    """Latest daily DVOL close (annualised %, 30-day implied) and the 7-day move it implies."""
+    now_ms = int(time.time() * 1000)
+    try:
+        resp = http.get(DERIBIT, params={"currency": symbol, "resolution": "1D",
+                                         "start_timestamp": now_ms - 3 * 86_400_000, "end_timestamp": now_ms})
+    except httpx.HTTPError as exc:
+        raise SourceUnavailable(f"deribit: network error {type(exc).__name__}") from exc
+    if resp.status_code != 200:
+        raise SourceUnavailable(f"deribit: HTTP {resp.status_code}")
+    rows = (resp.json().get("result") or {}).get("data") or []
+    if not rows:
+        raise SourceUnavailable(f"deribit: no DVOL candles for {symbol} in the last 3 days")
+    last = max(rows, key=lambda r: r[0])  # [timestamp, open, high, low, close]
+    dvol = float(last[4])
+    return {"index": f"{symbol} DVOL", "dvol": round(dvol, 2),
+            "implied_7d_move_pct": round(dvol / math.sqrt(365) * math.sqrt(7), 2),
+            "as_of": datetime.fromtimestamp(last[0] / 1000, timezone.utc).isoformat(timespec="seconds")}
 
 
 def premium_consensus(states: dict[str, str | None]) -> str:
-    seen = {v for v in states.values() if v}
+    seen = [v for v in states.values() if v]
     if not seen:
         return "unavailable"
-    if len(seen) > 1:
+    if len(set(seen)) > 1:
         return "venues_disagree"
-    return next(iter(seen)) + (f"_{len([v for v in states.values() if v])}_venues")
+    return f"{seen[0]}_{len(seen)}_venues"
+
+
+def premium_clause(consensus: str, okx: dict[str, Any], hl: dict[str, Any]) -> str | None:
+    parts = " / ".join(f"{name} {v['premium_bps']:+g} bps" for name, v in (("OKX", okx), ("Hyperliquid", hl)) if v["premium_bps"] is not None)
+    if consensus == "unavailable":
+        return None
+    if consensus == "venues_disagree":
+        return f"{parts}: venues disagree"
+    side, n, _ = consensus.rsplit("_", 2)
+    if n == "1":
+        parts += " only"  # the other venue did not answer; one venue is not the market
+    return {"at_default": f"perp at spot ({parts}): neither side pressing",
+            "above_spot": f"perp above spot ({parts}): more demand to be long",
+            "below_spot": f"perp below spot ({parts}): more demand to be short"}[side]
 
 
 def plain_lines(symbol: str, okx: dict[str, Any], consensus: str) -> dict[str, str]:
@@ -195,8 +223,7 @@ def _sign(x: float) -> int:
 
 def gate(symbol: str, reference: dict[str, Any] | None, peers: list[dict[str, Any]], okx: dict[str, Any],
          ryo_btc_funding_bps: float | None) -> list[dict[str, Any]]:
-    """One verdict per RYO field. Pure: every input is already in hand. `reference=None` means RYO was
-    never asked, which is not the same as RYO answering null."""
+    """One verdict per RYO field. `reference=None` means RYO was never asked, which is not RYO answering null."""
     if reference is None:
         return [{"field": f, "path": f"deep_analysis.data.derivatives.{f}", "ryo_value": None, "verdict": "not_provided",
                  "why": "no reference_derivatives passed"} for f in FIELDS]
@@ -226,77 +253,36 @@ def gate(symbol: str, reference: dict[str, Any] | None, peers: list[dict[str, An
     return out
 
 
-DERIBIT = "https://www.deribit.com/api/v2/public/get_volatility_index_data"
-DVOL_CURRENCIES = ("BTC", "ETH")  # the only DVOL indices Deribit publishes
-NOISE_SHARE = 0.5
-
-
-def deribit_dvol(symbol: str, http: httpx.Client, now_ms: int | None = None) -> dict[str, Any]:
-    """Latest daily DVOL close (annualised %, 30-day implied) and the 7-day move it implies."""
-    now_ms = now_ms or int(time.time() * 1000)
-    try:
-        resp = http.get(DERIBIT, params={"currency": symbol, "resolution": "1D",
-                                         "start_timestamp": now_ms - 3 * 86_400_000, "end_timestamp": now_ms})
-    except httpx.HTTPError as exc:
-        raise SourceUnavailable(f"deribit: network error {type(exc).__name__}") from exc
-    if resp.status_code != 200:
-        raise SourceUnavailable(f"deribit: HTTP {resp.status_code}")
-    rows = (resp.json().get("result") or {}).get("data") or []
-    if not rows:
-        raise SourceUnavailable(f"deribit: no DVOL candles for {symbol} in the last 3 days")
-    last = max(rows, key=lambda r: r[0])  # [timestamp, open, high, low, close]
-    dvol = float(last[4])
-    return {"index": f"{symbol} DVOL", "dvol": round(dvol, 2),
-            "implied_7d_move_pct": round(dvol / math.sqrt(365) * math.sqrt(7), 2),
-            "as_of": datetime.fromtimestamp(last[0] / 1000, timezone.utc).isoformat(timespec="seconds")}
-
-
-def premium_clause(consensus: str, okx: dict[str, Any], hl: dict[str, Any]) -> str | None:
-    """The headline's premium words, from both venues: one venue's number never speaks for the market."""
-    parts = " / ".join(f"{name} {v['premium_bps']:+g} bps" for name, v in (("OKX", okx), ("Hyperliquid", hl))
-                       if v["premium_bps"] is not None)
-    if consensus == "unavailable":
-        return None
-    if consensus == "venues_disagree":
-        return f"{parts}: venues disagree"
-    side, n, _ = consensus.rsplit("_", 2)
-    if n == "1":
-        parts += " only"  # the other venue did not answer; one venue is not the market
-    return {"at_default": f"perp at spot ({parts}): neither side pressing",
-            "above_spot": f"perp above spot ({parts}): more demand to be long",
-            "below_spot": f"perp below spot ({parts}): more demand to be short"}[side]
+def status_from(availability: dict[str, str]) -> str:
+    vals = [availability.get(k, "unavailable") for k in PRIMARY]
+    if all(v == "available" for v in vals):
+        return "ok"
+    if all(v in ("unavailable", "error") for v in vals):
+        return "unavailable"
+    return "partial"
 
 
 def positioning_check(symbol: str, reference_derivatives: dict[str, Any] | None = None, peer_derivatives: list[dict[str, Any]] | None = None,
-                      ryo_btc_funding_bps: float | None = None, atr_stop_pct: float | None = None,
-                      http: httpx.Client | None = None, ryo: RyoSource | None = None, ledger: Ledger | None = None) -> Envelope:
-    from nota.evidence import ryo_args
-    from nota.scorecard import peer_derivatives as ledger_peers
-
+                      ryo_btc_funding_bps: float | None = None, atr_stop_pct: float | None = None, http: httpx.Client | None = None,
+                      fetch_reference: Callable[[str], dict[str, Any] | None] | None = None) -> dict[str, Any]:
+    """Returns RYO's public envelope. `fetch_reference(symbol)` is RYO's hook to supply its own deep_analysis
+    derivatives block when the caller passed none; without it the gate reports `not_provided`."""
     symbol = symbol.upper()
     request = {"symbol": symbol, "reference_derivatives": reference_derivatives, "peer_derivatives": peer_derivatives,
                "ryo_btc_funding_bps": ryo_btc_funding_bps, "atr_stop_pct": atr_stop_pct}
     http = http or httpx.Client(timeout=20.0, headers={"User-Agent": UA})
     okx, availability, warnings = okx_positioning(symbol, http)
-    if reference_derivatives is None and ryo is not None:
+    if reference_derivatives is None and fetch_reference is not None:
         try:
-            d = ryo.call("deep_analysis", ryo_args(symbol)["deep_analysis"]).get("derivatives")
-            reference_derivatives = d if isinstance(d, dict) else {}
-            availability["ryo_reference"] = "available" if isinstance(d, dict) else "unavailable"
-            if not isinstance(d, dict):
-                warnings.append(f"RYO deep_analysis {symbol} returned no derivatives block")
-        except RyoError as exc:
-            availability["ryo_reference"] = "unavailable"
-            warnings.append(f"RYO deep_analysis failed: {exc.code}: {exc.message}")
-    if peer_derivatives is None and reference_derivatives is not None and ledger is not None:
-        try:
-            peer_derivatives = ledger_peers(ledger, datetime.now(timezone.utc).date().isoformat())
-            availability["ledger_peers"] = "available" if peer_derivatives else "partial"
-            if not peer_derivatives:
-                warnings.append("no scorecard locks from today in the ledger: nothing to compare RYO's values across tokens")
-        except Exception as exc:  # an old snapshot without the scorecard tables
-            availability["ledger_peers"] = "unavailable"
-            warnings.append(f"ledger peers: {type(exc).__name__}")
+            d = fetch_reference(symbol)
+        except Exception as exc:  # RYO's own tool failing is a missing context section, not a crash
+            d = None
+            warnings.append(f"RYO deep_analysis failed: {type(exc).__name__}")
+        availability["ryo_reference"] = "available" if isinstance(d, dict) else "unavailable"
+        if isinstance(d, dict):
+            reference_derivatives = d
+        else:
+            warnings.append(f"RYO deep_analysis {symbol} returned no derivatives block")
     implied = None
     if symbol in DVOL_CURRENCIES:
         try:
@@ -326,10 +312,8 @@ def positioning_check(symbol: str, reference_derivatives: dict[str, Any] | None 
     consensus = premium_consensus({"okx": okx["premium_state"], "hyperliquid": hl["premium_state"]})
     verdicts = gate(symbol, reference_derivatives, peer_derivatives or [], okx, ryo_btc_funding_bps)
     withheld = [v for v in verdicts if v["verdict"] in ("not_token_specific", "conflicts_with_venue", "conflicts_with_ryo")]
-    for v in withheld:
-        warnings.append(f"withheld {v['path']}: {v['verdict']} ({v['why']})")
+    warnings += [f"withheld {v['path']}: {v['verdict']} ({v['why']})" for v in withheld]
     data = {"symbol": symbol, "gate": verdicts, "withheld_paths": [v["path"] for v in withheld], "okx": okx, "hyperliquid": hl,
-            # premium is the one field two venues can be compared on; OI change and long/short come from OKX alone
             "premium_consensus": consensus, "plain": plain_lines(symbol, okx, consensus),
             "peers_compared": sorted({str(p.get("symbol", "")).upper() for p in (peer_derivatives or [])} - {symbol}),
             "implied_vol": implied, "stop_check": stop_check,
@@ -337,8 +321,6 @@ def positioning_check(symbol: str, reference_derivatives: dict[str, Any] | None 
     bits = []
     if okx["oi_change_24h_pct_coin"] is not None:
         bits.append(f"OKX OI {okx['oi_change_24h_pct_coin']:+g}% in coins over 24 h")
-    # A premium this small does not move who pays: OKX funding stays at the 1 bp interest component.
-    # It says which side is more eager, and only when the venues agree on it.
     clause = premium_clause(consensus, okx, hl)
     if clause:
         bits.append(clause)
@@ -347,7 +329,54 @@ def positioning_check(symbol: str, reference_derivatives: dict[str, Any] | None 
     if implied:
         bits.append(f"DVOL {implied['dvol']:g} implies a {implied['implied_7d_move_pct']:g}% 7-day move")
     headline = f"{symbol}: {len(withheld)} of {len(FIELDS)} RYO derivatives fields withheld" + (f"; {'; '.join(bits)}" if bits else "; no venue data")
-    # the venues are what this skill measures; RYO's block, the ledger peers and DVOL are optional context
-    primary = [k for k in availability if k.startswith(("okx_", "hyperliquid_"))]
-    return make_envelope("positioning_check", request, data, availability, warnings, headline,
-                         key_points=[f"{v['field']}: {v['verdict']}" for v in verdicts], primary=primary)
+    status = status_from(availability)
+    return {"schema_version": SCHEMA_VERSION, "tool": NAME, "status": status,
+            "data_mode": "unknown" if status == "unavailable" else "live",  # nothing observed is not "live"
+            "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"), "request": request, "data": data,
+            "summary": {"headline": headline, "key_points": [f"{v['field']}: {v['verdict']}" for v in verdicts]},
+            "availability": availability, "warnings": warnings}
+
+
+def _finite(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def check_args(args: Any) -> dict[str, Any]:
+    """The declared schema, enforced before anything reaches a URL. Raises ValueError (map it to 422)."""
+    if not isinstance(args, dict):
+        raise ValueError(f"{NAME}: arguments must be an object")
+    unknown = set(args) - {a["name"] for a in SKILL_DEFINITION["args"]}
+    if unknown:
+        raise ValueError(f"{NAME}: unknown args {sorted(unknown)}")
+    args = {k: v for k, v in args.items() if v is not None}  # null on an optional arg means "use the default"
+    sym = args.get("symbol")
+    if not isinstance(sym, str) or not SYMBOL_RE.fullmatch(sym.strip().upper()):
+        raise ValueError(f"{NAME}: symbol must be 1-15 letters/digits, got {sym!r}")
+    args["symbol"] = sym.strip().upper()
+    if "reference_derivatives" in args and not isinstance(args["reference_derivatives"], dict):
+        raise ValueError(f"{NAME}: arg reference_derivatives must be object")
+    peers = args.get("peer_derivatives")
+    if peers is not None and (not isinstance(peers, list) or len(peers) > MAX_PEERS or not all(isinstance(p, dict) for p in peers)):
+        raise ValueError(f"{NAME}: arg peer_derivatives must be array of at most {MAX_PEERS} objects")
+    for k in ("ryo_btc_funding_bps", "atr_stop_pct"):
+        if k in args and not _finite(args[k]):
+            raise ValueError(f"{NAME}: arg {k} must be number")
+    return args
+
+
+def invoke(args: dict[str, Any], http: httpx.Client | None = None,
+           fetch_reference: Callable[[str], dict[str, Any] | None] | None = None) -> dict[str, Any]:
+    """RYO's SkillCallResponse: {name, status: success|error, result: <envelope>, latency_ms, xp, guard_decision}.
+    Bad args raise ValueError; a source failure is never raised, it is reported inside `result`."""
+    started = time.monotonic()
+    env = positioning_check(**check_args(args), http=http, fetch_reference=fetch_reference)
+    # SkillCastStatus: pending | running | success | error. Only "every venue failed" is an error.
+    return {"name": NAME, "status": "error" if env["status"] == "unavailable" else "success", "result": env,
+            "latency_ms": int((time.monotonic() - started) * 1000), "xp": SKILL_DEFINITION["xp"], "guard_decision": None}
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+
+    print(json.dumps(invoke(json.loads(sys.argv[1]) if len(sys.argv) > 1 else {"symbol": "BTC"}), indent=2))

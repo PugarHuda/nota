@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import shutil
 import tempfile
 from pathlib import Path
@@ -36,6 +37,11 @@ from nota.skills.price_check import price_crosscheck
 from nota.skills.technicals import technicals_crosscheck
 
 load_dotenv()
+# Windows consoles default to cp1252, and a Telegram emoji in a skill result must not crash the print
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 app = typer.Typer(help="Nota: council-of-agents decisions on RYO's read-only research tools.", no_args_is_help=True)
 
 RECORDED_ROOT = Path("fixtures/recorded")
@@ -211,7 +217,8 @@ def decide_cmd(
             typer.echo(f"notify {out['channel']}: {out['status']}" + (f" ({out['error']})" if out.get("error") else ""))
 
 
-def _extras(src, voices: str, news: bool, price_check: bool = True):
+def _extras(src, voices: str, news: bool, price_check: bool = True, ledger: Ledger | None = None):
+    """`ledger`: where peer derivatives are read from; the API passes its read-only one."""
     extras = {}
     voice_list = [v for v in (voices or os.environ.get("NOTA_VOICES", "")).split(",") if v.strip()]
     if voice_list:
@@ -237,7 +244,7 @@ def _extras(src, voices: str, news: bool, price_check: bool = True):
 
             fund = pack.get("sentiment_shift.data.evidence.funding.latest_bps")
             return positioning_check(sym, reference_derivatives=pack.get("deep_analysis.data.derivatives"),
-                                     peer_derivatives=peer_derivatives(_ledger(), now_iso()[:10]),
+                                     peer_derivatives=peer_derivatives(ledger or _ledger(), now_iso()[:10]),
                                      ryo_btc_funding_bps=fund if isinstance(fund, (int, float)) and not isinstance(fund, bool) else None)
         extras["positioning_check"] = _positioning
 

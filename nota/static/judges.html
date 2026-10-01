@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For judges · Nota</title>
+<script>try{const t=localStorage.getItem('nota.theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch{}</script>
+<meta name="description" content="One screen per track: what to click, what it proves, and which rubric line it answers.">
+<meta property="og:title" content="Nota, for judges">
+<meta property="og:description" content="Each track judgeable on its own in a few minutes, with links to the exact receipt or endpoint.">
+<meta property="og:type" content="website">
+<!--OG-->
+<link rel="stylesheet" href="/landing.css">
+<style>
+  main.wrap { background:var(--paper); border:1px solid var(--form); border-radius:2px; margin:22px auto 40px;
+              padding-top:clamp(28px,4vw,48px); padding-bottom:clamp(30px,4vw,52px) }
+  @media (max-width:1240px) { main.wrap { margin:14px var(--pad) 32px; padding-left:clamp(16px,4vw,40px); padding-right:clamp(16px,4vw,40px) } }
+  h1 { font-size:clamp(28px,3.6vw,42px); line-height:1.2; padding-bottom:16px; margin:0 0 20px; border-bottom:3px double var(--ink) }
+  h2 { font-size:clamp(20px,2vw,24px); margin:40px 0 8px }
+  p, li { max-width:var(--measure); font-size:16px; line-height:1.65 }
+  .lede { font-size:clamp(17px,1.8vw,20px); color:var(--ink-2) }
+  ol.steps { padding-left:1.3em } ol.steps li { margin-bottom:10px }
+  table { border-collapse:collapse; width:100%; max-width:860px; font-size:15px; border-top:2px solid var(--ink) }
+  th, td { text-align:left; padding:9px 14px 9px 0; border-bottom:1px solid var(--form); vertical-align:top }
+  th { font-weight:700; color:var(--ink-2); font-size:13px }
+  .pts { font:700 14px/1.45 var(--fig); white-space:nowrap }
+  code { font-size:.92em; overflow-wrap:anywhere }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav aria-label="Site">
+  <div class="wrap">
+    <b><a href="/" style="color:inherit;text-decoration:none">Nota</a></b>
+    <div class="right">
+      <details class="menu"><summary>Menu</summary><div>
+        <a href="#common">Every track</a>
+        <a href="#t1">Track 1</a>
+        <a href="#t2">Track 2</a>
+        <a href="#t3">Track 3</a>
+        <a href="#only">Only here</a>
+        <button type="button" class="theme" id="theme" aria-pressed="false">Dark theme</button>
+      </div></details>
+      <a class="cta" href="/app"><span class="opt">Receipts </span>dashboard</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap" id="main">
+<h1>Nota, for judges</h1>
+<p class="lede">Nota enters all three tracks. Each section below stands on its own: what to open, what it proves,
+and the rubric line it answers. Every link goes to live data, never to a mock-up.</p>
+
+<h2 id="common">Every track (common 40)</h2>
+<table>
+  <thead><tr><th>Rubric</th><th>Open this</th><th>What it shows</th></tr></thead>
+  <tbody>
+  <tr><td class="pts">Combining sources · 20</td><td><a href="/r/0d9469f115d1">receipt 0d9469f115d1</a>, Evidence provenance</td>
+      <td>Five RYO tools plus seven independent checks (exchange prices, recomputed RSI/ATR, OKX positioning, DefiLlama,
+      prediction markets, narrative voices) in one evidence pack, argued over by three agents and a judge.</td></tr>
+  <tr><td class="pts">Coping with failure · 20</td><td><a href="/r/2ae531ec2c9b">2ae531ec2c9b</a> (RYO answered 401) and
+      <a href="/r/c60acf3ba3b1">c60acf3ba3b1</a> (RYO <code>deep_analysis</code> down for three days)</td>
+      <td>The run still completes, records which section failed and why, and refuses to trade. A missing value stays
+      <code>null</code>; nothing is filled in. The ledger kept locking and settling through both outages.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="t1">Track 1 · Autonomous Agents</h2>
+<ol class="steps">
+  <li><b>Run it yourself.</b> In the <a href="/app">dashboard</a>, "Run the council live" gathers fresh RYO evidence and
+      convenes the council on any symbol (one to two minutes, capped per visitor).</li>
+  <li><b>Real thinking (25).</b> Open any receipt: each agent cites dotted paths into RYO's answer, and the value shown
+      is read back out of the evidence, not retyped by the model. Citations to paths that do not exist are dropped in code.</li>
+  <li><b>Cause and effect (20).</b> "What changed" ranks every evidence move since the previous receipt by impact; the
+      derivatives gate withholds RYO fields that are not about the token (see a receipt's Warnings).</li>
+  <li><b>Repeatability (10).</b> Press <i>Verify replay</i>: the decision is rebuilt from the stored evidence and prints
+      <code>identical: true</code>. Offline: <code>uv run nota replay &lt;id&gt;</code>. Each receipt is also anchored in Bitcoin (OpenTimestamps).</li>
+  <li><b>Advanced (5).</b> Practice trades sized from ATR with stops and targets, a twice-daily ledger cycle in CI, and
+      every agent scored by Brier against the token's own base rate.</li>
+</ol>
+
+<h2 id="t2">Track 2 · Dashboards &amp; Interfaces</h2>
+<ol class="steps">
+  <li><b>Easy to read (25).</b> Open the <a href="/app">dashboard</a>: each receipt starts with a five-line summary (now,
+      biggest change, position, what RYO said, next step).</li>
+  <li><b>Sorted by importance (25).</b> "Needs attention" sits on top; "What changed" is sorted by impact; the
+      <a href="/scorecard">scorecard</a> puts the next settlements first.</li>
+  <li><b>Works for everyone (10).</b> Keyboard only: <kbd>j</kbd>/<kbd>k</kbd>, <kbd>Enter</kbd>, <kbd>p</kbd>, <kbd>/</kbd>, <kbd>?</kbd>.
+      Skip links, checked contrast, reduced motion, light and dark, and a <a href="/ja">Japanese</a> overview.</li>
+</ol>
+
+<h2 id="t3">Track 3 · New Skills</h2>
+<ol class="steps">
+  <li><b>Fills a gap (25).</b> <code>positioning_check</code>: RYO reports open interest and funding, but some of those
+      fields carry the same value across unrelated tokens. The skill checks RYO's derivatives against OKX for the token
+      and withholds what is not token-specific.</li>
+  <li><b>Follows the spec (15).</b> Every skill returns RYO's envelope (<code>status</code>, <code>data_mode</code>,
+      <code>availability</code>, <code>warnings</code>) at RYO's own path shape: <code>GET <a href="/api/skills/">/api/skills/</a></code>,
+      <code>POST /api/skills/{name}/invoke</code>. Try one in the dashboard's "Run a skill".</li>
+  <li><b>Could we use it (20).</b> <code>contrib/positioning_check/</code> in the repository is a drop-in: no Nota
+      imports, a FastAPI router RYO can include, and its own tests. The same skills are an MCP server at <code>/mcp</code>.</li>
+</ol>
+
+<h2 id="only">What only Nota does</h2>
+<ul>
+  <li><b>It audits RYO itself.</b> The <a href="/scorecard">Verdict Scorecard</a> locks RYO's own verdict and trade plan
+      for 25 majors every day and settles each one on OKX candles at 24 and 72 hours, every miss counted.</li>
+  <li><b>It found a defect in RYO's data</b>: one open-interest figure repeated across unrelated tokens, now withheld by a gate.</li>
+  <li><b>Every lock and receipt is anchored in Bitcoin</b> and every pushed ledger snapshot is attested with Sigstore.</li>
+</ul>
+<p>Limits are listed plainly in <a href="https://github.com/PugarHuda/nota/blob/main/LIMITATIONS.md">LIMITATIONS.md</a>.</p>
+</main>
+<script>
+(() => {
+  const theme = document.getElementById('theme'), root = document.documentElement;
+  const paint = () => theme.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  theme.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('nota.theme', root.dataset.theme); } catch {}
+    paint();
+  });
+  paint();
+})();
+</script>
+</body>
+</html>

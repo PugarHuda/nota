@@ -1,4 +1,4 @@
-"""External sources for skills: Telegram public-channel previews and Tavily search.
+"""External sources for skills: Telegram/Bluesky/X voices, RSS headlines and Tavily search.
 
 Both are thin, honest wrappers: a network or parse failure raises `SourceUnavailable` and the
 skill turns that into an `unavailable` section with a warning.
@@ -366,12 +366,15 @@ class Tavily:
         return bool(self.api_key)
 
     def search(self, query: str, max_results: int = 6, topic: str = "general", time_range: str | None = None,
-               include_domains: list[str] | None = None) -> list[TavilyResult]:
+               include_domains: list[str] | None = None, start_date: str | None = None) -> list[TavilyResult]:
         if not self.configured:
             raise SourceUnavailable("tavily: TAVILY_API_KEY not set")
-        body: dict[str, Any] = {"query": query, "max_results": max_results, "topic": topic, "search_depth": "basic"}
+        body: dict[str, Any] = {"query": query, "max_results": max_results, "topic": topic, "search_depth": "basic",
+                                "include_published_date": True}   # general topic omits dates unless asked
         if time_range:
             body["time_range"] = time_range
+        if start_date:
+            body["start_date"] = start_date                       # YYYY-MM-DD
         if include_domains:
             body["include_domains"] = include_domains
         try:
@@ -381,6 +384,41 @@ class Tavily:
         if resp.status_code != 200:
             raise SourceUnavailable(f"tavily: HTTP {resp.status_code}")
         return [TavilyResult.model_validate(r) for r in resp.json().get("results", [])]
+
+
+def x_via_tavily(tavily: Tavily, handle: str, since: datetime) -> tuple[list[Message], int, int]:
+    """`x:<handle>` posts found by Tavily search restricted to x.com/twitter.com since `since`.
+
+    Returns (messages, dropped_undated, dropped_other_author). Only URLs of the form
+    x.com/<handle>/status/<id> count as that voice's posts; a result with no published date is
+    dropped, not guessed into the window. Search sees what was indexed, so coverage is partial.
+    """
+    voice = f"x:{handle}"
+    h = clean_handle(handle, voice)
+    own = re.compile(rf"^https?://(?:www\.|mobile\.)?(?:x|twitter)\.com/{re.escape(h)}/status/(\d+)", re.I)
+    res = tavily.search(f"{h} on X", max_results=20, include_domains=["x.com", "twitter.com"],
+                        start_date=since.date().isoformat())
+    out: list[Message] = []
+    undated = other = 0
+    for r in res:
+        m = own.match(r.url)
+        if not m:
+            other += 1
+            continue
+        if not r.published_date:
+            undated += 1
+            continue
+        try:
+            pd = r.published_date      # Tavily sends RFC 822 ("Mon, 29 Sep 2026 ...") or ISO
+            at = parsedate_to_datetime(pd) if "," in pd else datetime.fromisoformat(pd.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            undated += 1
+            continue
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=timezone.utc)
+        out.append(Message(voice=voice, id=m.group(1), url=r.url, at=at.astimezone(timezone.utc).isoformat(timespec="seconds"),
+                           text=f"{r.title} {r.content}".strip()))
+    return out, undated, other
 
 
 # --- Venice web search (via chat completions citations) -------------------------------------
