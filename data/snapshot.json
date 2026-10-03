@@ -1,6 +1,925 @@
 {
- "exported_at": "2026-10-03T17:57:44+00:00",
+ "exported_at": "2026-10-03T19:26:43+00:00",
  "receipts": [
+  {
+   "agrees_with_ryo": null,
+   "availability": {
+    "analyze_token": "partial",
+    "compare": "ok",
+    "crowd_odds": "ok",
+    "deep_analysis": "partial",
+    "liquidity": "ok",
+    "market_overview": "ok",
+    "narrative_signal": "ok",
+    "positioning_check": "ok",
+    "price_check": "ok",
+    "sentiment_shift": "ok",
+    "technicals_check": "ok"
+   },
+   "cache_hits": 0,
+   "created_at": "2026-10-03T19:26:30+00:00",
+   "headline": "ETH: no trade (judge decided no_trade)",
+   "id": "2cb5ea90dca8",
+   "model": "qwen3-235b-a22b-instruct-2507",
+   "opinions": [
+    {
+     "citations": [
+      {
+       "note": "Risk-on regime supports bullish bias.",
+       "path": "market_overview.data.regime",
+       "value": "risk_on"
+      },
+      {
+       "note": "Greed-level sentiment at 68.",
+       "path": "market_overview.data.sentiment.fear_greed_index",
+       "value": "68"
+      },
+      {
+       "note": "83.7% of top listings are advancing.",
+       "path": "market_overview.data.market.breadth",
+       "value": "0.837"
+      },
+      {
+       "note": "BTC leads on 7-day momentum.",
+       "path": "compare.data.factors.0.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "BTC shows lower volatility.",
+       "path": "compare.data.factors.2.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "Ethereum TVL down 0.026% over 7 days.",
+       "path": "liquidity.data.tvl.change_7d_pct",
+       "value": "-0.026"
+      },
+      {
+       "note": "Stablecoin supply up 1.387% over 30 days.",
+       "path": "liquidity.data.stablecoins.change_30d_pct",
+       "value": "1.387"
+      },
+      {
+       "note": "Funding is normal, no crowding signal.",
+       "path": "sentiment_shift.data.evidence.funding.crowding_state",
+       "value": "normal"
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 0,
+     "invalidation": "If ETH shows stronger momentum than BTC in next 7d, thesis invalidated.",
+     "p_up_7d": 0.5,
+     "role": "macro",
+     "stance": "neutral",
+     "thesis": "Broad regime is risk-on with greed-level sentiment and strong breadth, supporting upside (market_overview.data.regime, market_overview.data.sentiment, market_overview.data.market.breadth). However, BTC dominates momentum and volatility factors, drawing capital away from ETH (compare.data.factors.0, compare.data.factors.2). Recent ETH chain liquidity inflows are positive but short-term TVL has dipped (liquidity.data.tvl.change_7d_pct). Sentiment shift is neutral with no funding crowding (sentiment_shift.data.evidence.funding.crowding_state). Thus, macro conditions are favorable but relative strength favors BTC, leaving ETH directionally balanced."
+    },
+    {
+     "citations": [
+      {
+       "note": "Trend is sideways, implying no clear direction.",
+       "path": "deep_analysis.data.technical_analysis.trend",
+       "value": "sideways"
+      },
+      {
+       "note": "Confluence score is 0.5, indicating mixed signals.",
+       "path": "deep_analysis.data.confluence.score",
+       "value": "0.5"
+      },
+      {
+       "note": "Independent RSI(14) is 58.82, neutral.",
+       "path": "technicals_check.data.rsi_14",
+       "value": "58.82"
+      },
+      {
+       "note": "ATR(14) is 3.458%, indicating moderate volatility.",
+       "path": "technicals_check.data.atr_pct",
+       "value": "3.458"
+      },
+      {
+       "note": "Liquidation pressure is elevated.",
+       "path": "deep_analysis.data.derivatives.liquidation_pressure",
+       "value": "elevated"
+      },
+      {
+       "note": "Perp is below spot, suggesting short-side demand.",
+       "path": "positioning_check.data.okx.premium_state",
+       "value": "below_spot"
+      },
+      {
+       "note": "Long/short percentile at 81, near top of recent range.",
+       "path": "positioning_check.data.okx.long_short_percentile_100h",
+       "value": "81"
+      },
+      {
+       "note": "Price deviation is only 0.005%, confirming data reliability.",
+       "path": "price_check.data.reference.deviation_pct",
+       "value": "0.005"
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 0,
+     "invalidation": "If RSI diverges sharply from 58.82 in updated OHLC, or if perp premium flips above spot with rising open interest, bullish case strengthens.",
+     "p_up_7d": 0.5,
+     "role": "technician",
+     "stance": "neutral",
+     "thesis": "ETH shows mixed signals: sideways trend, neutral confluence (0.5), and divergent momentum views. Technicals_check confirms RSI(14) 58.82 (within normal range) and ATR(14) 3.458%, but deep_analysis lacks RSI/ATR. Derivatives show elevated liquidation pressure and perps below spot, implying short-side eagerness. Price alignment across exchanges is tight (deviation 0.005%), supporting data quality."
+    },
+    {
+     "citations": [
+      {
+       "note": "Open interest dropped 19.79%, signaling position unwinding.",
+       "path": "deep_analysis.data.derivatives.open_interest_change_24h_pct",
+       "value": "-19.79"
+      },
+      {
+       "note": "Liquidation pressure is elevated, increasing downside risk.",
+       "path": "deep_analysis.data.derivatives.liquidation_pressure",
+       "value": "elevated"
+      },
+      {
+       "note": "Trend is sideways, showing no bullish momentum.",
+       "path": "deep_analysis.data.technical_analysis.trend",
+       "value": "sideways"
+      },
+      {
+       "note": "Average sentiment across voices is bearish at -0.103.",
+       "path": "narrative_signal.data.tokens.0.sentiment_mean",
+       "value": "-0.103"
+      },
+      {
+       "note": "Signal direction is bearish based on sentiment analysis.",
+       "path": "narrative_signal.data.tokens.0.direction",
+       "value": "bearish"
+      },
+      {
+       "note": "Holder coverage and TVL history gaps limit profile confidence.",
+       "path": "deep_analysis.data.token_profile.data.data.decision_report.analysis",
+       "value": "### Token Identity\nThe asset is resolved as Ethereum (ETH), the #2-ranked layer-1 proof-of-stake smart contract platform. It is classified as a coin, part of a broad set of major venture and ecosystem portfolios including Paradigm, a16z, Binance Labs, the US Strategic Crypto Reserve, and dozens of other investor and ecosystem categories. A verified contract address for the asset exists on BNB Smart Chain (BEP20).\n\n### Market Context\nThe latest market snapshot as of 2026-10-03T19:24:03Z shows:\n- Current price: ~$2,682.94 USD\n- Total market cap: ~$327.6 billion\n- 24h trading volume: ~$5.71 billion, representing a 1.74% volume-to-market-cap ratio\n- Price performance: +0.74% over 24h, nearly flat (-0.02%) over 7d, +6.63% over 30d, and +50.69% over 90d. ETH underperformed BTC by 0.24% on a 24h relative basis.\n\n### Protocol Context\nProtocol matching for Ethereum returned active metrics: 24h on-chain fees total ~$294,694, and 24h protocol revenue totals ~$73,139. Current TVL values and historical TVL trend data are not available in the current profile snapshot.\n\n### Holder Coverage Status\nLive holder coverage is currently unavailable. No usable ownership or distribution data was returned for the resolved contract lane, so analysis of holder concentration, distribution, or top wallet activity cannot be included in this profile.\n\n### Public Content Context\nRecent public coverage for ETH includes near-term price prediction analysis, an upcoming Oct 6 Sepolia testnet upgrade notice, and broader industry reports on rising crypto job postings for September 2026.\n\n### Explicit Coverage Gaps\nTwo unresolved profile lanes remain that limit overall confidence in this profile: 1) Live holder ownership data is not accessible for this run, 2) Stable protocol-history deltas including historical TVL trends are missing. These gaps are documented explicitly rather than being filled with inferred or estimated values."
+      },
+      {
+       "note": "Price is flat over 7 days, down 0.024%.",
+       "path": "deep_analysis.data.performance.d7",
+       "value": "-0.024441"
+      },
+      {
+       "note": "30-day momentum is positive at 6.63%, a partial offset.",
+       "path": "analyze_token.data.performance.change_30d_pct",
+       "value": "6.63139"
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 0,
+     "invalidation": "A sustained break above $2,800 with rising open interest and bullish narrative convergence would invalidate the bearish bias.",
+     "p_up_7d": 0.42,
+     "role": "narrative",
+     "stance": "bearish",
+     "thesis": "ETH sentiment is bearish in select channels despite mixed technicals and strong market context. Derivatives show reduced open interest and elevated liquidation pressure, while narrative signals are sparse but negative. Lack of holder data and incomplete profile reduce confidence."
+    }
+   ],
+   "pack_hash": "318a613bf559cf6d9b2e17429ce55e0bf540d93accf2daec019a680ff3d7cfcc",
+   "prompt_version": "v5",
+   "provenance": {
+    "analyze_token": {
+     "as_of": "2026-10-03T19:25:24Z",
+     "data_mode": "live",
+     "status": "partial",
+     "tool": "analyze_token",
+     "trace_id": "a7cad5532c2a4cd59b1598e4e774e939"
+    },
+    "compare": {
+     "as_of": "2026-10-03T19:26:07Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "compare_tokens",
+     "trace_id": "67fad3cfb3644958965c2ee64e6be385"
+    },
+    "crowd_odds": {
+     "as_of": "2026-10-03T19:26:11+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "crowd_odds",
+     "trace_id": null
+    },
+    "deep_analysis": {
+     "as_of": "2026-10-03T19:25:47Z",
+     "data_mode": "live",
+     "status": "partial",
+     "tool": "deep_analysis",
+     "trace_id": "523db7bf10414768ab92e8ee153081d7"
+    },
+    "liquidity": {
+     "as_of": "2026-10-03T19:26:11+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "liquidity_check",
+     "trace_id": null
+    },
+    "market_overview": {
+     "as_of": "2026-10-03T19:25:23Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "market_overview",
+     "trace_id": "373c3510647a448ba6d44bb1e92fde97"
+    },
+    "narrative_signal": {
+     "as_of": "2026-10-03T19:26:08+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "narrative_convergence",
+     "trace_id": null
+    },
+    "positioning_check": {
+     "as_of": "2026-10-03T19:26:11+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "positioning_check",
+     "trace_id": null
+    },
+    "price_check": {
+     "as_of": "2026-10-03T19:26:09+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "price_crosscheck",
+     "trace_id": null
+    },
+    "sentiment_shift": {
+     "as_of": "2026-10-03T19:25:22Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "monitor_market_sentiment_shift",
+     "trace_id": "08638d7a385249adab8977ebf1c15188"
+    },
+    "technicals_check": {
+     "as_of": "2026-10-03T19:26:10+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "technicals_crosscheck",
+     "trace_id": null
+    }
+   },
+   "ryo_view": {
+    "analyze_verdict": "neutral",
+    "compare_confidence": "medium",
+    "compare_pick": "BTC",
+    "confluence_state": "MIXED",
+    "deep_verdict": "neutral",
+    "key_driver": "The measured market and technical signals are mixed.",
+    "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture."
+   },
+   "source": "live",
+   "spend": {
+    "cached_calls": 0,
+    "completion_tokens": 1649,
+    "model_calls": 4,
+    "ms": 44269,
+    "prompt_tokens": 18983,
+    "usd": 0.004084
+   },
+   "symbol": "ETH",
+   "trade": {
+    "kind": "blocked",
+    "reason": "judge decided no_trade"
+   },
+   "verdict": {
+    "action": "no_trade",
+    "agreed_with": [],
+    "disagreed_with": [
+     "narrative"
+    ],
+    "key_risks": [
+     "deep_analysis: Technical indicators were not calculated; null values must not be treated as neutral or zero.",
+     "deep_analysis: Holder coverage and TVL history gaps limit profile confidence."
+    ],
+    "p_up_7d": 0.49,
+    "rationale": "Primary evidence is available, but council opinions diverge: macro and technician assess neutral (p_up_7d=0.5), while narrative is bearish (0.42). Calibration-weighted average is near 0.49, but low confluence and split stance under risk-on regime favor caution. Key warnings include missing holder data, incomplete TVL history, and null technicals not treated as neutral. Polymarket odds unavailable; Kalshi implies 49% upside probability, aligning with stale price. No clear edge."
+   },
+   "warnings": [
+    "deep_analysis: Technical indicators were not calculated; null values must not be treated as neutral or zero.",
+    "deep_analysis: Optional Skill Hub token-profile evidence is incomplete or unavailable.",
+    "deep_analysis: No preview trade plan could be calculated.",
+    "analyze_token: Technical indicators were not calculated; null values must not be treated as neutral or zero.",
+    "compare: Optional Skill Hub token-profile evidence is incomplete or unavailable for one or more tokens.",
+    "compare: The conclusion was calculated from the returned factors; no narrative model was used.",
+    "price_check: binance: USDT used as USD proxy",
+    "positioning_check: withheld deep_analysis.data.derivatives.funding_rate_bps: not_token_specific (the same value 0 on AAVE, ADA, APT, ARB, ATOM, AVAX, BCH, BNB, BTC, DOGE, DOT, INJ, LINK, LTC, NEAR, OP, PEPE, SHIB, SOL, SUI, TRX, UNI, WIF, XRP the same day)",
+    "crowd_odds: polymarket: no ladder with two or more liquid strikes expiring within 1 day of 2026-10-10"
+   ]
+  },
+  {
+   "agrees_with_ryo": true,
+   "availability": {
+    "analyze_token": "ok",
+    "compare": "ok",
+    "crowd_odds": "ok",
+    "deep_analysis": "ok",
+    "liquidity": "ok",
+    "market_overview": "ok",
+    "narrative_signal": "ok",
+    "positioning_check": "ok",
+    "price_check": "ok",
+    "sentiment_shift": "ok",
+    "technicals_check": "ok"
+   },
+   "cache_hits": 0,
+   "created_at": "2026-10-03T19:25:22+00:00",
+   "headline": "BTC: LONG practice trade, 1825 USD, stop 80187.2",
+   "id": "aafd16842ba8",
+   "model": "qwen3-235b-a22b-instruct-2507",
+   "opinions": [
+    {
+     "citations": [
+      {
+       "note": "Risk-on regime supports bullish positioning.",
+       "path": "market_overview.data.regime",
+       "value": "risk_on"
+      },
+      {
+       "note": "Sentiment at 68 indicates greed, supportive of price gains.",
+       "path": "market_overview.data.sentiment.fear_greed_index",
+       "value": "68"
+      },
+      {
+       "note": "High breadth (0.837) confirms broad market strength.",
+       "path": "market_overview.data.market.breadth",
+       "value": "0.837"
+      },
+      {
+       "note": "BTC wins on momentum versus ETH and SOL.",
+       "path": "compare.data.factors.0.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "BTC wins on lower volatility, a sign of stability.",
+       "path": "compare.data.factors.2.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "Rising stablecoin supply suggests increasing buying power.",
+       "path": "liquidity.data.stablecoins.change_7d_pct",
+       "value": "1.332"
+      },
+      {
+       "note": "Extreme short liquidation pressure can fuel upward moves.",
+       "path": "sentiment_shift.data.evidence.liquidation.pressure_state",
+       "value": "extreme"
+      },
+      {
+       "note": "BTC is the top-ranked asset in the peer comparison.",
+       "path": "compare.data.conclusion.pick",
+       "value": "BTC"
+      }
+     ],
+     "confidence": "high",
+     "dropped_citations": 0,
+     "invalidation": "A drop below $82k or Fear & Greed falling into 'fear' (below 40) would challenge this thesis.",
+     "p_up_7d": 0.65,
+     "role": "macro",
+     "stance": "bullish",
+     "thesis": "Broad market conditions favour BTC: regime is risk-on with greed-level sentiment and strong breadth (83.7% of top assets up). BTC leads peers in momentum and lower volatility per `compare`. Stablecoin supply grew 1.33% in 7 days, indicating fresh liquidity. Despite a slight Fear & Greed pullback (-5 pts), liquidations show extreme short pressure, suggesting bullish squeeze potential."
+    },
+    {
+     "citations": [
+      {
+       "note": "trend is up",
+       "path": "deep_analysis.data.technical_analysis.trend",
+       "value": "up"
+      },
+      {
+       "note": "RSI(14) at 60.6 indicates bullish momentum",
+       "path": "deep_analysis.data.technical_analysis.rsi_14",
+       "value": "60.6"
+      },
+      {
+       "note": "momentum gate passed",
+       "path": "deep_analysis.data.confluence.gates.0.passed",
+       "value": "True"
+      },
+      {
+       "note": "derivatives gate passed",
+       "path": "deep_analysis.data.confluence.gates.2.passed",
+       "value": "True"
+      },
+      {
+       "note": "BTC leads in momentum",
+       "path": "compare.data.factors.0.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "BTC has lowest measured volatility",
+       "path": "compare.data.factors.2.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "OI down but still citable, short-side premium pressure present",
+       "path": "positioning_check.data.okx.oi_change_24h_pct_coin",
+       "value": "-0.56"
+      }
+     ],
+     "confidence": "high",
+     "dropped_citations": 1,
+     "invalidation": "A break below trend or drop in momentum, or a spike in funding rates, would challenge this view.",
+     "p_up_7d": 0.65,
+     "role": "technician",
+     "stance": "bullish",
+     "thesis": "BTC shows bullish momentum and technical trend, supported by confluence in momentum and derivatives, despite reduced market activity. RSI and ATR checks confirm indicator reliability. Low volatility and strong positioning reinforce upside bias."
+    },
+    {
+     "citations": [
+      {
+       "note": "trend is up",
+       "path": "deep_analysis.data.technical_analysis.trend",
+       "value": "up"
+      },
+      {
+       "note": "7-day return is +0.99%",
+       "path": "deep_analysis.data.performance.d7",
+       "value": "0.985799"
+      },
+      {
+       "note": "confluence score is 0.67",
+       "path": "deep_analysis.data.confluence.score",
+       "value": "0.67"
+      },
+      {
+       "note": "open interest dropped 19.1%",
+       "path": "deep_analysis.data.derivatives.open_interest_change_24h_pct",
+       "value": "-19.1"
+      },
+      {
+       "note": "one voice is bullish",
+       "path": "narrative_signal.data.tokens.0.direction",
+       "value": "bullish"
+      },
+      {
+       "note": "only one of three voices mentions BTC",
+       "path": "narrative_signal.data.tokens.0.voice_count",
+       "value": "1"
+      },
+      {
+       "note": "holder coverage and protocol history data are missing",
+       "path": "deep_analysis.data.token_profile.data.data.decision_report.analysis",
+       "value": "### Token Identity\nBitcoin (BTC) is the #1 ranked cryptoasset, a proof-of-work layer-1 coin launched in July 2010, widely categorized as a store of value digital commodity. It operates as a native UTXO chain with no associated smart contract platform, and is listed as part of dozens of major institutional and venture capital portfolio allocations.\n\n### Market Context\nAs of the latest snapshot, BTC trades at approximately $84,836 USD, with a total market capitalization of ~$1.705 trillion. Fully diluted valuation is ~$1.782 trillion, with 24-hour trading volume of ~$14.39 billion, representing a volume-to-market-cap ratio of 0.84%. Recent price performance includes +0.92% over 24 hours, +0.99% over 7 days, +4.01% over 30 days, and +35.21% over 90 days. The profile notes that current liquidity appears thin relative to Bitcoin's total market cap.\n\n### Protocol Context\nThe Bitcoin protocol has a current total value locked of $0.0, consistent with its native design that does not host general-purpose decentralized finance applications. Reported 24h protocol fees are ~$325,620, while 24h protocol revenue is recorded at $0.0. No historical TVL trend data is available for the protocol at this time.\n\n### Holder Coverage\nLive holder coverage is currently unavailable. No on-chain holder concentration, distribution, or ownership quality data is included in this profile, as required contract and platform context is missing, so holder dynamics cannot be verified from existing evidence.\n\n### Public Content Context\nThere are 3 recent relevant public news items as of the report timestamp, including updates on SEC approval of the first 3x leveraged Bitcoin and Ether ETPs, a long-dormant early Bitcoin whale address moving $1.7M worth of BTC after 15 years, and recent EUR-denominated price analysis for European market participants.\n\n### Explicit Coverage Gaps\nTwo key context lanes remain unresolved:\n1. **Live holder coverage**: No verified ownership distribution data is available, limiting visibility into holder concentration and distribution trends.\n2. **Stable protocol-history deltas**: No historical trend data for TVL, fees, or revenue over longer time horizons can be included.\n\nThese gaps are carried forward explicitly rather than being filled with estimated values, and reduce the confidence of any extended fundamental claims beyond the current available snapshot."
+      },
+      {
+       "note": "daily technical trend is upward",
+       "path": "deep_analysis.data.intelligence.catalysts.0",
+       "value": "Daily technical trend is upward."
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 0,
+     "invalidation": "A breakdown in trend, negative sentiment shift, or rising liquidation pressure could invalidate the bullish case.",
+     "p_up_7d": 0.65,
+     "role": "narrative",
+     "stance": "bullish",
+     "thesis": "BTC price momentum and technical trend are upward, with mixed confluence due to weak market activity. One voice signals bullish sentiment, but low voice coverage and missing holder data reduce conviction. No risks or bearish signals noted."
+    }
+   ],
+   "pack_hash": "700f4a4ee7f7e873ae58044f0840508c9db853367312112c288471b896f779fd",
+   "prompt_version": "v5",
+   "provenance": {
+    "analyze_token": {
+     "as_of": "2026-10-03T19:24:22Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "analyze_token",
+     "trace_id": "80f4eeafa5f744949d8bee81cb50d76f"
+    },
+    "compare": {
+     "as_of": "2026-10-03T19:24:50Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "compare_tokens",
+     "trace_id": "6575cf7e6b0f4b519cb5e95d922e4a26"
+    },
+    "crowd_odds": {
+     "as_of": "2026-10-03T19:25:06+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "crowd_odds",
+     "trace_id": null
+    },
+    "deep_analysis": {
+     "as_of": "2026-10-03T19:25:01Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "deep_analysis",
+     "trace_id": "3be86142edbc44488909f800aca12430"
+    },
+    "liquidity": {
+     "as_of": "2026-10-03T19:25:06+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "liquidity_check",
+     "trace_id": null
+    },
+    "market_overview": {
+     "as_of": "2026-10-03T19:24:22Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "market_overview",
+     "trace_id": "071ab9cf493948cc965517a56a8145b6"
+    },
+    "narrative_signal": {
+     "as_of": "2026-10-03T19:25:02+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "narrative_convergence",
+     "trace_id": null
+    },
+    "positioning_check": {
+     "as_of": "2026-10-03T19:25:05+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "positioning_check",
+     "trace_id": null
+    },
+    "price_check": {
+     "as_of": "2026-10-03T19:25:04+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "price_crosscheck",
+     "trace_id": null
+    },
+    "sentiment_shift": {
+     "as_of": "2026-10-03T19:24:22Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "monitor_market_sentiment_shift",
+     "trace_id": "7c64ad401ab14b2cb954618c96c36d0b"
+    },
+    "technicals_check": {
+     "as_of": "2026-10-03T19:25:04+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "technicals_crosscheck",
+     "trace_id": null
+    }
+   },
+   "ryo_view": {
+    "analyze_verdict": "accumulate",
+    "compare_confidence": "medium",
+    "compare_pick": "BTC",
+    "confluence_state": "MIXED",
+    "deep_verdict": "constructive",
+    "key_driver": "Positive seven-day momentum with an upward technical trend.",
+    "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture."
+   },
+   "source": "live",
+   "spend": {
+    "cached_calls": 0,
+    "completion_tokens": 1419,
+    "model_calls": 4,
+    "ms": 34753,
+    "prompt_tokens": 18920,
+    "usd": 0.003902
+   },
+   "symbol": "BTC",
+   "trade": {
+    "atr": 2324.5116,
+    "edge": 0.65,
+    "entry_price": 84836.18841018794,
+    "kind": "trade",
+    "risk_usd": 100.0,
+    "side": "long",
+    "size_units": 0.02151,
+    "size_usd": 1824.82,
+    "source_paths": {
+     "atr": "deep_analysis.data.trade_plan.atr_14_usd",
+     "price": "deep_analysis.data.market.price_usd"
+    },
+    "stop_price": 80187.16521018794,
+    "symbol": "BTC",
+    "target_price": 91809.72321018793,
+    "vs_ryo_plan": {
+     "agrees_on_direction": true,
+     "liquidation_pressure": "elevated",
+     "method": "wilder_atr_14_from_daily_ohlcv",
+     "nota_atr_multiplier": 2.0,
+     "path": "deep_analysis.data.trade_plan",
+     "ryo_atr_multiplier": 1.5,
+     "ryo_entry": 84836.1884,
+     "ryo_stop": 81349.4211,
+     "ryo_target": 88322.9558,
+     "squeeze_risk": "low",
+     "stop_diff_pct": -1.37,
+     "target_diff_pct": 4.11
+    }
+   },
+   "verdict": {
+    "action": "long",
+    "agreed_with": [],
+    "disagreed_with": [],
+    "key_risks": [
+     "Holder and protocol history data missing (narrative_signal, deep_analysis)",
+     "Funding rate data not token-specific (positioning_check warning)",
+     "Stablecoin supply growth may not fully translate to BTC demand"
+    ],
+    "p_up_7d": 0.65,
+    "rationale": "All three council members are bullish with high or medium confidence. Primary evidence is available and consistent. Macro and technician assign high confidence, citing risk-on regime, strong breadth, rising stablecoin supply, extreme short pressure, upward trend, and favorable momentum. Narrative supports with medium confidence despite data gaps. Calibration weights are high (0.991, 1.0, 0.979), and no material disagreement exists. No invalidation triggers are active."
+   },
+   "warnings": [
+    "deep_analysis: Optional Skill Hub token-profile evidence is incomplete or unavailable.",
+    "compare: Optional Skill Hub token-profile evidence is incomplete or unavailable for one or more tokens.",
+    "compare: The conclusion was calculated from the returned factors; no narrative model was used.",
+    "price_check: binance: USDT used as USD proxy",
+    "positioning_check: withheld deep_analysis.data.derivatives.funding_rate_bps: not_token_specific (the same value 0 on AAVE, ADA, APT, ARB, ATOM, AVAX, BCH, BNB, DOGE, DOT, ETH, INJ, LINK, LTC, NEAR, OP, PEPE, SHIB, SOL, SUI, TRX, UNI, WIF, XRP the same day)",
+    "liquidity: BTC has no DeFi chain whose TVL tracks demand for it (DefiLlama's Bitcoin chain is mostly restaking deposits)",
+    "crowd_odds: polymarket: no ladder with two or more liquid strikes expiring within 1 day of 2026-10-10"
+   ]
+  },
+  {
+   "agrees_with_ryo": null,
+   "availability": {
+    "analyze_token": "ok",
+    "compare": "ok",
+    "crowd_odds": "ok",
+    "deep_analysis": "ok",
+    "liquidity": "ok",
+    "market_overview": "ok",
+    "narrative_signal": "ok",
+    "positioning_check": "ok",
+    "price_check": "ok",
+    "sentiment_shift": "ok",
+    "technicals_check": "ok"
+   },
+   "cache_hits": 0,
+   "created_at": "2026-10-03T19:24:21+00:00",
+   "headline": "SOL: no trade (judge decided no_trade)",
+   "id": "5a843322aa9d",
+   "model": "qwen3-235b-a22b-instruct-2507",
+   "opinions": [
+    {
+     "citations": [
+      {
+       "note": "Risk-on regime favors bullish positioning.",
+       "path": "market_overview.data.regime",
+       "value": "risk_on"
+      },
+      {
+       "note": "Greed-level sentiment at 68/100 implies limited fear to squeeze.",
+       "path": "market_overview.data.sentiment.fear_greed_index",
+       "value": "68"
+      },
+      {
+       "note": "84.78% of large caps are up, indicating broad strength.",
+       "path": "market_overview.data.market.breadth",
+       "value": "0.8478"
+      },
+      {
+       "note": "Sentiment down 5 points over 7 days, not a material shift.",
+       "path": "sentiment_shift.data.evidence.fear_greed.change_7d_points",
+       "value": "-5"
+      },
+      {
+       "note": "BTC leads on momentum, not SOL.",
+       "path": "compare.data.factors.0.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "BTC has lower volatility, reducing SOL's risk-adjusted appeal.",
+       "path": "compare.data.factors.2.winner",
+       "value": "BTC"
+      },
+      {
+       "note": "SOL leads in market activity, a positive signal.",
+       "path": "compare.data.factors.1.winner",
+       "value": "SOL"
+      },
+      {
+       "note": "Stablecoin supply up 1.33% in 7 days, modest fresh inflow.",
+       "path": "liquidity.data.stablecoins.change_7d_pct",
+       "value": "1.332"
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 0,
+     "invalidation": "A stronger case for SOL would require outperformance in momentum or volatility, or a spike in chain-specific liquidity.",
+     "p_up_7d": 0.5,
+     "role": "macro",
+     "stance": "neutral",
+     "thesis": "Broad regime is risk-on with greed-level sentiment and strong breadth, supporting upside (market_overview.data.regime, market_overview.data.sentiment, market_overview.data.market.breadth). However, sentiment shift is flat and BTC dominates momentum and volatility, limiting SOL's relative appeal (sentiment_shift.data.evidence.fear_greed.change_7d_points, compare.data.factors). SOL leads in market activity but lacks edge in momentum or volatility. Liquidity trends are positive but not accelerating sharply."
+    },
+    {
+     "citations": [
+      {
+       "note": "Trend is up.",
+       "path": "deep_analysis.data.technical_analysis.trend",
+       "value": "up"
+      },
+      {
+       "note": "RSI(14) at 61.1 suggests moderate bullish momentum.",
+       "path": "deep_analysis.data.technical_analysis.rsi_14",
+       "value": "61.1"
+      },
+      {
+       "note": "Confluence score 1.0 confirms momentum, market activity, and derivatives alignment.",
+       "path": "deep_analysis.data.confluence.score",
+       "value": "1"
+      },
+      {
+       "note": "Liquidation pressure is elevated.",
+       "path": "deep_analysis.data.derivatives.liquidation_pressure",
+       "value": "elevated"
+      },
+      {
+       "note": "Perpetuals trade below spot, signaling short-side demand.",
+       "path": "positioning_check.data.okx.premium_state",
+       "value": "below_spot"
+      },
+      {
+       "note": "SOL trails BTC in momentum score (3.86 vs 5.98).",
+       "path": "compare.data.factors.0.scores.SOL",
+       "value": "3.86329"
+      },
+      {
+       "note": "Price deviation from median is 0.022%, well below warning threshold.",
+       "path": "price_check.data.reference.deviation_pct",
+       "value": "0.022"
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 1,
+     "invalidation": "A shift to 'bullish' would require sustained long-side funding, rising open interest in coin terms, and RSI breaking 70 cleanly.",
+     "p_up_7d": 0.5,
+     "role": "technician",
+     "stance": "neutral",
+     "thesis": "SOL shows mixed signals: technicals support upside (trend up, RSI 61.1, confluence confirmed), but derivatives show elevated liquidation pressure and perps trading below spot, indicating short-side eagerness. Independent checks confirm RSI and ATR are within acceptable variance. Market activity is strong, yet momentum trails BTC. No data-quality red flags."
+    },
+    {
+     "citations": [
+      {
+       "note": "Daily trend is up.",
+       "path": "deep_analysis.data.technical_analysis.trend",
+       "value": "up"
+      },
+      {
+       "note": "30-day price change is +13.59%.",
+       "path": "deep_analysis.data.performance.d30",
+       "value": "13.5868"
+      },
+      {
+       "note": "7-day price change is -1.14%.",
+       "path": "deep_analysis.data.performance.d7",
+       "value": "-1.13671"
+      },
+      {
+       "note": "Liquidation pressure is elevated.",
+       "path": "deep_analysis.data.derivatives.liquidation_pressure",
+       "value": "elevated"
+      },
+      {
+       "note": "Daily technical trend is upward.",
+       "path": "deep_analysis.data.intelligence.catalysts.0",
+       "value": "Daily technical trend is upward."
+      },
+      {
+       "note": "RSI is at 61.1, near overbought but not extreme.",
+       "path": "analyze_token.data.technical_analysis.rsi_14",
+       "value": "61.1"
+      },
+      {
+       "note": "Holder coverage and TVL trend data are missing, limiting fundamental assessment.",
+       "path": "deep_analysis.data.token_profile.data.data.decision_report.analysis",
+       "value": "### Token Identity\nSOL is the native token of the Solana layer-1 blockchain, launched March 16, 2020, currently ranked 7 by market capitalization. The token is categorized as a coin, with an on-chain contract address on the Solana network, and appears on tag lists including layer-1, US strategic crypto reserve, Binance ecosystem, and multiple institutional investment portfolios.\n\n### Market Context\nThe latest market snapshot as of 2026-10-03T19:22:03Z reports:\n- Current price: ~$119.82 USD\n- Total market capitalization: ~$70.47B\n- Fully diluted valuation: ~$76.10B\n- 24h trading volume: ~$1.54B, equal to 2.18% of market cap\n- Short-term price performance: +1.87% over 24h, -1.14% over 7d, +13.59% over 30d, +48.06% over 90d. SOL outperformed BTC by 0.88% in the latest 24h window.\n\n### Protocol Context\nProtocol matching confirmed the token is tied to the Solana network. Reported 24h protocol fees are approximately $1.09M, with corresponding 24h protocol revenue of approximately $118k. Current total value locked and TVL trend metrics are unavailable for this profile run.\n\n### Holder Coverage\nLive holder snapshot data is currently unavailable, no usable ownership distribution fields were returned during this run. Ownership quality and holder concentration trends cannot be assessed from this profile alone.\n\n### Public Content Context\nThe latest public content snapshot includes 3 recent industry news items, focused on crypto sector hiring trends and Bitcoin ETF inflows, with no breaking Solana-specific announcements included in the current sample.\n\n### Explicit Coverage Gaps\nThis profile has two unresolved coverage gaps: 1) live holder coverage is unavailable, 2) stable protocol-history deltas including TVL trend data are missing. These gaps limit the depth of fundamental analysis available from this run, and no claims should be made about ownership changes or long-term protocol performance from this dataset."
+      }
+     ],
+     "confidence": "medium",
+     "dropped_citations": 1,
+     "invalidation": "A sustained break above $127 (first trade target) with declining open interest would support upside; a drop below $112 (stop level) or rising liquidations would favor downside.",
+     "p_up_7d": 0.5,
+     "role": "narrative",
+     "stance": "neutral",
+     "thesis": "SOL shows mixed signals: upward technical trend and strong 30-day momentum support a bullish case, but recent 7-day decline, elevated liquidation pressure, and absent narrative discussion dampen conviction. No catalysts or risks are currently highlighted by selected voices."
+    }
+   ],
+   "pack_hash": "0149b2519942965022a42f5f4ccdb2024b8ce0f4c9f73ca83134729cb0841e1b",
+   "prompt_version": "v5",
+   "provenance": {
+    "analyze_token": {
+     "as_of": "2026-10-03T19:23:14Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "analyze_token",
+     "trace_id": "1154af7a66c7485cbbc1042733ba688d"
+    },
+    "compare": {
+     "as_of": "2026-10-03T19:23:52Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "compare_tokens",
+     "trace_id": "6ed05a97ce954ea78f1b2064f7fd00fa"
+    },
+    "crowd_odds": {
+     "as_of": "2026-10-03T19:23:57+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "crowd_odds",
+     "trace_id": null
+    },
+    "deep_analysis": {
+     "as_of": "2026-10-03T19:23:47Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "deep_analysis",
+     "trace_id": "e47d7d52bcc84a61854014cedcf496ce"
+    },
+    "liquidity": {
+     "as_of": "2026-10-03T19:23:57+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "liquidity_check",
+     "trace_id": null
+    },
+    "market_overview": {
+     "as_of": "2026-10-03T19:23:04Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "market_overview",
+     "trace_id": "7a1f9f7649b2421e924e59695af8e8dc"
+    },
+    "narrative_signal": {
+     "as_of": "2026-10-03T19:23:53+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "narrative_convergence",
+     "trace_id": null
+    },
+    "positioning_check": {
+     "as_of": "2026-10-03T19:23:57+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "positioning_check",
+     "trace_id": null
+    },
+    "price_check": {
+     "as_of": "2026-10-03T19:23:55+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "price_crosscheck",
+     "trace_id": null
+    },
+    "sentiment_shift": {
+     "as_of": "2026-10-03T19:23:13Z",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "monitor_market_sentiment_shift",
+     "trace_id": "048e130914ee4e819458667d0548ba2e"
+    },
+    "technicals_check": {
+     "as_of": "2026-10-03T19:23:55+00:00",
+     "data_mode": "live",
+     "status": "ok",
+     "tool": "technicals_crosscheck",
+     "trace_id": null
+    }
+   },
+   "ryo_view": {
+    "analyze_verdict": "neutral",
+    "compare_confidence": "medium",
+    "compare_pick": "BTC",
+    "confluence_state": "CONFIRMED",
+    "deep_verdict": "neutral",
+    "key_driver": "The measured market and technical signals are mixed.",
+    "what_changes_it": "A material change in trend, momentum, activity, or derivatives posture."
+   },
+   "source": "live",
+   "spend": {
+    "cached_calls": 0,
+    "completion_tokens": 1655,
+    "model_calls": 4,
+    "ms": 51251,
+    "prompt_tokens": 18614,
+    "usd": 0.004033
+   },
+   "symbol": "SOL",
+   "trade": {
+    "kind": "blocked",
+    "reason": "judge decided no_trade"
+   },
+   "verdict": {
+    "action": "no_trade",
+    "agreed_with": [],
+    "disagreed_with": [],
+    "key_risks": [
+     "Liquidation pressure is elevated (deep_analysis.data.derivatives.liquidation_pressure)",
+     "Perpetuals trade below spot, signaling short-side demand (positioning_check.data.okx.premium_state)",
+     "No Solana-specific narrative catalysts detected (narrative_signal)",
+     "Holder and TVL trend data missing, limiting fundamental conviction (deep_analysis.data.token_profile.data.data.decision_report.analysis)"
+    ],
+    "p_up_7d": 0.5,
+    "rationale": "All three council members assign neutral stance and p_up_7d = 0.5, with medium confidence. Primary evidence is available, but no clear edge emerges: macro supports risk-on yet SOL trails BTC in momentum and volatility (compare.data.factors), technicians note elevated liquidation pressure and perp discount (positioning_check.data.okx.premium_state), and narrative lacks catalysts or sentiment shift (narrative_signal, deep_analysis.data.intelligence.catalysts). Confluence is weak despite upward trend and strong 30d performance. Calibration-weighted consensus remains neutral."
+   },
+   "warnings": [
+    "deep_analysis: Optional Skill Hub token-profile evidence is incomplete or unavailable.",
+    "compare: Optional Skill Hub token-profile evidence is incomplete or unavailable for one or more tokens.",
+    "compare: The conclusion was calculated from the returned factors; no narrative model was used.",
+    "price_check: binance: USDT used as USD proxy",
+    "positioning_check: no DVOL index for SOL (Deribit publishes BTC and ETH only)",
+    "positioning_check: withheld deep_analysis.data.derivatives.funding_rate_bps: not_token_specific (the same value 0 on AAVE, ADA, APT, ARB, ATOM, AVAX, BCH, BNB, BTC, DOGE, DOT, ETH, INJ, LINK, LTC, NEAR, OP, PEPE, SHIB, SUI, TRX, UNI, WIF, XRP the same day)",
+    "crowd_odds: polymarket: no ladder with two or more liquid strikes expiring within 1 day of 2026-10-10"
+   ]
+  },
   {
    "agrees_with_ryo": null,
    "availability": {
