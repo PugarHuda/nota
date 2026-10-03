@@ -327,6 +327,7 @@ def peer_derivatives(ledger: Ledger, day: str) -> list[dict[str, Any]]:
 
 BOOTSTRAP_N = 2000
 MIN_CONTRAST_DAYS = 10    # below this many shared days nothing is called distinguishable, whatever p says
+MIN_CI_CLUSTERS = 5      # a bootstrap over fewer independent clusters returns the point estimate or near it: no interval
 ALPHA = 0.10
 # Besag & Clifford (1991): a sequential Monte Carlo p-value may stop once this many permuted statistics
 # reach the observed one and stays valid; a plainly null contrast then costs ~40 rounds, not BOOTSTRAP_N.
@@ -375,9 +376,10 @@ def _mh(cells: list[list[float]]) -> float | None:
 
 def _stratified(rows: list[dict[str, Any]], key: str, a: Any, value: Callable[[dict[str, Any]], float],
                 cl: dict[str, int], seed: int, rounds: int) -> dict[str, Any]:
-    """MH difference; a permutation p-value with labels shuffled only within a cluster, so each cluster
-    keeps its market; and, from MIN_CONTRAST_DAYS shared days on, a 90% interval from a bootstrap over
-    clusters, never over plans (plans on one day move together)."""
+    """MH difference; a permutation p-value with labels shuffled only within a day, the same strata the
+    statistic is matched on (shuffling across the days of a cluster changed each day's group sizes and
+    gave p-values several times too small); and, from MIN_CONTRAST_DAYS shared days and MIN_CI_CLUSTERS
+    clusters on, a 90% interval from a bootstrap over clusters, never over plans (plans on one day move together)."""
     days = sorted({r["day"] for r in rows})
     di = {d: i for i, d in enumerate(days)}
     items = [(di[r["day"]], value(r)) for r in rows]
@@ -403,7 +405,7 @@ def _stratified(rows: list[dict[str, Any]], key: str, a: Any, value: Callable[[d
     rng = random.Random(seed)  # fixed seed: the page shows the same numbers every time it is read
     groups: dict[int, list[int]] = {}
     for i, r in enumerate(rows):
-        groups.setdefault(cl[r["day"]], []).append(i)
+        groups.setdefault(di[r["day"]], []).append(i)
     hits = n = 0
     while n < rounds and hits < STOP_AT_HITS:
         perm = labels[:]
@@ -416,11 +418,11 @@ def _stratified(rows: list[dict[str, Any]], key: str, a: Any, value: Callable[[d
         n += 1
         hits += s is not None and abs(s) >= abs(point) - 1e-12
     out["p_value"] = round(hits / n if hits >= STOP_AT_HITS else (hits + 1) / (n + 1), 4)
-    if len(days) >= MIN_CONTRAST_DAYS:
-        per_cluster: dict[int, list[list[float]]] = {}
-        for d, cells in zip(days, obs):
-            per_cluster.setdefault(cl[d], []).append(cells)
-        keys = list(per_cluster)
+    per_cluster: dict[int, list[list[float]]] = {}
+    for d, cells in zip(days, obs):
+        per_cluster.setdefault(cl[d], []).append(cells)
+    keys = list(per_cluster)
+    if len(days) >= MIN_CONTRAST_DAYS and len(keys) >= MIN_CI_CLUSTERS:  # fewer clusters: every draw is the point
         draws = sorted(x for x in (_mh([c for k in (rng.choice(keys) for _ in keys) for c in per_cluster[k]])
                                    for _ in range(BOOTSTRAP_N)) if x is not None)
         out["ci90"] = [draws[int(0.05 * len(draws))], draws[int(0.95 * len(draws)) - 1]]

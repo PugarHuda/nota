@@ -65,7 +65,10 @@ NOISE = re.compile(r"\.(since|fetched_at|as_of|window_hours|snippet|samples\.[^.
 
 
 # leaves that are themselves a percentage, a change or a points gap: diffed in points, not in % of a %
-IN_POINTS = re.compile(r"(_pct|pct_|percent|performance|_points|\.changes?\.|change_|\.h\d+$)")
+IN_POINTS = re.compile(r"(_pct|pct_|percent|performance|_points|\.changes?\.|change_|\.h\d+$|_bps|bps_|sentiment|delta|rsi)")
+# an evidence number never outranks a model change (300) or a stance, verdict, trade or availability flip:
+# a move off a value near zero is unbounded in percent (-0.003 -> -0.354 bps read as -11700%)
+LEAF_CAP = 299
 
 
 def _leaves(pack: EvidencePack) -> dict[str, Any]:
@@ -150,10 +153,10 @@ def what_changed(led: Ledger, cur: Receipt, prev: Receipt | None) -> list[dict[s
             numeric = all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b))
             if numeric and IN_POINTS.search(path):
                 # already a percentage or a points gap: 0.004 -> -0.394 is a 0.4-point move, not -9950%
-                add(path, a, b, abs(b - a) * (10 if key else 1), f"{b - a:+.2f} pts" + (" (feeds risk sizing)" if key else ""))
+                add(path, a, b, min(LEAF_CAP, abs(b - a) * (10 if key else 1)), f"{b - a:+.2f} pts" + (" (feeds risk sizing)" if key else ""))
             elif numeric and a != 0:
                 pct = (b - a) / abs(a) * 100
-                add(path, a, b, abs(pct) * (10 if key else 1), f"{pct:+.1f}%" + (" (feeds risk sizing)" if key else ""))
+                add(path, a, b, min(LEAF_CAP, abs(pct) * (10 if key else 1)), f"{pct:+.1f}%" + (" (feeds risk sizing)" if key else ""))
             elif a is None or b is None:
                 add(path, a, b, 50 if key else 5, "value became unavailable" if b is None else "value became available")
             else:

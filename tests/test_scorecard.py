@@ -435,3 +435,18 @@ def test_list_locks_filters_by_utc_day():
     for i, at in enumerate(("2026-09-18T23:59:00+00:00", "2026-09-19T00:00:00+00:00", "2026-09-20T00:00:00+00:00")):
         led.save_lock(f"l{i}", "SOL", at, "locked", "{}")
     assert [i for i, _ in led.list_locks("2026-09-19")] == ["l1"] and len(led.list_locks()) == 3
+
+
+def test_the_permutation_keeps_each_days_group_sizes_and_few_clusters_get_no_interval(monkeypatch):
+    """The statistic is matched by day, so the null must be too: shuffling labels across the days of one
+    cluster changed each day's group sizes and gave p = 0.03 where the day-matched answer was 0.21."""
+    from nota import scorecard
+
+    rows = ([{"day": "2026-09-18", "k": "A", "v": 1.0}] * 8 + [{"day": "2026-09-18", "k": "B", "v": 1.0}] * 2
+            + [{"day": "2026-09-19", "k": "A", "v": 1.0}] * 1 + [{"day": "2026-09-19", "k": "B", "v": 0.0}] * 6)
+    seen = []
+    real = scorecard._mh
+    monkeypatch.setattr(scorecard, "_mh", lambda cells: seen.append([(c[1], c[3]) for c in cells]) or real(cells))
+    out = scorecard._stratified(rows, "k", "A", lambda r: r["v"], {"2026-09-18": 0, "2026-09-19": 0}, seed=1, rounds=200)
+    assert all(s == seen[0] for s in seen)          # (A, B) counts per day never move under the null
+    assert out["ci90"] is None                      # one cluster: no interval, whatever the day count
