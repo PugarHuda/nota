@@ -1,5 +1,5 @@
 {
- "exported_at": "2026-10-07T21:32:59+00:00",
+ "exported_at": "2026-10-08T15:57:30+00:00",
  "receipts": [
   {
    "agrees_with_ryo": null,
@@ -17040,7 +17040,7 @@
  ],
  "scorecard": {
   "24h": {
-   "contradictions": 12,
+   "contradictions": 13,
    "contrasts": [
     {
      "a": "CONFIRMED",
@@ -17204,8 +17204,8 @@
    ],
    "coverage": {
     "aborted": 4,
-    "locked": 305,
-    "no_plan": 95,
+    "locked": 311,
+    "no_plan": 114,
     "ryo_unavailable": 12,
     "settled_neither": 250,
     "settled_stop": 6,
@@ -17214,37 +17214,37 @@
    "horizon_h": 24,
    "lanes": {
     "derivatives": {
-     "available": 399,
+     "available": 424,
      "unavailable": 1
     },
     "market_data": {
-     "available": 400
+     "available": 425
     },
     "technical_analysis": {
-     "available": 305,
-     "partial": 95
+     "available": 311,
+     "partial": 114
     },
     "token_profile": {
      "available": 12,
-     "partial": 231,
-     "unavailable": 157
+     "partial": 246,
+     "unavailable": 167
     },
     "trade_plan": {
-     "available": 305,
-     "unavailable": 95
+     "available": 311,
+     "unavailable": 114
     }
    },
-   "lock_days": 16,
+   "lock_days": 17,
    "min_contrast_days": 10,
    "missing_inputs": {
-    "24h fees lane": 96,
-    "24h protocol revenue lane": 107,
+    "24h fees lane": 102,
+    "24h protocol revenue lane": 114,
     "30-day TVL change trend data is unavailable": 1,
     "30-day protocol TVL change data not currently available in coverage set": 1,
     "TVL historical trend data unavailable": 1,
     "historical TVL trend data": 1,
-    "live holder coverage": 194,
-    "stable protocol-history deltas": 160,
+    "live holder coverage": 209,
+    "stable protocol-history deltas": 169,
     "tvl history unavailable": 1,
     "tvl_history_unavailable": 11
    },
@@ -17344,11 +17344,107 @@
      "trace_id": "945fe53eb2364bf798d61e1aed319729",
      "verdict": "cautious",
      "verdict_contradicts_side": true
+    },
+    {
+     "atr_14_pct": 2.6,
+     "confluence_score": 0.67,
+     "confluence_state": "MIXED",
+     "day": "2026-10-08",
+     "id": "3daf4f51df59",
+     "locked_at": "2026-10-08T15:41:02+00:00",
+     "momentum_gate": false,
+     "overdue": false,
+     "settles_at": "2026-10-09T16:00:00+00:00",
+     "side": "long",
+     "symbol": "BTC",
+     "trace_id": "285a67bf399a461cb2d9198fdc9e3a04",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 3.73,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "c84e96e39b70",
+     "locked_at": "2026-10-08T15:42:22+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-09T16:00:00+00:00",
+     "side": "long",
+     "symbol": "SOL",
+     "trace_id": "b4350cad47544b12afd913146d5d57eb",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 6.78,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "667a1dfca552",
+     "locked_at": "2026-10-08T15:48:19+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-09T16:00:00+00:00",
+     "side": "long",
+     "symbol": "SUI",
+     "trace_id": "0e00eac96ae04871bc4a213611da09e2",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 7.75,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "5f9870239067",
+     "locked_at": "2026-10-08T15:50:52+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-09T16:00:00+00:00",
+     "side": "long",
+     "symbol": "APT",
+     "trace_id": "435fb06afbd94a26838d5ba300e4df8f",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 8.29,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "73fcb98d75ec",
+     "locked_at": "2026-10-08T15:53:52+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-09T16:00:00+00:00",
+     "side": "long",
+     "symbol": "OP",
+     "trace_id": "c0f28fe3654e475d8b634bb36b65a151",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 7.68,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "f7330f45a34d",
+     "locked_at": "2026-10-08T15:55:36+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-09T16:00:00+00:00",
+     "side": "long",
+     "symbol": "WIF",
+     "trace_id": "a94d13983fd641da893692bca82ab13f",
+     "verdict": "cautious",
+     "verdict_contradicts_side": true
     }
    ],
    "profile_latency_ms": [
     23730,
-    36497,
+    36570,
     44855
    ],
    "settled": [
@@ -23067,7 +23163,7 @@
    ]
   },
   "72h": {
-   "contradictions": 12,
+   "contradictions": 13,
    "contrasts": [
     {
      "a": "CONFIRMED",
@@ -23222,8 +23318,8 @@
    ],
    "coverage": {
     "aborted": 4,
-    "locked": 305,
-    "no_plan": 95,
+    "locked": 311,
+    "no_plan": 114,
     "ryo_unavailable": 12,
     "settled_neither": 175,
     "settled_stop": 18,
@@ -23232,37 +23328,37 @@
    "horizon_h": 72,
    "lanes": {
     "derivatives": {
-     "available": 399,
+     "available": 424,
      "unavailable": 1
     },
     "market_data": {
-     "available": 400
+     "available": 425
     },
     "technical_analysis": {
-     "available": 305,
-     "partial": 95
+     "available": 311,
+     "partial": 114
     },
     "token_profile": {
      "available": 12,
-     "partial": 231,
-     "unavailable": 157
+     "partial": 246,
+     "unavailable": 167
     },
     "trade_plan": {
-     "available": 305,
-     "unavailable": 95
+     "available": 311,
+     "unavailable": 114
     }
    },
-   "lock_days": 16,
+   "lock_days": 17,
    "min_contrast_days": 10,
    "missing_inputs": {
-    "24h fees lane": 96,
-    "24h protocol revenue lane": 107,
+    "24h fees lane": 102,
+    "24h protocol revenue lane": 114,
     "30-day TVL change trend data is unavailable": 1,
     "30-day protocol TVL change data not currently available in coverage set": 1,
     "TVL historical trend data unavailable": 1,
     "historical TVL trend data": 1,
-    "live holder coverage": 194,
-    "stable protocol-history deltas": 160,
+    "live holder coverage": 209,
+    "stable protocol-history deltas": 169,
     "tvl history unavailable": 1,
     "tvl_history_unavailable": 11
    },
@@ -23458,11 +23554,107 @@
      "trace_id": "945fe53eb2364bf798d61e1aed319729",
      "verdict": "cautious",
      "verdict_contradicts_side": true
+    },
+    {
+     "atr_14_pct": 2.6,
+     "confluence_score": 0.67,
+     "confluence_state": "MIXED",
+     "day": "2026-10-08",
+     "id": "3daf4f51df59",
+     "locked_at": "2026-10-08T15:41:02+00:00",
+     "momentum_gate": false,
+     "overdue": false,
+     "settles_at": "2026-10-11T16:00:00+00:00",
+     "side": "long",
+     "symbol": "BTC",
+     "trace_id": "285a67bf399a461cb2d9198fdc9e3a04",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 3.73,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "c84e96e39b70",
+     "locked_at": "2026-10-08T15:42:22+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-11T16:00:00+00:00",
+     "side": "long",
+     "symbol": "SOL",
+     "trace_id": "b4350cad47544b12afd913146d5d57eb",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 6.78,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "667a1dfca552",
+     "locked_at": "2026-10-08T15:48:19+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-11T16:00:00+00:00",
+     "side": "long",
+     "symbol": "SUI",
+     "trace_id": "0e00eac96ae04871bc4a213611da09e2",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 7.75,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "5f9870239067",
+     "locked_at": "2026-10-08T15:50:52+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-11T16:00:00+00:00",
+     "side": "long",
+     "symbol": "APT",
+     "trace_id": "435fb06afbd94a26838d5ba300e4df8f",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 8.29,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "73fcb98d75ec",
+     "locked_at": "2026-10-08T15:53:52+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-11T16:00:00+00:00",
+     "side": "long",
+     "symbol": "OP",
+     "trace_id": "c0f28fe3654e475d8b634bb36b65a151",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 7.68,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-08",
+     "id": "f7330f45a34d",
+     "locked_at": "2026-10-08T15:55:36+00:00",
+     "momentum_gate": true,
+     "overdue": false,
+     "settles_at": "2026-10-11T16:00:00+00:00",
+     "side": "long",
+     "symbol": "WIF",
+     "trace_id": "a94d13983fd641da893692bca82ab13f",
+     "verdict": "cautious",
+     "verdict_contradicts_side": true
     }
    ],
    "profile_latency_ms": [
     23730,
-    36497,
+    36570,
     44855
    ],
    "settled": [
