@@ -1,5 +1,5 @@
 {
- "exported_at": "2026-10-13T16:04:41+00:00",
+ "exported_at": "2026-10-13T21:16:15+00:00",
  "receipts": [
   {
    "agrees_with_ryo": null,
@@ -21550,17 +21550,17 @@
      "min_days": 10,
      "p_value": 0.2439,
      "return": {
-      "a_mean_pct": 1.691,
-      "b_mean_pct": 1.498,
+      "a_mean_pct": 1.723,
+      "b_mean_pct": 1.463,
       "ci90_pct": [
-       -0.639,
-       1.694
+       -0.534,
+       1.804
       ],
-      "clusters": 17,
-      "days": 18,
-      "diff_pct": 0.633,
+      "clusters": 18,
+      "days": 19,
+      "diff_pct": 0.714,
       "distinguishable": false,
-      "p_value": 0.2083
+      "p_value": 0.1802
      }
     },
     {
@@ -21583,14 +21583,14 @@
      "min_days": 10,
      "p_value": 1.0,
      "return": {
-      "a_mean_pct": 1.225,
-      "b_mean_pct": 0.219,
+      "a_mean_pct": 0.861,
+      "b_mean_pct": 0.243,
       "ci90_pct": null,
-      "clusters": 6,
-      "days": 6,
-      "diff_pct": -0.183,
+      "clusters": 7,
+      "days": 7,
+      "diff_pct": -0.36,
       "distinguishable": false,
-      "p_value": 0.8333
+      "p_value": 0.9091
      }
     },
     {
@@ -21613,14 +21613,17 @@
      "min_days": 10,
      "p_value": 1.0,
      "return": {
-      "a_mean_pct": 1.092,
-      "b_mean_pct": 1.117,
-      "ci90_pct": null,
-      "clusters": 9,
-      "days": 9,
-      "diff_pct": -0.641,
+      "a_mean_pct": 0.815,
+      "b_mean_pct": 1.259,
+      "ci90_pct": [
+       -2.532,
+       -0.342
+      ],
+      "clusters": 10,
+      "days": 10,
+      "diff_pct": -1.191,
       "distinguishable": false,
-      "p_value": 0.4348
+      "p_value": 0.3077
      }
     },
     {
@@ -21643,17 +21646,17 @@
      "min_days": 10,
      "p_value": 0.2326,
      "return": {
-      "a_mean_pct": 1.829,
-      "b_mean_pct": 1.124,
+      "a_mean_pct": 1.825,
+      "b_mean_pct": 1.197,
       "ci90_pct": [
-       -0.822,
-       1.339
+       -0.842,
+       1.224
       ],
-      "clusters": 16,
-      "days": 17,
-      "diff_pct": 0.336,
+      "clusters": 17,
+      "days": 18,
+      "diff_pct": 0.279,
       "distinguishable": false,
-      "p_value": 0.4545
+      "p_value": 0.5263
      }
     },
     {
@@ -21676,17 +21679,17 @@
      "min_days": 10,
      "p_value": 0.2439,
      "return": {
-      "a_mean_pct": 1.77,
-      "b_mean_pct": 1.58,
+      "a_mean_pct": 1.802,
+      "b_mean_pct": 1.539,
       "ci90_pct": [
-       -0.773,
-       1.736
+       -0.642,
+       1.824
       ],
-      "clusters": 14,
-      "days": 15,
-      "diff_pct": 0.608,
+      "clusters": 15,
+      "days": 16,
+      "diff_pct": 0.699,
       "distinguishable": false,
-      "p_value": 0.2174
+      "p_value": 0.339
      }
     }
    ],
@@ -21695,9 +21698,9 @@
     "locked": 335,
     "no_plan": 190,
     "ryo_unavailable": 15,
-    "settled_neither": 276,
+    "settled_neither": 281,
     "settled_stop": 7,
-    "settled_target": 46
+    "settled_target": 47
    },
    "horizon_h": 24,
    "lanes": {
@@ -21738,80 +21741,44 @@
     "tvl history unavailable": 1,
     "tvl_history_unavailable": 16
    },
-   "open": [
+   "open": [],
+   "profile_latency_ms": [
+    23730,
+    36723,
+    44855
+   ],
+   "settled": [
     {
-     "atr_14_pct": 2.44,
-     "confluence_score": 0.33,
-     "confluence_state": "MIXED",
-     "day": "2026-10-12",
-     "id": "9a254b6b3856",
-     "locked_at": "2026-10-12T17:59:40+00:00",
-     "momentum_gate": false,
-     "overdue": false,
-     "settles_at": "2026-10-13T18:00:00+00:00",
-     "side": "long",
-     "symbol": "BTC",
-     "trace_id": "6247ce5a4f0e45d79dbd8fd320580ac0",
-     "verdict": "neutral",
-     "verdict_contradicts_side": false
-    },
-    {
-     "atr_14_pct": 3.93,
+     "atr_14_pct": 7.61,
      "confluence_score": 0.67,
      "confluence_state": "MIXED",
      "day": "2026-10-12",
-     "id": "de58a1724c3f",
-     "locked_at": "2026-10-12T18:00:55+00:00",
+     "hours_to_touch": null,
+     "id": "8d834cf8a138",
+     "locked_at": "2026-10-12T18:13:48+00:00",
      "momentum_gate": false,
-     "overdue": false,
+     "resolved_by": null,
+     "result": "neither",
+     "return_at_horizon_pct": -0.714,
      "settles_at": "2026-10-13T19:00:00+00:00",
      "side": "long",
-     "symbol": "SOL",
-     "trace_id": "0ae84cc9b27b446a9bee7daa967e3f46",
+     "symbol": "WIF",
+     "trace_id": "2288c871f5a9404ca77368b18dcb0052",
      "verdict": "cautious",
      "verdict_contradicts_side": true
-    },
-    {
-     "atr_14_pct": 6.72,
-     "confluence_score": 1.0,
-     "confluence_state": "CONFIRMED",
-     "day": "2026-10-12",
-     "id": "ff3fffb0652e",
-     "locked_at": "2026-10-12T18:06:35+00:00",
-     "momentum_gate": true,
-     "overdue": false,
-     "settles_at": "2026-10-13T19:00:00+00:00",
-     "side": "long",
-     "symbol": "SUI",
-     "trace_id": "1f0ac1ef05344c5ca1573fbffc0df930",
-     "verdict": "cautious",
-     "verdict_contradicts_side": true
-    },
-    {
-     "atr_14_pct": 7.77,
-     "confluence_score": 1.0,
-     "confluence_state": "CONFIRMED",
-     "day": "2026-10-12",
-     "id": "8ab54caf3bc9",
-     "locked_at": "2026-10-12T18:09:26+00:00",
-     "momentum_gate": true,
-     "overdue": false,
-     "settles_at": "2026-10-13T19:00:00+00:00",
-     "side": "long",
-     "symbol": "APT",
-     "trace_id": "24c13ea49a4241ea943a41fde03ee7b4",
-     "verdict": "constructive",
-     "verdict_contradicts_side": false
     },
     {
      "atr_14_pct": 7.51,
      "confluence_score": 1.0,
      "confluence_state": "CONFIRMED",
      "day": "2026-10-12",
+     "hours_to_touch": 24.8,
      "id": "1049a57fda68",
      "locked_at": "2026-10-12T18:12:10+00:00",
      "momentum_gate": true,
-     "overdue": false,
+     "resolved_by": null,
+     "result": "target",
+     "return_at_horizon_pct": 11.992,
      "settles_at": "2026-10-13T19:00:00+00:00",
      "side": "long",
      "symbol": "OP",
@@ -21820,28 +21787,81 @@
      "verdict_contradicts_side": false
     },
     {
-     "atr_14_pct": 7.61,
+     "atr_14_pct": 7.77,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-12",
+     "hours_to_touch": null,
+     "id": "8ab54caf3bc9",
+     "locked_at": "2026-10-12T18:09:26+00:00",
+     "momentum_gate": true,
+     "resolved_by": null,
+     "result": "neither",
+     "return_at_horizon_pct": 1.206,
+     "settles_at": "2026-10-13T19:00:00+00:00",
+     "side": "long",
+     "symbol": "APT",
+     "trace_id": "24c13ea49a4241ea943a41fde03ee7b4",
+     "verdict": "constructive",
+     "verdict_contradicts_side": false
+    },
+    {
+     "atr_14_pct": 6.72,
+     "confluence_score": 1.0,
+     "confluence_state": "CONFIRMED",
+     "day": "2026-10-12",
+     "hours_to_touch": null,
+     "id": "ff3fffb0652e",
+     "locked_at": "2026-10-12T18:06:35+00:00",
+     "momentum_gate": true,
+     "resolved_by": null,
+     "result": "neither",
+     "return_at_horizon_pct": -1.812,
+     "settles_at": "2026-10-13T19:00:00+00:00",
+     "side": "long",
+     "symbol": "SUI",
+     "trace_id": "1f0ac1ef05344c5ca1573fbffc0df930",
+     "verdict": "cautious",
+     "verdict_contradicts_side": true
+    },
+    {
+     "atr_14_pct": 3.93,
      "confluence_score": 0.67,
      "confluence_state": "MIXED",
      "day": "2026-10-12",
-     "id": "8d834cf8a138",
-     "locked_at": "2026-10-12T18:13:48+00:00",
+     "hours_to_touch": null,
+     "id": "de58a1724c3f",
+     "locked_at": "2026-10-12T18:00:55+00:00",
      "momentum_gate": false,
-     "overdue": false,
+     "resolved_by": null,
+     "result": "neither",
+     "return_at_horizon_pct": 0.0,
      "settles_at": "2026-10-13T19:00:00+00:00",
      "side": "long",
-     "symbol": "WIF",
-     "trace_id": "2288c871f5a9404ca77368b18dcb0052",
+     "symbol": "SOL",
+     "trace_id": "0ae84cc9b27b446a9bee7daa967e3f46",
      "verdict": "cautious",
      "verdict_contradicts_side": true
-    }
-   ],
-   "profile_latency_ms": [
-    23730,
-    36723,
-    44855
-   ],
-   "settled": [
+    },
+    {
+     "atr_14_pct": 2.44,
+     "confluence_score": 0.33,
+     "confluence_state": "MIXED",
+     "day": "2026-10-12",
+     "hours_to_touch": null,
+     "id": "9a254b6b3856",
+     "locked_at": "2026-10-12T17:59:40+00:00",
+     "momentum_gate": false,
+     "resolved_by": null,
+     "result": "neither",
+     "return_at_horizon_pct": 0.723,
+     "settles_at": "2026-10-13T18:00:00+00:00",
+     "side": "long",
+     "symbol": "BTC",
+     "trace_id": "6247ce5a4f0e45d79dbd8fd320580ac0",
+     "verdict": "neutral",
+     "verdict_contradicts_side": false
+    },
     {
      "atr_14_pct": 8.03,
      "confluence_score": 0.67,
@@ -28095,8 +28115,8 @@
     }
    ],
    "target_first": [
-    46,
-    53
+    47,
+    54
    ],
    "universe": [
     "BTC",
