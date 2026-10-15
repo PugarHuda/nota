@@ -1,5 +1,5 @@
 {
- "exported_at": "2026-10-14T20:22:27+00:00",
+ "exported_at": "2026-10-15T13:29:38+00:00",
  "receipts": [
   {
    "agrees_with_ryo": null,
@@ -22518,10 +22518,10 @@
     }
    ],
    "coverage": {
-    "aborted": 6,
+    "aborted": 7,
     "locked": 335,
     "no_plan": 190,
-    "ryo_unavailable": 18,
+    "ryo_unavailable": 21,
     "settled_neither": 281,
     "settled_stop": 7,
     "settled_target": 47
@@ -29125,10 +29125,10 @@
     }
    ],
    "coverage": {
-    "aborted": 6,
+    "aborted": 7,
     "locked": 335,
     "no_plan": 190,
-    "ryo_unavailable": 18,
+    "ryo_unavailable": 21,
     "settled_neither": 190,
     "settled_stop": 32,
     "settled_target": 107
